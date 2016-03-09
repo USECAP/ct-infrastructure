@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Details for certificate authority {{ca.name}}{% endblock %}
+{% block style %}
+.node circle {
+  cursor: pointer;
+  fill: #fff;
+  stroke: firebrick;
+  stroke-width: 1.5px;
+}
+
+
+.axis line {
+  fill: none;
+  stroke: #ddd;
+  shape-rendering: crispEdges;
+  vector-effect: non-scaling-stroke;
+}
+
+.node text {
+  font-size: 11px;
+  cursor: pointer;
+}
+
+path.link {
+  fill: none;
+  stroke: #ccc;
+  stroke-width: 1.5px;
+}
+
+.diagram{height: 350px;}
+{% endblock %}
+
+{% block content %}
+
+  <p><a href="../../ca">« back to CA list</a></p>
+
+  <div class="card">
+    <div class="card-header"><h4><img src="/flag/{{ca.get_name_C.lower}}" title="{{ca.get_name_C}}"/> {{ca.get_name_CN}}</h4></div>
+    <div class="card-block">
+        <dl>
+            <dt>Locality</dt>
+            <dd>{{ca.get_name_L}}</dd>
+            <dt>Organization</dt>
+            <dd>{{ca.get_name_O}}</dd>
+            <dt>OrganizationalUnit</dt>
+            <dd>{{ca.get_name_OU}}</dd>
+            <dt>StateOrProvinceName</dt>
+            <dd>{{ca.get_name_ST}}</dd>
+            <dt>emailAddress</dt>
+            <dd>{{ca.get_name_emailAddress}}</dd>
+        </dl>
+    </div>
+    <ul class="list-group list-group-flush">
+        <li class="list-group-item">This CA has issued <a href="./certificates">{{ca.certificate_set.count}} certificates</a> in TODO logs.</li>
+    </ul>
+    <div id="treeview" class="card-block">
+     <h4 class="card-title">Certificate chain</h4>
+    </div>
+    <div id="signaturealgorithmdiagram" class="card-block diagram">
+     <h4 class="card-title">Most frequent signature algorithms</h4>
+     <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+    <svg></svg>
+    </div>
+    <div id="signaturealgorithmdiagram2" class="card-block diagram">
+     <h4 class="card-title">Most frequent signature algorithms, one more time</h4>
+     <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+    <svg></svg>
+    </div>
+    <div id="keysizediagram" class="card-block diagram">
+     <h4 class="card-title">Most frequent key sizes</h4>
+     <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+    <svg></svg>
+    </div>
+  </div>
+
+    
+{% endblock %}
+
+{% block scripts %}
+
+var panelwidth = $('#treeview').width(),
+    m = [20, 120, 20, 250],
+    w = panelwidth - m[1] - m[3],
+    h = 800 - m[0] - m[2],
+    i = 0,
+    root;
+
+var tree = d3.layout.tree().size([h, w]);
+
+var diagonal = d3.svg.diagonal()
+    .projection(function(d) { return [d.y, d.x]; });
+
+var vis = d3.select("#treeview")
+    .append("svg:svg")
+    .attr("width", w + m[1] + m[3])
+    .attr("height", h + m[0] + m[2])
+    .append("svg:g")
+    .attr("transform", "translate(" + panelwidth/2 + "," + m[0] + ")");
+
+
+// Toggle children.
+function toggle(d) {
+  if (d.children) {
+    d._children = d.children;
+    d.children = null;
+  } else {
+    d.children = d._children;
+    d._children = null;
+  }
+}
+
+function update(source) {
+ // Compute the new tree layout.
+  var nodes = tree.nodes(root).reverse();
+
+  // Normalize for fixed-depth.
+  nodes.forEach(function(d) { d.y = 0; });
+  nodes.forEach(function(d) { d.x = d.depth * 50; });
+
+  // Update the nodes…
+  var node = vis.selectAll("g.node")
+      .data(nodes, function(d) { return d.id || (d.id = ++i); });
+
+  // Enter any new nodes at the parent's previous position.
+  var nodeEnter = node.enter().append("svg:g")
+      .attr("class", "node")
+      .on("click", function(d) { toggle(d); update(d); });
+
+  nodeEnter.append("svg:circle")
+      .attr("r", 1e-6)
+      .style("fill", "lightsteelblue" );
+
+  nodeEnter.append("svg:text")
+      .attr("x", function(d) { return d.children || d._children ? -20 : 20; })
+      .attr("dy", ".35em")
+      .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
+      .text(function(d) { return d.name; })
+      .style("fill-opacity", 1e-6)
+      .on("click", function(d) { 
+            if(d.id != 'number_of_children'){
+                window.location.href = "../../cert/" + d.id; 
+            }
+       });
+
+  // Transition nodes to their new position.
+  var nodeUpdate = node.transition()
+      .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
+
+  nodeUpdate.select("circle")
+      .attr("r", 10)
+      .style("fill", "salmon");
+
+  nodeUpdate.select("text")
+      .style("fill-opacity", 1);
+
+  // Transition exiting nodes to the parent's new position.
+  var nodeExit = node.exit().transition()
+      .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
+      .remove();
+
+  nodeExit.select("circle")
+      .attr("r", 1e-6);
+
+  nodeExit.select("text")
+      .style("fill-opacity", 1e-6);
+
+  // Update the links…
+  var link = vis.selectAll("path.link")
+      .data(tree.links(nodes), function(d) { return d.target.id; });
+
+  // Enter any new links at the parent's previous position.
+  link.enter().insert("svg:path", "g")
+      .attr("class", "link")
+      .attr("d", function(d) {
+        var o = {x: source.x0, y: source.y0};
+        return diagonal({source: o, target: o});
+      })
+    .transition()
+      .attr("d", diagonal);
+
+  // Transition links to their new position.
+  link.transition()
+      .attr("d", diagonal);
+
+  // Transition exiting nodes to the parent's new position.
+  link.exit().transition()
+      .attr("d", function(d) {
+        var o = {x: source.x, y: source.y};
+        return diagonal({source: o, target: o});
+      })
+      .remove();
+
+  // Stash the old positions for transition.
+  nodes.forEach(function(d) {
+    d.x0 = d.x;
+    d.y0 = d.y;
+  });
+  
+  //re-compute height
+  d3.select("#treeview svg")
+    .attr("height", (nodes.length-1) * 50 + m[0] + m[2]);
+}
+
+
+$(function(){
+    d3.json("/api/ca/{{ca.id}}", function(json) {
+        root = json;
+        root.x0 = 300;
+        root.y0 = 0;
+
+        update(root);
+    });
+    
+    d3.json('/api/getsignaturealgorithmdistribution/{{ca.id}}', function(data) {
+        d3.select('#signaturealgorithmdiagram .spinner').remove();
+        d3.select('#signaturealgorithmdiagram2 .spinner').remove();
+        var format = d3.time.format('%Y-%m');
+        nv.addGraph(function() {
+            chart = nv.models.stackedAreaChart()
+            .useInteractiveGuideline(true)
+            .x(function(d) { return format.parse(d[0]); })
+            .y(function(d) { return d[1] })
+            //.controlLabels({stacked: "Stacked"})
+            .duration(300)
+            .margin({"left":50});
+            
+            chart.xAxis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
+            chart.yAxis.tickFormat(d3.format('0,'));
+            d3.select('#signaturealgorithmdiagram svg')
+            .datum(data)
+            .transition().duration(1000)
+            .call(chart)
+            .each('start', function() {
+                setTimeout(function() {
+                    d3.selectAll('#signaturealgorithmdiagram svg *').each(function() {
+                        if(this.__transition__)
+                            this.__transition__.duration = 1;
+                    })
+                }, 0)
+            });
+            nv.utils.windowResize(chart.update);
+            return chart;
+        });
+        nv.addGraph(function() {
+            chart = nv.models.multiBarChart()
+            //.useInteractiveGuideline(true)
+            .x(function(d) { return format.parse(d[0]); })
+            .y(function(d) { return d[1] })
+            //.controlLabels({stacked: "Stacked"})
+            .duration(300)
+            .margin({"left":50});
+            
+            chart.xAxis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
+            chart.yAxis.tickFormat(d3.format('0,'));
+            d3.select('#signaturealgorithmdiagram2 svg')
+            .datum(data)
+            .transition().duration(1000)
+            .call(chart)
+            .each('start', function() {
+                setTimeout(function() {
+                    d3.selectAll('#signaturealgorithmdiagram2 svg *').each(function() {
+                        if(this.__transition__)
+                            this.__transition__.duration = 1;
+                    })
+                }, 0)
+            });
+            nv.utils.windowResize(chart.update);
+            return chart;
+        });
+    });
+    
+    d3.json('/api/getactivekeysizedistribution/{{ca.id}}', function(data) {
+        d3.select('#keysizediagram .spinner').remove();
+        nv.addGraph(function() {
+            var chart = nv.models.multiBarHorizontalChart()
+                .x(function(d) { return d.label })
+                .y(function(d) { return d.value })
+                .margin({top: 20, right: 40, bottom: 20, left: 20})
+                .showValues(true)
+                .showLegend(true)
+                .showXAxis(false)
+                .stacked(true)
+
+            chart.yAxis
+                .tickFormat(d3.format('d'));
+
+            chart.valueFormat(d3.format('d'));
+
+            d3.select('#keysizediagram svg')
+                .datum(data)
+                .call(chart);
+
+            nv.utils.windowResize(chart.update);
+
+            return chart;
+        });
+    });
+    
+});
+
+
+{% endblock %}

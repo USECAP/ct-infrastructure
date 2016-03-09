@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Certificates for {{field_id}} '{{expression}}'{% endblock %}
+
+{% block style %}
+#pagenumber{
+    max-width: 100px;
+}
+.certificate-bar{
+        cursor: pointer;
+}
+.expired {
+        fill: #aaa;
+}
+.active {
+        fill: #afa;
+}
+
+.expired.sha1WithRSAEncryption{
+    fill: url(#diagonalHatchGray);
+}
+.active.sha1WithRSAEncryption{
+    fill: url(#diagonalHatchGreen);
+}
+
+.sha256WithRSAEncryption{
+    /*rien*/
+}
+
+.chart {
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+}
+
+.axis path,.axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+}
+
+.background {
+  fill: white;
+}
+.gantt-chart {
+  pointer-events: all;
+  cursor:crosshair;
+}
+
+.focus{
+  pointer-events: none;
+}
+
+{% endblock %}
+
+{% block content %}
+
+<h2>Certificates for {{field_id}} '{{expression}}'</h2>
+
+  {% for cert in list_of_certs %}
+    {% if forloop.first %}
+      <table class="table table-striped table-sm">
+      <thead>
+      <tr>
+        <th>id</th>
+        <th>Common Name</th>
+        <th>notBefore</th>
+        <th>status</th>
+        <th>notAfter</th>
+        <th>Issuer CA</th>
+      </tr>
+      </thead>
+      <tbody>
+    {% endif %}
+          <tr>
+            <td><a href="{% url 'observer:certdetail' cert.id %}">{{ cert.id }}</a></td>
+            <td><a href="{% url 'observer:certdetail' cert.id %}">{{ cert.subject_common_name }}</a></td>
+            <td>{{ cert.not_before }}</td>
+            <td>{% if cert.has_expired %} expired {% else %} <b>active</b> {% endif %}</td>
+            <td>{{ cert.not_after }}</td>
+            <td><a href="{% url 'observer:cadetail' cert.issuer_ca.id %}">{{ cert.issuer_ca.get_name_CN }}</a></td>
+          </tr>
+    {% if forloop.last %}
+      </tbody>
+      </table>
+      
+        <div class="col-sm-12">
+            <div class="card">
+                <div class="card-header">Timeline | Order by <button id="order_by_not_before" class="btn btn-primary-outline btn-sm">notBefore</button> <button id="order_by_not_after" class="btn btn-primary-outline btn-sm">notAfter</button> <button id="order_by_length" class="btn btn-primary-outline btn-sm">length</button></div>
+                <div id="chart" class="card-block"></div>
+            </div>
+        </div>
+    {% endif %}
+  {% empty %}
+      <p>No certificates found.</p>
+  {% endfor %}
+            
+      
+            
+
+{% endblock %}
+
+{% block scripts %}
+
+var tasks = [
+{% for cert in list_of_certs %}
+{"startDate":new Date({{cert.startdate}}),"endDate":new Date({{cert.enddate}}),"taskName":"{{cert.id}}","status":"{{cert.has_expired}}-{{cert.signature_algorithm}}"},
+{% endfor %}
+];
+
+
+var statusExplanation = {
+    "expired-other" : "other, expired",
+    "active-other" : "other, active",
+    "expired-sha256" : "sha256, expired",
+    "active-sha256" : "sha256, active",
+    "expired-sha1" : "sha1, expired",
+    "active-sha1" : "sha1, active",
+    "expired-ecdsa" : "ecdsa, expired",
+    "active-ecdsa" : "ecdsa, active",
+    "expired-md5" : "md5, expired",
+    "active-md5" : "md5, active",
+};
+
+var color = d3.scale.ordinal()
+   .domain(["active-sha256","expired-sha256","active-sha1","expired-sha1","active-ecdsa","expired-ecdsa","active-md5","expired-md5","active-other","expired-other"])
+  .range(['#2ca02c','url(#diagonalHatchGreen)','#1f77b4','url(#diagonalHatchBlue)','#ff7f0e', 'url(#diagonalHatchOrange)', '#9467bd','url(#diagonalHatchPurple)', "#aaa","url(#diagonalHatchGray)", "#f00"]);
+
+var format = "%Y";
+
+var gantt = d3.gantt().tickFormat(format).statusExplanation(statusExplanation).color(color).height(tasks.length*20+46).width(800);
+
+gantt(tasks);
+
+$('#order_by_not_before').click(function(){gantt.orderStart();});
+$('#order_by_not_after').click(function(){gantt.orderEnd();});
+$('#order_by_length').click(function(){gantt.orderLength();});
+
+{% endblock %}

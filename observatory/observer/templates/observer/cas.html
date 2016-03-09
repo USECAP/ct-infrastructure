@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}List of all CAs{% endblock %}
+
+{% block style %}
+#pagenumber{
+    max-width: 100px;
+}
+{% endblock %}
+
+{% block content %}
+  {% if list_of_ca %}
+      <table class="table">
+        <thead>
+            <tr>
+                <!--<th>Root CA?</th>-->
+                <th>C</th>
+                <th>CN</th>
+                <th>L</th>
+                <th>O</th>
+                <th>OU</th>
+                <th>ST</th>
+                <!--<th># Certs</th>-->
+            </tr>
+        </thead>
+      <tbody>
+      {% for ca in list_of_ca %}
+          <tr>
+            <!--<td>#TODO</td>-->
+            <td><img src="/flag/{{ca.get_name_C}}" title="{{ca.get_name_C}}"/></td>
+            <td><a href="{% url 'observer:cadetail' ca.id %}">{{ ca.get_name_CN }}</a></td>
+            <td>{{ ca.get_name_L }}</td>
+            <td>{{ ca.get_name_O }}</td>
+            <td>{{ ca.get_name_OU }}</td>
+            <td>{{ ca.get_name_ST }}</td>
+            <!--<td>#TODO</td>-->
+          </tr>
+      {% endfor %}
+      </tbody>
+      </table>
+            
+      <nav class="text-center">
+            <div class="form-inline">
+            {% if list_of_ca.has_previous %}
+            <a href="{{ list_of_ca.previous_page_number }}" aria-label="Previous" class="btn btn-secondary">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+            {% else %}
+                <span aria-hidden="true" class="btn btn-secondary disabled">&laquo;</span>
+            {% endif %}
+            
+            <button id="callpage" class="btn btn-primary">Goto Page</button>
+            <div class="input-group">
+            <input type="number" class="form-control" id="pagenumber" placeholder="Enter page number" value="{{list_of_ca.number}}"/>
+            <div class="input-group-addon">of {{list_of_ca.paginator.num_pages }}</div>
+            </div>
+            
+            {% if list_of_ca.has_next %}
+            <a href="{{ list_of_ca.next_page_number }}" aria-label="Next" class="btn btn-secondary">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+            {% else %}
+                <span aria-hidden="true" class="btn btn-secondary disabled">&raquo;</span>
+            {% endif %}
+            <br>
+            </div>
+      </nav>
+      
+  {% else %}
+      <p>No ca information available.</p>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+
+$(function(){
+    $('#callpage').click(function(){
+        var pagenumber = $('#pagenumber').val();
+        window.location.href = "./"+pagenumber;
+    });
+});
+
+{% endblock %}

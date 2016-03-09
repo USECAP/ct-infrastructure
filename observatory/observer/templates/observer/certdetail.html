@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block style %}
+.node circle {
+  cursor: pointer;
+  fill: #fff;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.axis line {
+  fill: none;
+  stroke: #ddd;
+  shape-rendering: crispEdges;
+  vector-effect: non-scaling-stroke;
+}
+
+.node text {
+  font-size: 11px;
+  cursor: pointer;
+}
+
+path.link {
+  fill: none;
+  stroke: #ccc;
+  stroke-width: 1.5px;
+}
+{% endblock %}
+
+{% block title %}Details for certificate {{certificate.id}}{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-block">
+        <h4>{{certificate.subject_common_name}}
+        <img src="/flag/{{certificate.subject_country_name.lower}}" title="{{certificate.subject_country_name}}"/></h4>
+
+        <p>General information directly from the certificate:</p>
+            <dl>
+            {% for key, value in certificate.get_certificate_data %}
+                <dt>{{key}}</dt>
+                <dd>{{value}} {% if key == "pubkey_bits" %} (like {{ keysize_distribution }}% of all known certificates) {% endif %}<dd>
+            {% endfor %}
+            </dl>
+
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">certificate_identity</div>
+    <div class="card-block">
+        <p>Information from certificate_identity:</p>
+        <dl>
+        {% for prop in certificate.certificateidentity_set.all %}
+            <dt class="ci_item">{{prop.name_type}}</dt>
+            <dd class="ci_item">
+                {{prop.name_value}}
+                {% if prop.name_type == "dNSName" %}
+                <a href="../dnsname/{{prop.name_value}}" title="Search certificates with dNSName '{{prop.name_value}}'"><i class="fa fa-search"></i></a>
+                {% endif %}
+            <dd>
+        {% endfor %}
+        </dl>
+    <button id="toggle_full_identity" class="btn btn-primary-outline btn-sm">Toggle full list</button>
+    </div>
+    <ul class="list-group list-group-flush">
+        <li class="list-group-item">This certificate has been issued by <a href="/ca/{{certificate.issuer_ca_id}}">{{certificate.organization_name}}</a>.</li>
+        <li class="list-group-item"><a href="/cert/cn/{{certificate.subject_common_name}}">List all certificates with CN={{certificate.subject_common_name}}</a>.</li>
+        {% if ca_certificate != None %}
+        <li class="list-group-item">This certificate is a <a href="/ca/{{ca_certificate.ca_id}}">CA certificate</a>.</li>
+        {% endif %}
+    </ul>
+  </div>
+
+    <div class="col-sm-6">
+        <div class="card">
+            <div class="card-header">Issuer</div>
+            <div class="card-block">
+                <p>Information about the <b>issuer</b> directly from the certificate:</p>
+                <dl>
+                {% for key, value in certificate.get_issuer_data %}
+                    <dt>{{key}}</dt>
+                    <dd>{{value}}<dd>
+                {% endfor %}
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6">
+        <div class="card">
+            <div class="card-header">Subject</div>
+            <div class="card-block">
+                <p>Information about the <b>subject</b> directly from the certificate:</p>
+                <dl>
+                {% for key, value in certificate.get_subject_data %}
+                    <dt>{{key}}</dt>
+                    <dd>{{value}}<dd>
+                {% endfor %}
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-12">
+        <div class="card">
+            <div class="card-header">Tree</div>
+            <div id="treeview" class="card-block">
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block scripts %}
+
+$(function(){
+    if($('.ci_item').length > 10){
+        $('#toggle_full_identity').click(function(){
+            $('.ci_item').slice(10).toggle();
+        });
+        $('.ci_item').slice(10).toggle();
+    } else {
+        $('#toggle_full_identity').hide();
+    }
+});
+
+var panelwidth = $('#treeview').width(),
+    m = [20, 120, 20, 400],
+    w = panelwidth - m[1] - m[3],
+    h = 800 - m[0] - m[2],
+    i = 0,
+    root;
+
+var tree = d3.layout.tree().size([h, w]);
+
+var diagonal = d3.svg.diagonal()
+    .projection(function(d) { return [d.y, d.x]; });
+
+var vis = d3.select("#treeview")
+    .append("svg:svg")
+    .attr("width", w + m[1] + m[3])
+    .attr("height", h + m[0] + m[2])
+    .append("svg:g")
+    .attr("transform", "translate(" + panelwidth/2 + "," + m[0] + ")");
+    
+
+// Toggle children.
+function toggle(d) {
+  if (d.children) {
+    d._children = d.children;
+    d.children = null;
+  } else {
+    d.children = d._children;
+    d._children = null;
+  }
+}
+
+function update(source) {
+ // Compute the new tree layout.
+  var nodes = tree.nodes(root).reverse();
+
+  // Normalize for fixed-depth.
+  nodes.forEach(function(d) { d.y = 0; });
+  nodes.forEach(function(d) { d.x = d.depth * 50; });
+
+  // Update the nodes…
+  var node = vis.selectAll("g.node")
+      .data(nodes, function(d) { return d.id || (d.id = ++i); });
+
+  // Enter any new nodes at the parent's previous position.
+  var nodeEnter = node.enter().append("svg:g")
+      .attr("class", "node")
+      .on("click", function(d) { toggle(d); update(d); });
+
+  nodeEnter.append("svg:circle")
+      .attr("r", 1e-6)
+      .style("fill", "lightsteelblue" );
+
+  nodeEnter.append("svg:text")
+      .attr("x", function(d) { return d.children || d._children ? -20 : 20; })
+      .attr("dy", ".35em")
+      .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
+      .text(function(d) { return d.name; })
+      .style("fill-opacity", 1e-6)
+      .on("click", function(d) { window.location.href = "../" + d.id; });
+
+  // Transition nodes to their new position.
+  var nodeUpdate = node.transition()
+      .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
+
+  nodeUpdate.select("circle")
+      .attr("r", 10)
+      .style("fill", "lightsteelblue");
+
+  nodeUpdate.select("text")
+      .style("fill-opacity", 1);
+
+  // Transition exiting nodes to the parent's new position.
+  var nodeExit = node.exit().transition()
+      .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
+      .remove();
+
+  nodeExit.select("circle")
+      .attr("r", 1e-6);
+
+  nodeExit.select("text")
+      .style("fill-opacity", 1e-6);
+
+  // Update the links…
+  var link = vis.selectAll("path.link")
+      .data(tree.links(nodes), function(d) { return d.target.id; });
+
+  // Enter any new links at the parent's previous position.
+  link.enter().insert("svg:path", "g")
+      .attr("class", "link")
+      .attr("d", function(d) {
+        var o = {x: source.x0, y: source.y0};
+        return diagonal({source: o, target: o});
+      })
+    .transition()
+      .attr("d", diagonal);
+
+  // Transition links to their new position.
+  link.transition()
+      .attr("d", diagonal);
+
+  // Transition exiting nodes to the parent's new position.
+  link.exit().transition()
+      .attr("d", function(d) {
+        var o = {x: source.x, y: source.y};
+        return diagonal({source: o, target: o});
+      })
+      .remove();
+
+  // Stash the old positions for transition.
+  nodes.forEach(function(d) {
+    d.x0 = d.x;
+    d.y0 = d.y;
+  });
+  
+  //re-compute height
+  d3.select("#treeview svg")
+    .attr("height", (nodes.length-1) * 50 + m[0] + m[2]);
+}
+
+
+$(function(){
+    d3.json("/api/getcertchain/{{certificate.id}}", function(json) {
+        root = json;
+        root.x0 = 300;
+        root.y0 = 0;
+
+        update(root);
+    });
+});
+
+
+function zoom() {
+    svgGroup.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+}
+
+
+{% endblock %}

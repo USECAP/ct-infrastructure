@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Search results{% endblock %}
+
+{% block content %}
+    <h2>Search results for "{{ term }}"</h2>
+    <hr/>
+    <h4>CAs</h4>
+    {% if found_ca %}
+        <table class="table table-striped table-sm">
+        <thead>
+            <tr>
+                <th>C</th>
+                <th>CN</th>
+                <th>L</th>
+                <th>O</th>
+                <th>OU</th>
+                <th>ST</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ca in found_ca %}
+            <tr>
+                <td><img src="/static/flags/png/{{ca.get_name_C | lower}}.png" title="{{ca.get_name_C}}"/></td>
+                <td><a href="{% url 'observer:cadetail' ca.id %}">{{ ca.get_name_CN }}</a></td>
+                <td>{{ ca.get_name_L }}</td>
+                <td>{{ ca.get_name_O }}</td>
+                <td>{{ ca.get_name_OU }}</td>
+                <td>{{ ca.get_name_ST }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+        </table>
+    {% else %}
+        <p>No CAs found</p>
+    {% endif %}
+    <hr/>
+    <h4>Certificates (by commonName or dNSName)</h4>
+    {% if found_cn_dnsname %}
+        <table class="table table-striped table-sm">
+        <thead>
+        <tr>
+            <th>Common Name</th>
+            <th>Issued by</th>
+            <th>Not Before</th>
+            <th>status</th>
+            <th>Not After</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for cert in found_cn_dnsname %}
+            <tr>
+                <td><a href="{% url 'observer:certdetail' cert.id %}">{{ cert.subject_common_name }}</a></td>
+                <td><a href="{% url 'observer:cadetail' cert.issuer_ca.id %}">{{ cert.issuer_ca.get_name_CN }}</a></td>
+                <td>{{ cert.not_before }}</td>
+                <td>{% if cert.has_expired %} expired {% else %} <b>active</b> {% endif %}</td>
+                <td>{{ cert.not_after }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        </table>
+    {% else %}
+        <p>No certificate found.</p>
+    {% endif %}
+{% endblock %}

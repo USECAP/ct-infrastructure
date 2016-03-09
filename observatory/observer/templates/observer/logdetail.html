@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Details for log {{log.url}}{% endblock %}
+
+{% block content %}
+  <p>This log is named {{log.name}} and located at {{log.url}}.
+  It has {{log.latest_entry_id}} entries. The log is operated by
+  {{log.operator}} and was last updated on {{log.latest_update}}.
+  New log entries will be incorporated with a maximum delay of
+  {{log.mmd_in_seconds}} second{{log.mmd_in_seconds|pluralize}}.
+  The latest tree hash has been produced at {{log.latest_sth_timestamp}}.</p>
+  
+  <p>You can view all certificates incorporated in the log <a href="{% url 'observer:certs_by_log' log.id %}">here</a>.</p>
+{% endblock %}
+
