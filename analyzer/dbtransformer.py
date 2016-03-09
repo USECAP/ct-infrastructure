@@ -18,6 +18,3 @@ class DBTransformer:
 
     def print_log(self):
         print "{{'type':'expired','data':{{'new':{} }} }},".format(self.newly_expired_counter)
-
-
-
