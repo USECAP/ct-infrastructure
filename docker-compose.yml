@@ -36,4 +36,4 @@ ctanalyzer:
         - POSTGRESHOST=ctdatabase
     links:
         - ctdatabase:ctdatabase
-    command: python /analyzer/analyzer.py --pg=ctdatabase --t=60 -m -u >> log.txt   
+    command: python /analyzer/analyzer.py --pg=ctdatabase --t=60 -m -u -v   

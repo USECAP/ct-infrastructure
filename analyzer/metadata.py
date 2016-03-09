@@ -2,9 +2,8 @@ import psycopg2
 
 
 class Metadata:
-    def __init__(self, db, log=True):
+    def __init__(self, db):
         self.db = db
-        self.log = log
 
     def update_metadata(self):
         cursor = self.db.cursor()
@@ -32,8 +31,7 @@ class Metadata:
 
         self.db.commit()
 
-        if self.log:
-            self.print_log()
+        return self.print_log()
 
     def print_log(self):
         cursor = self.db.cursor()
@@ -41,8 +39,7 @@ class Metadata:
         values = {}
         for key,val in cursor.fetchall():
             values[key] = val
-        print(
-            "{{'type':'meta', 'data':{{'cert':{{'all':{},'active':{},'expired':{},'revoked':{},'misissued':{} }},'ca':{{'all':{},'ok':{},'interesting':{}}},'log':{{'biggest':{},'smallest':{} }} }},".format(
+        return "{{'type':'meta', 'data':{{'cert':{{'all':{},'active':{},'expired':{},'revoked':{},'misissued':{} }},'ca':{{'all':{},'ok':{},'interesting':{}}},'log':{{'biggest':{},'smallest':{} }} }},".format(
                 values['number_of_certs'],values['number_of_active_certs'],values['number_of_expired_certs'],values['number_of_revoked_certs'],values['number_of_misissued_certs'],
                 values['number_of_cas'],values['number_of_correctly_behaving_cas'],values['number_of_interesting_cas'],
-                values['number_of_certs_in_biggest_log'],values['number_of_certs_in_smallest_log']))
+                values['number_of_certs_in_biggest_log'],values['number_of_certs_in_smallest_log'])

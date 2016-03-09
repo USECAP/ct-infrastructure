@@ -3,9 +3,8 @@ from elasticsearch import Elasticsearch
 
 class ESInserter:
 
-    def __init__(self, db, host_es, log=True):
+    def __init__(self, db, host_es):
         self.new_inserted = 0
-        self.log = log
         self.db = db
         self.host_es = host_es
 
@@ -28,8 +27,7 @@ class ESInserter:
             cursor.execute("UPDATE certificate_analysis SET value={} WHERE type='es_last_cert_id'".format(last_id))
             self.db.commit()
 
-        if self.log:
-            self.print_log()
+        return self.print_log()
 
     def print_log(self):
-        print "{{'type':'es','data':{{'new':{} }} }},".format(self.new_inserted)
+        return "{{'type':'es','data':{{'new':{} }} }},".format(self.new_inserted)

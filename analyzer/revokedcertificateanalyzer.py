@@ -5,17 +5,16 @@ from OpenSSL import crypto
 
 
 class RevokedCertificateAnalyzer:
-    def __init__(self, db, log=True):
+    def __init__(self, db):
         self.revoke_counter = 0
         self.found_in_database_counter = 0
         self.updated_counter = 0
         self.db = db
-        self.log = log
+        
     def refresh_crls(self):
         for crl_url in self.get_crl_urls_out_of_certificate_extensions():
             self.download_and_parse_crl(crl_url)
-        if self.log:
-            self.print_log()
+        return self.print_log()
 
     def download_and_parse_crl(self, url):
         try:
@@ -68,4 +67,4 @@ class RevokedCertificateAnalyzer:
         self.db.commit()
 
     def print_log(self):
-        print "{{'type':'revokedcerts','data':{{'found':{},'knew':{},'updated':{} }} }},".format(self.revoke_counter,self.found_in_database_counter,self.updated_counter)
+        return "{{'type':'revokedcerts','data':{{'found':{},'knew':{},'updated':{} }} }},".format(self.revoke_counter,self.found_in_database_counter,self.updated_counter)
