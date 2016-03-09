@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome to our CT Observatory{% endblock %}
+
+{% block content %}
+
+<h1>Welcome to the CT Observatory!</h1>
+<br>
+<div ng-controller="IndexController">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-block text-center">
+                    <h4 class="card-title">{{ total_certs }} Certificate{{ total_certs|pluralize }}</h4>
+                </div>
+                <div class="card-block" style="height:100px;">
+                    <p class="card-text">A total of <a href="{% url 'observer:certall' %}">{{ total_certs }} certificate{{ total_certs|pluralize }}</a> from {{ total_logs }} log{{ total_logs|pluralize }} have been collected and observed by this observatory.</p>
+                </div>
+
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <a href="{% url 'observer:certactive' %}" class="btn btn-success btn-block"><span class="pull-left text-right obs-info">{{ active_certs }}</span>active</a>
+                        <a href="{% url 'observer:certexpired' %}" class="btn btn-secondary active btn-block"><span class="pull-left text-right obs-info">{{ expired_certs }}</span>expired</a>
+                        <a href="{% url 'observer:certrevoked' %}" class="btn btn-warning btn-block"><span class="pull-left text-right obs-info">{{ revoked_certs }}</span>revoked</a>
+                        <a href="/" class="btn btn-danger btn-block"><span class="pull-left text-right obs-info">{{ misissued_certs }}</span>misissued</a>
+                    </li>
+                </ul>
+                <div class="card-block" id="distributionchart">
+                    <h6 class="card-title">Number of occurrences in logs</h6>
+
+                    <p class="card-text">This chart shows the number of occurrences of a certificate in all monitored logs.</p>
+                    <svg style="width:300px;height:300px"></svg>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-block text-center">
+                    <h4 class="card-title">{{ total_ca }} Certificate Authorities</h4>
+                </div>
+                <div class="card-block" style="height:100px;">
+                    <p class="card-text">A total of <a href="{% url 'observer:caall' %}">{{ total_ca }} CA{{ total_ca|pluralize }}</a> are observed.</p>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <a href="{% url 'observer:caall' %}" class="btn btn-success btn-block"><span class="pull-left text-right obs-info">{{ behaving_cas }}</span>correctly operating</a>
+                        <a href="{% url 'observer:caall' %}" class="btn btn-warning btn-block"><span class="pull-left text-right obs-info">{{ interesting_cas }}</span>show interesting behaviour</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-block text-center">
+                    <h4 class="card-title">{{ total_logs }} Log{{ total_logs|pluralize }}</h4>
+                </div>
+                <div class="card-block" style="height:100px;">
+                    <p class="card-text">A total of <a href="{% url 'observer:log' %}">{{ total_logs }} log{{ total_logs|pluralize }}</a> are being observed. The biggest log holds {{ biggest_log }} certificates and the smallest log holds {{ smallest_log }} certificate{{ smallest_log|pluralize }}.</p>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <div id="certsinlogdistribution">
+                            <svg></svg>
+                        </div>
+                        <table class="table table-sm">
+                            <tr>
+                                <td></td>
+                                <td><b>Log</b></td>
+                                <td><b>Entries</b></td>
+                            </tr>
+                            {% verbatim %}
+                            <tr ng-repeat="log in logs">
+                                <td ng-style="{'background-color': log.color}"></td>
+                                <td> <a ng-href="/log/{{log.id}}">{{ log.key }}</a></td>
+                                <td> {{ log.values[0].value }}</td>
+                            </tr>
+                            {% endverbatim %}
+                        </table>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
+
+

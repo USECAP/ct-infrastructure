@@ -1,0 +1,38 @@
+ctdatabase:
+    restart: always
+    dockerfile: database/Dockerfile
+    build: .
+    entrypoint: /config.sh
+    volumes:
+        - /mnt/data/ct-monitor/data:/var/lib/postgresql/data
+    ports:
+        - 5432:5432
+    command: postgres
+
+ctmonitor:
+    restart: always
+    dockerfile: monitor/Dockerfile
+    build: .
+    links:
+        - ctdatabase:ctdatabase
+    command: ./ct-monitor
+
+ctobservatory:
+    restart: always
+    dockerfile: observatory/Dockerfile
+    build: .
+    environment:
+        - POSTGRESHOST=ctdatabase
+    links:
+        - ctdatabase:ctdatabase
+    ports:
+        - 1337:1337
+    command: python /observatory/manage.py runserver 1337
+
+ctanalyzer:
+    dockerfile: analyzer/Dockerfile
+    build: .
+    environment:
+        - POSTGRESHOST=ctdatabase
+    links:
+        - ctdatabase:ctdatabase

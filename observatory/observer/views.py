@@ -1,0 +1,281 @@
+from django.shortcuts import render, get_object_or_404
+from django.utils import timezone
+from django.db.models import Count
+from django.db.models import QuerySet
+from django.db import connection
+from django.core.paginator import Paginator
+from django.http import HttpResponse
+from django.http import HttpResponsePermanentRedirect
+import datetime
+
+from .models import *
+
+ITEMS_PER_PAGE = 50
+
+class FastCountQuerySet():
+    def __init__(self, queryset, tablename):
+        self.queryset = queryset
+        self.tablename = tablename
+
+    def count(self):
+        cursor = connection.cursor()
+        cursor.execute("SELECT reltuples FROM pg_class WHERE relname = %s", [self.tablename])
+        row = cursor.fetchone()
+        count = int(row[0])
+        cursor.close()
+        return count
+
+    # passthrough all the other methods
+    def __getattr__(self, attr):
+        try:
+            return object.__getattr__(self, attr)
+        except AttributeError:
+            return getattr(self.queryset, attr)
+
+class MetadataCountQuerySet():
+    def __init__(self, queryset, propertyname):
+        self.queryset = queryset
+        self.propertyname = propertyname
+
+    def count(self):
+        cursor = connection.cursor()
+        cursor.execute("SELECT name_value FROM metadata WHERE name_type = %s", [self.propertyname])
+        row = cursor.fetchone()
+        count = int(row[0])
+        cursor.close()
+        return count
+
+    # passthrough all the other methods
+    def __getattr__(self, attr):
+        try:
+            return object.__getattr__(self, attr)
+        except AttributeError:
+            return getattr(self.queryset, attr)
+
+
+def index(request):
+    metadata = {}
+    expired_certs = 0
+    active_certs = 0
+    total_certs = 0
+    total_cas = 0
+    with connection.cursor() as c:
+        c.execute("SELECT NAME_TYPE, NAME_VALUE FROM metadata")
+        rows = c.fetchall()
+        for row in rows:
+            metadata[row[0]] = row[1]
+
+    return render(request, 'observer/index.html',
+        {
+            'total_certs': metadata['number_of_certs'],
+            'total_ca': metadata['number_of_cas'],
+            'total_logs': CtLog.objects.count(),
+            'active_certs': metadata['number_of_active_certs'],
+            'expired_certs': metadata['number_of_expired_certs'],
+            'revoked_certs': metadata['number_of_revoked_certs'],
+            'misissued_certs': metadata['number_of_misissued_certs'],
+            'behaving_cas' : metadata['number_of_correctly_behaving_cas'],
+            'interesting_cas' : metadata['number_of_interesting_cas'],
+            'biggest_log' : metadata['number_of_certs_in_biggest_log'],
+            'smallest_log' : metadata['number_of_certs_in_smallest_log'],
+            'total_incidents': InvalidCertificate.objects.count(), #TODO: Check what's inside here
+            'uptime_days': (timezone.now().date()-datetime.date(2015,10,14)).days, #TODO
+        }
+    )
+
+def search(request):
+    term = request.GET.get("term","")
+
+    found_ca = Ca.objects.filter(name__icontains=term)
+    found_cn_dnsname = Certificate.objects.raw("SELECT DISTINCT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID, x509_notBefore(CERTIFICATE) FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE (NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) OR (NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) ORDER BY x509_notBefore(CERTIFICATE) DESC", [term, term])
+
+    return render(request, 'observer/search.html',
+        {
+            'term' : term,
+            'found_ca' : found_ca,
+            'found_cn_dnsname' : found_cn_dnsname
+        }
+    )
+
+def caall(request, page=None):
+    
+    if(page==None):
+        return HttpResponsePermanentRedirect("all/1")
+
+    page = int(page)
+
+    list_of_ca = []
+
+    paginator = Paginator(Ca.objects.all().order_by('name'), ITEMS_PER_PAGE)
+    if(page in paginator.page_range):
+        list_of_ca = paginator.page(page)
+        
+    return render(request, 'observer/cas.html',
+        {
+            'list_of_ca': list_of_ca#Ca.objects.annotate(num_certs=Count('certificate')).order_by('-num_certs')
+        }
+    )
+
+def certall(request, page=None):
+
+    if(page==None):
+        return HttpResponsePermanentRedirect("all/1")
+
+    page = int(page)
+
+    list_of_certs = []
+
+    paginator = Paginator(FastCountQuerySet(Certificate.objects.all(), 'certificate'), ITEMS_PER_PAGE)
+    if(page in paginator.page_range):
+        list_of_certs = paginator.page(page)
+    return render(request, 'observer/certs.html',
+        {
+            'list_of_certs': list_of_certs
+        }
+    )
+
+def certactive(request, page=None):
+
+    if(page==None):
+        return HttpResponsePermanentRedirect("active/1")
+
+    page = int(page)
+
+    list_of_certs = []
+
+    paginator = Paginator(MetadataCountQuerySet(Certificate.objects.get_active(), 'number_of_active_certs'), ITEMS_PER_PAGE)
+    if(page in paginator.page_range):
+        list_of_certs = paginator.page(page)
+
+    return render(request, 'observer/certs.html',
+        {
+            'list_of_certs': list_of_certs
+        }
+    )
+
+def certexpired(request, page=None, order=None):
+    if(page==None):
+        return HttpResponsePermanentRedirect("expired/1")
+
+
+    page = int(page)
+
+    list_of_certs = []
+
+    paginator = Paginator(MetadataCountQuerySet(Certificate.objects.get_expired(), 'number_of_expired_certs'), ITEMS_PER_PAGE)
+    if(page in paginator.page_range):
+        list_of_certs = paginator.page(page)
+
+    return render(request, 'observer/certs.html',
+        {
+            'list_of_certs': list_of_certs
+        }
+    )
+def certrevoked(request, page=None):
+    if(page==None):
+        return HttpResponsePermanentRedirect("revoked/1")
+
+    page = int(page)
+
+    list_of_certs = []
+
+    paginator = Paginator(Certificate.objects.get_revoked(), ITEMS_PER_PAGE)
+    if(page in paginator.page_range):
+        list_of_certs = paginator.page(page)
+
+    return render(request, 'observer/certs.html',
+        {
+            'list_of_certs': list_of_certs
+        }
+    )
+
+def certs_by_log(request, log_id):
+    return render(request, 'observer/log_certs.html',
+        {
+            'log': get_object_or_404(CtLog, pk=log_id)
+        }
+    )
+
+def certs_by_ca(request, ca_id, page=None):
+
+    if(page==None):
+        return HttpResponsePermanentRedirect("certificates/1")
+
+    page = int(page)
+    ca_id = int(ca_id)
+
+    list_of_certs = []
+
+    paginator = Paginator(Certificate.objects.filter(issuer_ca_id=ca_id), ITEMS_PER_PAGE)
+    if(page in paginator.page_range):
+        list_of_certs = paginator.page(page)
+
+    return render(request, 'observer/certs.html',
+        {
+            'list_of_certs': list_of_certs
+        }
+    )
+
+def list_cn_certs(request, cn):
+
+    field_id = 'common name'
+    expression = cn
+
+    list_of_certs = Certificate.objects.raw('SELECT ID, CERTIFICATE, ISSUER_CA_ID  FROM certificate WHERE x509_commonName(CERTIFICATE)=%s ORDER BY x509_notBefore(CERTIFICATE) DESC', [cn])
+
+    return render(request, 'observer/dnsname.html',
+        {
+            'field_id': field_id,
+            'expression': expression,
+            'list_of_certs': list_of_certs
+        }
+    )
+
+def list_dnsname_certs(request, dnsname):
+
+    field_id = 'dnsname'
+    expression = dnsname
+
+    list_of_certs = Certificate.objects.raw("SELECT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE))=reverse(lower(%s)) ORDER BY x509_notBefore(CERTIFICATE) DESC", [dnsname])
+
+    return render(request, 'observer/dnsname.html',
+        {
+            'field_id': field_id,
+            'expression': expression,
+            'list_of_certs': list_of_certs
+        }
+    )
+
+def log(request):
+    return render(request, 'observer/logs.html',
+        {
+            'list_of_logs': CtLog.objects.all().annotate(entries=Count('ctlogentry')).order_by('latest_entry_id')
+        }
+    )
+
+def cadetail(request,ca_id):
+    ca = get_object_or_404(Ca, pk=ca_id)
+    return render(request, 'observer/cadetail.html', { 'ca' : ca})
+
+
+def certdetail(request,cert_id):
+    cert = get_object_or_404(Certificate, pk=cert_id)
+    cacert = CaCertificate.objects.filter(certificate_id=cert_id).first()
+
+    #TODO
+    #Certificate.objects.raw("select (select count(*) from certificate WHERE x509_keySize(certificate) = %s)*100/cast(COUNT(*) as float) as percentage, 0 as id FROM certificate;", [cert.get_x509_data().get_pubkey().bits()])
+
+    #return render(request, 'observer/certdetail.html', { 'certificate' : cert, 'ca_certificate' : cacert, 'keysize_distribution': round(keysize_distribution[0].percentage,2)})
+    return render(request, 'observer/certdetail.html', { 'certificate' : cert, 'ca_certificate' : cacert, 'keysize_distribution': 'TODO'})
+
+def logdetail(request,log_id):
+    log = get_object_or_404(CtLog, pk=log_id)
+    return render(request, 'observer/logdetail.html', { 'log' : log})
+
+def flag(request, flag_id):
+    try:
+        with open("static/flags/png/{0}.png".format(flag_id.lower()), "rb") as f:
+            return HttpResponse(f.read(), content_type="image/png")
+    except IOError:
+        with open("static/flags/png/-.png", "rb") as f:
+            return HttpResponse(f.read(), content_type="image/png")

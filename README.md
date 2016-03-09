@@ -1,2 +1,2 @@
 # ct-infrastructure
-CT-Monitor, Postgres-Database and CT-Observatory
+docker-compose up -d

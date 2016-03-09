@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}List of all the Logs{% endblock %}
+
+{% block content %}
+  {% if list_of_logs %}
+      <ul>
+      {% for log in list_of_logs %}
+          <li><a href="{% url 'observer:logdetail' log.id %}">{{ log.name }}</a> at {{ log.url }} with {{ log.entries }} certificates logged</li>
+      {% endfor %}
+      </ul>
+  {% else %}
+      <p>No log information available.</p>
+  {% endif %}
+{% endblock %}
+

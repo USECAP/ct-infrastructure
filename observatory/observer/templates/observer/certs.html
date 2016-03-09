@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}List of all certificates{% endblock %}
+
+{% block style %}
+#pagenumber{
+    max-width: 100px;
+}
+{% endblock %}
+
+{% block content %}
+  {% if list_of_certs %}
+      <table class="table table-striped table-sm">
+      <thead>
+      <tr>
+        <th>Common Name</th>
+        <th>notBefore</th>
+        <th>status</th>
+        <th>notAfter</th>
+        <th>Issuer CA</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for cert in list_of_certs %}
+          <tr>
+            <td><a href="{% url 'observer:certdetail' cert.id %}">{{ cert.subject_common_name }}</a></td>
+            <td>{{ cert.not_before }}</td>
+            <td>{% if cert.has_expired %} expired {% else %} <b>active</b> {% endif %}</td>
+            <td>{{ cert.not_after }}</td>
+            <td><a href="{% url 'observer:cadetail' cert.issuer_ca.id %}">{{ cert.issuer_ca.get_name_CN }}</a></td>
+          </tr>
+      {% endfor %}
+      </tbody>
+      </table>
+            
+      <nav class="text-center">
+            <div class="form-inline">
+            {% if list_of_certs.has_previous %}
+            <a href="{{ list_of_certs.previous_page_number }}" aria-label="Previous" class="btn btn-secondary">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+            {% else %}
+                <span aria-hidden="true" class="btn btn-secondary disabled">&laquo;</span>
+            {% endif %}
+            
+            <button id="callpage" class="btn btn-primary">Goto Page</button>
+            <div class="input-group">
+            <input type="number" class="form-control" id="pagenumber" placeholder="Enter page number" value="{{list_of_certs.number}}"/>
+            <div class="input-group-addon">of {{list_of_certs.paginator.num_pages }}</div>
+            </div>
+            
+            {% if list_of_certs.has_next %}
+            <a href="{{ list_of_certs.next_page_number }}" aria-label="Next" class="btn btn-secondary">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+            {% else %}
+                <span aria-hidden="true" class="btn btn-secondary disabled">&raquo;</span>
+            {% endif %}
+            <br>
+            </div>
+      </nav>
+      
+  {% else %}
+      <p>No certificate information available.</p>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+
+$(function(){
+    $('#callpage').click(function(){
+        var pagenumber = $('#pagenumber').val();
+        window.location.href = "./"+pagenumber;
+    });
+});
+
+{% endblock %}
