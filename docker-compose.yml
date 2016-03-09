@@ -26,8 +26,8 @@ ctobservatory:
     links:
         - ctdatabase:ctdatabase
     ports:
-        - 1337:1337
-    command: python /observatory/manage.py runserver 1337
+        - "8000:8000"
+    command: python /observatory/manage.py runserver 0.0.0.0:8000
 
 ctanalyzer:
     dockerfile: analyzer/Dockerfile
