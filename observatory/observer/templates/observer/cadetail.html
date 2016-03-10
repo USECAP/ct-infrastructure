@@ -62,11 +62,6 @@ path.link {
      <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
     <svg></svg>
     </div>
-    <div id="signaturealgorithmdiagram2" class="card-block diagram">
-     <h4 class="card-title">Most frequent signature algorithms, one more time</h4>
-     <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
-    <svg></svg>
-    </div>
     <div id="keysizediagram" class="card-block diagram">
      <h4 class="card-title">Most frequent key sizes</h4>
      <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
@@ -214,10 +209,9 @@ $(function(){
     
     d3.json('/api/getsignaturealgorithmdistribution/{{ca.id}}', function(data) {
         d3.select('#signaturealgorithmdiagram .spinner').remove();
-        d3.select('#signaturealgorithmdiagram2 .spinner').remove();
         var format = d3.time.format('%Y-%m');
         nv.addGraph(function() {
-            chart = nv.models.stackedAreaChart()
+            chart = nv.models.stackedAreaWithFocusChart()
             .useInteractiveGuideline(true)
             .x(function(d) { return format.parse(d[0]); })
             .y(function(d) { return d[1] })
@@ -226,6 +220,7 @@ $(function(){
             .margin({"left":50});
             
             chart.xAxis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
+            chart.x2Axis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
             chart.yAxis.tickFormat(d3.format('0,'));
             d3.select('#signaturealgorithmdiagram svg')
             .datum(data)
@@ -234,32 +229,6 @@ $(function(){
             .each('start', function() {
                 setTimeout(function() {
                     d3.selectAll('#signaturealgorithmdiagram svg *').each(function() {
-                        if(this.__transition__)
-                            this.__transition__.duration = 1;
-                    })
-                }, 0)
-            });
-            nv.utils.windowResize(chart.update);
-            return chart;
-        });
-        nv.addGraph(function() {
-            chart = nv.models.multiBarChart()
-            //.useInteractiveGuideline(true)
-            .x(function(d) { return format.parse(d[0]); })
-            .y(function(d) { return d[1] })
-            //.controlLabels({stacked: "Stacked"})
-            .duration(300)
-            .margin({"left":50});
-            
-            chart.xAxis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
-            chart.yAxis.tickFormat(d3.format('0,'));
-            d3.select('#signaturealgorithmdiagram2 svg')
-            .datum(data)
-            .transition().duration(1000)
-            .call(chart)
-            .each('start', function() {
-                setTimeout(function() {
-                    d3.selectAll('#signaturealgorithmdiagram2 svg *').each(function() {
                         if(this.__transition__)
                             this.__transition__.duration = 1;
                     })

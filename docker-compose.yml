@@ -26,8 +26,8 @@ ctobservatory:
     links:
         - ctdatabase:ctdatabase
     ports:
-        - 1337:1337
-    command: python /observatory/manage.py runserver 0.0.0.0:1337
+        - 7801:7801
+    command: python /observatory/manage.py runserver 0.0.0.0:7801
 
 ctanalyzer:
     dockerfile: analyzer/Dockerfile
@@ -36,4 +36,4 @@ ctanalyzer:
         - POSTGRESHOST=ctdatabase
     links:
         - ctdatabase:ctdatabase
-    command: python /analyzer/analyzer.py --pg=ctdatabase --t=60 -m -u -v   
+    command: python /analyzer/analyzer.py --pg=ctdatabase --t=60 -m -u -v

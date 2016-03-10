@@ -27,7 +27,7 @@
       {% for ca in list_of_ca %}
           <tr>
             <!--<td>#TODO</td>-->
-            <td><img src="/flag/{{ca.get_name_C}}" title="{{ca.get_name_C}}"/></td>
+            <td><img src="static/flag/{{ca.get_name_C}}.png" title="{{ca.get_name_C}}"/></td>
             <td><a href="{% url 'observer:cadetail' ca.id %}">{{ ca.get_name_CN }}</a></td>
             <td>{{ ca.get_name_L }}</td>
             <td>{{ ca.get_name_O }}</td>
@@ -38,7 +38,7 @@
       {% endfor %}
       </tbody>
       </table>
-            
+
       <nav class="text-center">
             <div class="form-inline">
             {% if list_of_ca.has_previous %}
@@ -48,13 +48,13 @@
             {% else %}
                 <span aria-hidden="true" class="btn btn-secondary disabled">&laquo;</span>
             {% endif %}
-            
+
             <button id="callpage" class="btn btn-primary">Goto Page</button>
             <div class="input-group">
             <input type="number" class="form-control" id="pagenumber" placeholder="Enter page number" value="{{list_of_ca.number}}"/>
             <div class="input-group-addon">of {{list_of_ca.paginator.num_pages }}</div>
             </div>
-            
+
             {% if list_of_ca.has_next %}
             <a href="{{ list_of_ca.next_page_number }}" aria-label="Next" class="btn btn-secondary">
                 <span aria-hidden="true">&raquo;</span>
@@ -65,7 +65,7 @@
             <br>
             </div>
       </nav>
-      
+
   {% else %}
       <p>No ca information available.</p>
   {% endif %}
