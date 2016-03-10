@@ -80,10 +80,54 @@
                 </ul>
             </div>
         </div>
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-block diagram">
+                    <h4 class="card-title">Most frequent signature algorithms</h4>
+                    <h6 class="card-subtitle text-muted">notBefore, per month</h6>
+                    <div id="signaturealgorithmdiagram" style="height: 400px;">
+                        <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+                        <svg></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 
 {% endblock %}
-
+{% block scripts %}
+d3.json('/api/getsignaturealgorithmdistribution', function(data) {
+        d3.select('#signaturealgorithmdiagram .spinner').remove();
+        var format = d3.time.format('%Y-%m');
+        nv.addGraph(function() {
+            chart = nv.models.stackedAreaWithFocusChart()
+            .useInteractiveGuideline(true)
+            .x(function(d) { return format.parse(d[0]); })
+            .y(function(d) { return d[1] })
+            //.controlLabels({stacked: "Stacked"})
+            .duration(300)
+            .margin({"left":50});
+            
+            chart.xAxis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
+            chart.x2Axis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
+            chart.yAxis.tickFormat(d3.format('0,'));
+            d3.select('#signaturealgorithmdiagram svg')
+            .datum(data)
+            .transition().duration(1000)
+            .call(chart)
+            .each('start', function() {
+                setTimeout(function() {
+                    d3.selectAll('#signaturealgorithmdiagram svg *').each(function() {
+                        if(this.__transition__)
+                            this.__transition__.duration = 1;
+                    })
+                }, 0)
+            });
+            nv.utils.windowResize(chart.update);
+            return chart;
+        });
+    });
+{% endblock %}
 
