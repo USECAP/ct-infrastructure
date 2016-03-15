@@ -36,13 +36,14 @@ path.link {
         <img src="/flag/{{certificate.subject_country_name.lower}}" title="{{certificate.subject_country_name}}"/></h4>
 
         <p>General information directly from the certificate:</p>
+        <div class="col-md-3 col-xs-6">
             <dl>
             {% for key, value in certificate.get_certificate_data %}
                 <dt>{{key}}</dt>
                 <dd>{{value}} {% if key == "pubkey_bits" %} (like {{ keysize_distribution }}% of all known certificates) {% endif %}<dd>
             {% endfor %}
             </dl>
-
+        </div>
     </div>
   </div>
   <div class="card">
