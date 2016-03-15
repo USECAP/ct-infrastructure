@@ -1,4 +1,15 @@
-Python-script that searches for all listed CRL-Filed notated in all certs of CT-Monitor database and tries to insert an entry into revoked_certificate-table if it finds any new revoked certificates.
+Parameters for analyzer.py
+--
+```
+usage: python analyzer.py [-h] [-l] [-e] [-u] [-r] [-m] [--t T] [--pg PG] [--es ES]
 
-Usage:
-python analyzer.py [HOSTNAME/IP OF DATABASE (defaults to localhost)]
+optional arguments:
+  -l          write log file
+  -e          enable elasticsearch import
+  -u          update expired certs
+  -r          update revoked certs (takes veeeery long)
+  -m          update metadata certs
+  --t=T       time interval between refresh in minutes (default 180)
+  --pg=PG     postgres database ip (default localhost)
+  --es=ES     elasticsearch database ip (default localhost)
+```

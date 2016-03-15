@@ -1,2 +1,3 @@
-# Observatory
- * Access the server via http://localhost:8000
+Observatory
+==
+Access the server via http://localhost:7801
