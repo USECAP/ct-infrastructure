@@ -36,31 +36,35 @@ path.link {
         <img src="/flag/{{certificate.subject_country_name.lower}}" title="{{certificate.subject_country_name}}"/></h4>
 
         <p>General information directly from the certificate:</p>
-        <div class="col-md-3 col-xs-6">
-            <dl>
+
+            <div class="row">
             {% for key, value in certificate.get_certificate_data %}
-                <dt>{{key}}</dt>
-                <dd>{{value}} {% if key == "pubkey_bits" %} (like {{ keysize_distribution }}% of all known certificates) {% endif %}<dd>
+                <div class="col-md-4 col-sm-6 col-xs-12">
+                    <span><strong>{{key}}</strong></span>
+                    <p>{{value}}</p>
+                </div>
             {% endfor %}
-            </dl>
-        </div>
+            </div>
+
     </div>
   </div>
   <div class="card">
     <div class="card-header">certificate_identity</div>
     <div class="card-block">
         <p>Information from certificate_identity:</p>
-        <dl>
+        <div class="row">
         {% for prop in certificate.certificateidentity_set.all %}
-            <dt class="ci_item">{{prop.name_type}}</dt>
-            <dd class="ci_item">
-                {{prop.name_value}}
-                {% if prop.name_type == "dNSName" %}
-                <a href="../dnsname/{{prop.name_value}}" title="Search certificates with dNSName '{{prop.name_value}}'"><i class="fa fa-search"></i></a>
-                {% endif %}
-            <dd>
+            <div class="col-md-4 col-sm-6 col-xs-12">
+                <span><strong>{{prop.name_type}}</strong></span>
+                <p>
+                    {{prop.name_value}}
+                    {% if prop.name_type == "dNSName" %}
+                    <a href="../dnsname/{{prop.name_value}}" title="Search certificates with dNSName '{{prop.name_value}}'"><i class="fa fa-search"></i></a>
+                    {% endif %}
+                </p>
+            </div>
         {% endfor %}
-        </dl>
+        </div>
     <button id="toggle_full_identity" class="btn btn-primary-outline btn-sm">Toggle full list</button>
     </div>
     <ul class="list-group list-group-flush">
