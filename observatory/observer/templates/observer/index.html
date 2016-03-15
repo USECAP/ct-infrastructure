@@ -92,12 +92,22 @@
                 </div>
             </div>
         </div>
+        <div class="col-md-12">
+            <div class="card">
+                <div id="keysizediagram" class="card-block diagram">
+                    <h4 class="card-title">Most frequent key sizes</h4>
+                    <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+                    <svg></svg>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 
 {% endblock %}
 {% block scripts %}
+$(function(){
 d3.json('/api/getsignaturealgorithmdistribution', function(data) {
         d3.select('#signaturealgorithmdiagram .spinner').remove();
         var format = d3.time.format('%Y-%m');
@@ -129,5 +139,33 @@ d3.json('/api/getsignaturealgorithmdistribution', function(data) {
             return chart;
         });
     });
+    
+    d3.json('/api/getactivekeysizedistribution', function(data) {
+        d3.select('#keysizediagram .spinner').remove();
+        nv.addGraph(function() {
+            var chart = nv.models.multiBarHorizontalChart()
+                .x(function(d) { return d.label })
+                .y(function(d) { return d.value })
+                .margin({top: 20, right: 40, bottom: 20, left: 20})
+                .showValues(true)
+                .showLegend(true)
+                .showXAxis(false)
+                .stacked(true)
+
+            chart.yAxis
+                .tickFormat(d3.format('d'));
+
+            chart.valueFormat(d3.format('d'));
+
+            d3.select('#keysizediagram svg')
+                .datum(data)
+                .call(chart);
+
+            nv.utils.windowResize(chart.update);
+
+            return chart;
+        });
+    });
+});
 {% endblock %}
 

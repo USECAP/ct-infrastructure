@@ -54,7 +54,9 @@
 
 {% block content %}
 
-<h2>Certificates for {{field_id}} '{{expression}}'</h2>
+<h2 id="top">Certificates for {{field_id}} '{{expression}}'</h2>
+
+<p><a href="#timeline">Jump to timeline</a></p>
 
   {% for cert in list_of_certs %}
     {% if forloop.first %}
@@ -83,9 +85,12 @@
       </tbody>
       </table>
       
-        <div class="col-sm-12">
+
+<h2 id="timeline">Timeline</h2>
+<p><a href="#top">Back up to the top</a></p>
+        <div class="col-sm-12" id="timeline">
             <div class="card">
-                <div class="card-header">Timeline | Order by <button id="order_by_not_before" class="btn btn-primary-outline btn-sm">notBefore</button> <button id="order_by_not_after" class="btn btn-primary-outline btn-sm">notAfter</button> <button id="order_by_length" class="btn btn-primary-outline btn-sm">length</button></div>
+                <div class="card-header">Order by <button id="order_by_not_before" class="btn btn-primary-outline btn-sm">notBefore</button> <button id="order_by_not_after" class="btn btn-primary-outline btn-sm">notAfter</button> <button id="order_by_length" class="btn btn-primary-outline btn-sm">length</button></div>
                 <div id="chart" class="card-block"></div>
             </div>
         </div>

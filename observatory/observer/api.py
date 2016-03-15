@@ -154,19 +154,27 @@ def get_cert_distribution_per_year(request):
 def get_active_keysize_distribution(request, ca_id=None):
     with connection.cursor() as c:
         if(ca_id == None):
-            command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC LIMIT 10;"
+            command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC;"
             c.execute(command)
         else:
             ca_id = int(ca_id)
-            command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE issuer_ca_id=%s AND x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC LIMIT 10;"
+            command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE issuer_ca_id=%s AND x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC;"
             c.execute(command, [ca_id])
         
         result = []
+        other = 0
+        row_nr = 0
         for row in c.fetchall():
-            entry = {}
-            entry['key'] = "{0}-{1}".format(row[0], row[1])
-            entry['values'] = [{"value":row[2]}]
-            result.append(entry)
+            if(row_nr < 5):
+                entry = {}
+                entry['key'] = "{0}-{1}".format(row[0], row[1])
+                entry['values'] = [{"value":row[2]}]
+                result.append(entry)
+            else:
+                other += int(row[2])
+            row_nr += 1
+        if(other > 0):
+            result.append({"key":"other", "values":[{"value":other}]})
             
         return HttpResponse(json.dumps(result))
 
@@ -263,3 +271,33 @@ def get_log_information(request):
         result.append({"id": entry.id, "key": entry.name, "values": [{"label": "Certificates","value":entry.entries}], "color": colors[i]})
         i += 1
     return HttpResponse(json.dumps({"unique_certificates": Certificate.objects.count(), "data": result}))
+
+def search_cn_dnsname(request, term, offset):
+    limit = 50
+    result = {"limit":limit, "values":[]}
+    has_more_data = False
+    offset = int(offset)
+    found_cn_dnsname = Certificate.objects.raw("SELECT DISTINCT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID, x509_notBefore(CERTIFICATE) AS notBefore FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE (NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) OR (NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) ORDER BY notBefore DESC LIMIT %s OFFSET %s", [term, term, (limit+1), offset])
+    
+    counter = 0
+    for cert in found_cn_dnsname:
+        if(counter < limit):
+            status = "<b>active</b>"
+            if(cert.has_expired()):
+                status = "expired"
+            result["values"].append({
+                "cert_id":cert.id,
+                "cert_cn":cert.subject_common_name(),
+                "ca_id":cert.issuer_ca.id,
+                "ca_cn":cert.issuer_ca.get_name_CN(),
+                "cert_not_before":cert.not_before(),
+                "cert_status":status,
+                "cert_not_after":cert.not_after()
+            })
+        else:
+            has_more_data = True
+        counter += 1
+    
+    result['has_more_data'] = has_more_data
+    
+    return HttpResponse(json.dumps(result))
