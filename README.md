@@ -5,8 +5,8 @@ This project contains the following subprojects for running a Certificate Transp
 
 0. database: Contains the Dockerfile for a Postgres-database that is set up with the required tables.
 0. monitor: Imports certificates out of CT-Logs
-0. observatory: Django-project for displaying the gathered data
-0. analyzer: Python-based script that calculates some KPI's that would otherwise take too long when rendering them live in Django
+0. observatory: Django project for displaying the gathered data
+0. analyzer: Python-based script that calculates some KPIs that would otherwise take too long when rendering them live in Django
 
 Getting started
 --
@@ -20,7 +20,7 @@ docker-compose up -d
 Usage
 --
 When the containers are started the monitor instantly starts collecting certificates that are visible when you visit `http://localhost:7801`.
-For testing purposes it is recommended to stop the certificate crawling process via `docker-compose stop ctmonitor` because the resulting database gets very big (up to 60GB).
+For testing purposes it is recommended to stop the certificate crawling process via `docker-compose stop ctmonitor` because the resulting database grows very big (up to 60GB).
 
 Parameters for analyzer.py
 --
