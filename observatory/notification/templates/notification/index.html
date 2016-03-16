@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Subscribe to news about issued certificates for a domain - CT observatory{% endblock %}
+
+{% block content %}
+<form action="/notification/subscribe" method="post">
+    {% csrf_token %}
+    Mail <input type="email" name="email" />
+    DNS-Name <input type="text" name="dnsname" />
+<button class="btn btn-primary">subscribe</button>
+</form>
+{% endblock %}

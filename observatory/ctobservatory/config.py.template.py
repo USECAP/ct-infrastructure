@@ -1,0 +1,6 @@
+SECRET_KEY = 'secret_key_here'
+
+EMAIL_HOST=''
+EMAIL_HOST_PASSWORD=''
+EMAIL_HOST_USER=''
+EMAIL_PORT=''
