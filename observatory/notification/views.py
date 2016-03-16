@@ -21,7 +21,7 @@ def subscribe(request):
         email.save()
         dns.save()
         text = 'You receive this mail because you want to register for news about issued certificates for the domain '+dnsname+'.\n\n Please click the following link to complete your registration: <a href="http'+('s' if request.is_secure() else '') +'://'+request.get_host()+'/notification/subscription/confirm/'+str(email.id)+'/'+email.validate_key+'">subscribe</a> \n\nGreetings\nThe CT-Observatory-Team'
-        send_mail("CT-Observatory: Your registration for DNS-Name '"+dnsname+"'",text,'info@ct-observatory.org',[mail])
+        send_mail("CT-Observatory: Your registration for DNS-Name '"+dnsname+"'",text,'info@ct-observatory.org',[mail], html_message=True)
 
     return render(request, 'notification/yougotmail.html')
 
@@ -33,7 +33,7 @@ def unsubscribe(request):
         email.validate_key = str(uuid.uuid1()).replace('-','')
         email.save()
         text = 'You receive this mail because you want to unregister for news about issued certificates for the domain '+dnsname+'.\n\n Please click the following link to complete your removal from our list: <a href="http'+('s' if request.is_secure() else '') +'://'+request.get_host()+'/notification/subscription/remove/'+str(email.id)+'/'+email.validate_key+'">unsubscribe</a> \n\nGreetings\nThe CT-Observatory-Team'
-        send_mail("CT-Observatory: Your registration for DNS-Name '"+dnsname+"'",text,'info@ct-observatory.org',[mail])
+        send_mail("CT-Observatory: Your registration for DNS-Name '"+dnsname+"'",text,'info@ct-observatory.org',[mail], html_message=True)
         return render(request, 'notification/yougotmail.html')
     return redirect('/')
 
