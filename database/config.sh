@@ -369,6 +369,24 @@ if [ "$1" = 'postgres' ]; then
 
         				GRANT USAGE ON metadata TO crtsh;
 
+                        CREATE TABLE notification_dns_names (
+                            ID serial,
+                            name text,
+                            CONSTRAINT notification_unq
+        					    UNIQUE (id)
+        				);
+
+                        CREATE TABLE notification_email (
+                            ID serial,
+                            EMAIL text,
+                            VALIDATE_KEY text,
+                            VALIDATED boolean,
+                            ACTIVE boolean,
+                            notification_dns_names_id integer,
+                            CONSTRAINT not_dns_fk
+        					    FOREIGN KEY (notification_dns_names_id)
+        					    REFERENCES notification_dns_names(ID)
+                        );
 
         				\i /certwatch_db/download_cert.fnc
         				\i /certwatch_db/extract_cert_names.fnc

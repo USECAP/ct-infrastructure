@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.core.mail import send_mail
 import uuid
 
-from .models import Notification_email, Notification_dns_names
+from .models import *
 
 
 def index(request):
@@ -13,7 +13,7 @@ def subscribe(request):
     dnsname = request.POST['dnsname']
 
     if dnsname :
-        dns, created = Notification_dns_names.objects.get_or_create(name=dnsname)
+        dns, created = NotificationDnsNames.objects.get_or_create(name=dnsname)
         email, created  = dns.notification_email_set.get_or_create(email=mail,defaults={'validate_key':uuid.uuid1()})
         send_mail("CT-Observatory: Your registration for DNS-Name '"+dnsname+"'",
                   'You receive this mail because you want to register for news about issued certificates for the domain '+dnsname+'.\n\n '

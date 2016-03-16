@@ -7,4 +7,4 @@ RUN apt-get update && \
 COPY ./observatory /observatory
 
 RUN pip install -r /observatory/requirements.txt
-RUN python /observatory/manage.py migrate
+#RUN python /observatory/manage.py migrate

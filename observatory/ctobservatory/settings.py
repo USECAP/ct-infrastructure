@@ -85,7 +85,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'certwatch',
         'USER': 'postgres',
-        'HOST': os.getenv("POSTGRESHOST", "127.0.0.1"),
+        'HOST': os.getenv("POSTGRESHOST", "192.168.99.100"),
         'PORT': '5432'
     }
 }
