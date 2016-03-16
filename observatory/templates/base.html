@@ -19,6 +19,7 @@
               <a class="nav-link nav-item {% if '/cert' in request.path %} active {% endif %}" href="/cert/all">Certificates</a>
               <a class="nav-link nav-item {% if '/ca/' in request.path %} active {% endif %}" href="/ca/all">CAs</a>
               <a class="nav-link nav-item {% if 'log' in request.path %} active {% endif %}" href="/log">Logs</a>
+              <a class="nav-link nav-item {% if 'notification' in request.path %} active {% endif %}" href="/notification">Subscribe</a>
         </div>
         <form action="{% url 'observer:search' %}" method="GET" class="form-inline navbar-form pull-right">
           <input class="form-control" type="text" placeholder="Search" name="term">
