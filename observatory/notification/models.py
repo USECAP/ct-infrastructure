@@ -13,7 +13,7 @@ class NotificationEmail(models.Model):
     validate_key=models.TextField(default='')
     validated=models.BooleanField(default=False)
     active=models.BooleanField(default=False)
-    dns_name=models.ForeignKey(NotificationDnsNames)
+    notification_dns_names=models.ForeignKey(NotificationDnsNames)
 
     class Meta:
         managed = False

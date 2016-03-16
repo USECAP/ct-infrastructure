@@ -9,4 +9,11 @@
     DNS-Name <input type="text" name="dnsname" />
 <button class="btn btn-primary">subscribe</button>
 </form>
+
+    <form action="/notification/unsubscribe" method="post">
+    {% csrf_token %}
+    Mail <input type="email" name="email" />
+    DNS-Name <input type="text" name="dnsname" />
+    <button class="btn btn-primary">unsubscribe</button>
+    </form>
 {% endblock %}
