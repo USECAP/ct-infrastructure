@@ -63,3 +63,6 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+# Django config file for production
+observatory/ctobservatory/config.py
