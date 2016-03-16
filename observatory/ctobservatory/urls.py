@@ -18,5 +18,6 @@ from django.contrib import admin
 
 urlpatterns = [
     url(r'^', include('observer.urls', namespace="observer")),
+    url(r'^notification/', include('notification.urls', namespace="notification")),
     url(r'^admin/', include(admin.site.urls)),
 ]
