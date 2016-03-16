@@ -3,17 +3,29 @@
 {% block title %}Subscribe to news about issued certificates for a domain - CT observatory{% endblock %}
 
 {% block content %}
-<form action="/notification/subscribe" method="post">
-    {% csrf_token %}
-    Mail <input type="email" name="email" />
-    DNS-Name <input type="text" name="dnsname" />
-<button class="btn btn-primary">subscribe</button>
-</form>
+    <div class="row">
+        <form action="/notification/subscribe" method="post">
+            {% csrf_token %}
+            <div class="jumbotron">
+                <div class="col-md-1"><h3>Subscribe</h3></div>
+                <div class="col-md-1 col-md-offset-2" style="font-size:24px;">Mail</div>
+                <div class="col-md-2"><input type="email" name="email" class="form-control"/></div>
+                <div class="col-md-1">DNS-Name </div>
+                <div class="col-md-2"><input type="text" name="dnsname" class="form-control" /></div>
+                <div class="col-md-2 col-md-offset-1"><button class="btn btn-primary btn-block">subscribe</button></div>
+            </div>
+        </form>
+        <form action="/notification/unsubscribe" method="post">
+            <div class="jumbotron">
+                {% csrf_token %}
+                <div class="col-md-1"><h3>Unsubscribe</h3></div>
+                <div class="col-md-1 col-md-offset-2" style="font-size:24px;">Mail</div>
+                <div class="col-md-2"><input type="email" name="email" class="form-control"/></div>
+                <div class="col-md-1">DNS-Name </div>
+                <div class="col-md-2"><input type="text" name="dnsname" class="form-control" /></div>
+                <div class="col-md-2 col-md-offset-1"><button class="btn btn-primary btn-block">unsubscribe</button></div>
+            </div>
+        </form>
+    </div>
 
-    <form action="/notification/unsubscribe" method="post">
-    {% csrf_token %}
-    Mail <input type="email" name="email" />
-    DNS-Name <input type="text" name="dnsname" />
-    <button class="btn btn-primary">unsubscribe</button>
-    </form>
 {% endblock %}
