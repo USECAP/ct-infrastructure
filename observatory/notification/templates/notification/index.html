@@ -6,23 +6,36 @@
     <div class="row">
         <form action="/notification/subscribe" method="post">
             {% csrf_token %}
-            <div class="jumbotron">
-                <div class="col-md-1"><h3>Subscribe</h3></div>
-                <div class="col-md-1 col-md-offset-2" style="font-size:24px;">Mail</div>
-                <div class="col-md-2"><input type="email" name="email" class="form-control"/></div>
-                <div class="col-md-1">DNS-Name </div>
-                <div class="col-md-2"><input type="text" name="dnsname" class="form-control" /></div>
-                <div class="col-md-2 col-md-offset-1"><button class="btn btn-primary btn-block">subscribe</button></div>
+            <div class="jumbotron" style="height:250px;">
+                <div class="col-md-12"><h3>Subscribe</h3><hr/></div>
+                <div class="col-md-1" style="font-size:24px;">Mail</div>
+                <div class="col-md-3"><input type="email" name="email" class="form-control"/></div>
+                <div class="col-md-1" style="font-size:24px;">Name </div>
+                <div class="col-md-3"><input type="text" name="dnsname" class="form-control" value="{{ dnsname }}" /></div>
+                <div class="col-md-3 col-md-offset-1"><button class="btn btn-primary btn-block">subscribe</button></div>
+                <div class="col-md-1" style="font-size:24px;">Type</div>
+                <div class="col-md-6">
+
+                    <label class="radio-inline">
+                      <input type="radio" id="notifyfor1" name="notifyfor" value="1"> CommonName
+                    </label>
+                    <label class="radio-inline">
+                      <input type="radio" id="notifyfor2" name="notifyfor" value="2"> dNSName
+                    </label>
+                    <label class="radio-inline">
+                      <input type="radio" id="notifyfor" name="notifyfor" value="0"> Both
+                    </label>
+                </div>
             </div>
         </form>
         <form action="/notification/unsubscribe" method="post">
-            <div class="jumbotron">
+            <div class="jumbotron" style="height:200px;">
                 {% csrf_token %}
-                <div class="col-md-1"><h3>Unsubscribe</h3></div>
-                <div class="col-md-1 col-md-offset-2" style="font-size:24px;">Mail</div>
-                <div class="col-md-2"><input type="email" name="email" class="form-control"/></div>
-                <div class="col-md-1">DNS-Name </div>
-                <div class="col-md-2"><input type="text" name="dnsname" class="form-control" /></div>
+                <div class="col-md-12"><h3>Unsubscribe</h3><hr/></div>
+                <div class="col-md-1 " style="font-size:24px;">Mail</div>
+                <div class="col-md-3"><input type="email" name="email" class="form-control"/></div>
+                <div class="col-md-1" style="font-size:24px;">Name </div>
+                <div class="col-md-3"><input type="text" name="dnsname" class="form-control" value="{{ dnsname }}" /></div>
                 <div class="col-md-2 col-md-offset-1"><button class="btn btn-primary btn-block">unsubscribe</button></div>
             </div>
         </form>

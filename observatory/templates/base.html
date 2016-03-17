@@ -12,30 +12,30 @@
     <link rel="stylesheet" type="text/css" href="{% static "css/font-awesome.min.css" %}"/>
 </head>
 <body>
-<div id="wrapper">
-    <nav class="navbar navbar-dark bg-inverse navbar-fixed-top">
-        <a class="navbar-brand" href="{% url 'observer:index' %}">CT-Observatory</a>
-        <div class="nav navbar-nav">
-              <a class="nav-link nav-item {% if '/cert' in request.path %} active {% endif %}" href="/cert/all">Certificates</a>
-              <a class="nav-link nav-item {% if '/ca/' in request.path %} active {% endif %}" href="/ca/all">CAs</a>
-              <a class="nav-link nav-item {% if 'log' in request.path %} active {% endif %}" href="/log">Logs</a>
-              <a class="nav-link nav-item {% if 'notification' in request.path %} active {% endif %}" href="/notification">Subscribe</a>
-        </div>
-        <form action="{% url 'observer:search' %}" method="GET" class="form-inline navbar-form pull-right">
-          <input class="form-control" type="text" placeholder="Search" name="term">
-          <button class="btn btn-success-outline" type="submit">Search</button>
-        </form>
-        <div class="nav navbar-nav pull-right" style="margin-right: 1em;">
-            <span class="nav-item nav-link">Search in commonName/dnsName (wildcard: %) or CA names</span>
-        </div>
-    </nav>
+    <div id="wrapper">
+        <nav class="navbar navbar-dark bg-inverse navbar-fixed-top">
+            <a class="navbar-brand" href="{% url 'observer:index' %}">CT-Observatory</a>
+            <div class="nav navbar-nav">
+                  <a class="nav-link nav-item {% if '/cert' in request.path %} active {% endif %}" href="/cert/all">Certificates</a>
+                  <a class="nav-link nav-item {% if '/ca/' in request.path %} active {% endif %}" href="/ca/all">CAs</a>
+                  <a class="nav-link nav-item {% if 'log' in request.path %} active {% endif %}" href="/log">Logs</a>
+                  <a class="nav-link nav-item {% if 'notification' in request.path %} active {% endif %}" href="/notification/change">Subscribe</a>
+            </div>
+            <form action="{% url 'observer:search' %}" method="GET" class="form-inline navbar-form pull-right">
+              <input class="form-control" type="text" placeholder="Search" name="term">
+              <button class="btn btn-success-outline" type="submit">Search</button>
+            </form>
+            <div class="nav navbar-nav pull-right" style="margin-right: 1em;">
+                <span class="nav-item nav-link">Search in commonName/dnsName (wildcard: %) or CA names</span>
+            </div>
+        </nav>
 
-    <div id="content" class="container" style="padding-top:75px;">
-        {% block content %}{% endblock %}
+        <div id="content" class="container" style="padding-top:75px;">
+            {% block content %}{% endblock %}
+        </div>
+
+        <footer id="footer"><div class="container">CT observatory | <a href="/imprint">Imprint</a></div></footer>
     </div>
-    
-    <footer id="footer"><div class="container">CT observatory | <a href="/imprint">Imprint</a></div></footer>
-</div>
     <script type="text/javascript" src="{% static "js/jquery.min.js" %}"></script>
     <script type="text/javascript" src="{% static "js/bootstrap.min.js" %}"></script>
     <script type="text/javascript" src="{% static "js/d3.js" %}"></script>
