@@ -4,5 +4,10 @@
 
 {% block content %}
     Your subscription was successful!
-    Look at your current status <a href="/cert/dnsname/{{ dnsname }}">here</a>
+    Look at your current status
+    {% if email.notify_for == 0 %}
+        <a href="/cert/dnsname/{{ email.notification_dns_names.name }}">here (dNSName)</a> and <a href="/cert/cn/{{ email.notification_dns_names.name }}">here (CommonName)</a>
+    {% else %}
+        <a href="/cert/{% if email.notify_for == 1 %}dnsname{% else %}cn{% endif %}/{{ email.notification_dns_names.name }}">here</a>
+    {% endif %}
 {% endblock %}

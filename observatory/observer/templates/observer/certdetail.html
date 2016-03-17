@@ -60,6 +60,7 @@ path.link {
                     {{prop.name_value}}
                     {% if prop.name_type == "dNSName" %}
                     <a href="../dnsname/{{prop.name_value}}" title="Search certificates with dNSName '{{prop.name_value}}'"><i class="fa fa-search"></i></a>
+                    <a href="/notification/change/{{prop.name_value}}" title="Subscribe for changes concerning certificates issued for dNSName '{{prop.name_value}}'"><i class="fa fa-envelope"></i></a>
                     {% endif %}
                 </p>
             </div>

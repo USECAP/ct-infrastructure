@@ -378,6 +378,7 @@ if [ "$1" = 'postgres' ]; then
 
                         CREATE TABLE notification_email (
                             ID serial,
+                            NOTIFY_FOR integer,
                             EMAIL text,
                             VALIDATE_KEY text,
                             VALIDATED boolean,
