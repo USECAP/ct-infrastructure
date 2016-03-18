@@ -23,11 +23,13 @@ ctobservatory:
     build: .
     environment:
         - POSTGRESHOST=ctdatabase
+        - VIRTUAL_HOST=ctobservatory.org
+        - VIRTUAL_PORT=7801
     links:
         - ctdatabase:ctdatabase
     ports:
         - 7801:7801
-    command: python /observatory/manage.py runserver 0.0.0.0:7801
+    command: ./startup.sh #python /observatory/manage.py runserver 0.0.0.0:7801 #TODO use WSGI
 
 ctanalyzer:
     dockerfile: analyzer/Dockerfile
