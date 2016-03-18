@@ -10,6 +10,7 @@ class NotificationDnsNames(models.Model):
 
 class NotificationEmail(models.Model):
     email=models.TextField(default='')
+    notify_for=models.IntegerField(default=0)
     validate_key=models.TextField(default='')
     validated=models.BooleanField(default=False)
     active=models.BooleanField(default=False)
