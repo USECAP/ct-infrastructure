@@ -39,6 +39,7 @@ urlpatterns = [
     url(r'^api/getsignaturealgorithmdistribution$', api.get_signature_algorithm_distribution, name='get_signature_algorithm_distribution'),
     url(r'^api/getsignaturealgorithmdistribution/(?P<ca_id>[0-9]+)$', api.get_signature_algorithm_distribution, name='get_signature_algorithm_distribution'),
     url(r'^api/search/cn_dnsname/(?P<term>.+)/(?P<offset>[0-9]+)$', api.search_cn_dnsname, name='search_cn_dnsname'),
+    url(r'^api/search/ca/(?P<term>.+)/(?P<offset>[0-9]+)$', api.search_ca, name='search_ca'),
     url(r'^imprint$', views.imprint, name='imprint'),
 
 ]
