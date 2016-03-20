@@ -272,6 +272,35 @@ def get_log_information(request):
         i += 1
     return HttpResponse(json.dumps({"unique_certificates": Certificate.objects.count(), "data": result}))
 
+def search_ca(request, term, offset):
+    limit = 50
+    result = {"limit":limit, "values":[]}
+    has_more_data = False
+    
+    set_from = int(offset)
+    set_to = set_from + limit + 1
+    found_ca = Ca.objects.filter(name__icontains=term)[set_from:set_to]
+    
+    counter = 0
+    for ca in found_ca:
+        if(counter < limit):
+            result["values"].append({
+                "ca_id":ca.id,
+                "c":ca.get_name_C(),
+                "cn":ca.get_name_CN(),
+                "l":ca.get_name_L(),
+                "o":ca.get_name_O(),
+                "ou":ca.get_name_OU(),
+                "st":ca.get_name_ST()
+            })
+        else:
+            has_more_data = True
+        counter += 1
+    
+    result['has_more_data'] = has_more_data
+    
+    return HttpResponse(json.dumps(result))
+
 def search_cn_dnsname(request, term, offset):
     limit = 50
     result = {"limit":limit, "values":[]}

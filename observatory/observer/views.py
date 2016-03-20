@@ -86,14 +86,14 @@ def index(request):
 def search(request):
     term = request.GET.get("term","")
 
-    found_ca = Ca.objects.filter(name__icontains=term)
+    #found_ca = Ca.objects.filter(name__icontains=term)
     #found_cn_dnsname = Certificate.objects.raw("SELECT DISTINCT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID, x509_notBefore(CERTIFICATE) FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE (NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) OR (NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) ORDER BY x509_notBefore(CERTIFICATE) DESC", [term, term])
 
     return render(request, 'observer/search.html',
         {
-            'term' : term,
-            'found_ca' : found_ca,
-            'found_cn_dnsname' : None
+            'term' : term
+            #'found_ca' : found_ca,
+            #'found_cn_dnsname' : found_cn_dnsname
         }
     )
 
