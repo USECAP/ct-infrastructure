@@ -177,6 +177,7 @@ if [ "$1" = 'postgres' ]; then
         				ID						serial,
         				CERTIFICATE				bytea		NOT NULL,
         				ISSUER_CA_ID			integer		NOT NULL,
+        				EXPIRED                 boolean,
         				CONSTRAINT c_pk
         					PRIMARY KEY (ID),
         				CONSTRAINT c_ica_fk
@@ -355,20 +356,6 @@ if [ "$1" = 'postgres' ]; then
 
                         INSERt INTO certificate_analysis (type, value) VALUES ('es_last_cert_id',-1);
 
-        				GRANT SELECT ON ca TO crtsh;
-
-        				GRANT SELECT ON certificate TO crtsh;
-
-        				GRANT SELECT ON certificate_identity TO crtsh;
-
-        				GRANT SELECT ON ca_certificate TO crtsh;
-
-        				GRANT SELECT ON ct_log TO crtsh;
-
-        				GRANT SELECT ON ct_log_entry TO crtsh;
-
-        				GRANT USAGE ON metadata TO crtsh;
-
                         CREATE TABLE notification_dns_names (
                             ID serial,
                             name text,
@@ -388,6 +375,21 @@ if [ "$1" = 'postgres' ]; then
         					    FOREIGN KEY (notification_dns_names_id)
         					    REFERENCES notification_dns_names(ID)
                         );
+
+        				GRANT SELECT ON ca TO crtsh;
+
+        				GRANT SELECT ON certificate TO crtsh;
+
+        				GRANT SELECT ON certificate_identity TO crtsh;
+
+        				GRANT SELECT ON ca_certificate TO crtsh;
+
+        				GRANT SELECT ON ct_log TO crtsh;
+
+        				GRANT SELECT ON ct_log_entry TO crtsh;
+
+        				GRANT USAGE ON metadata TO crtsh;
+
 
         				\i /certwatch_db/download_cert.fnc
         				\i /certwatch_db/extract_cert_names.fnc
