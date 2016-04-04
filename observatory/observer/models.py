@@ -67,6 +67,7 @@ class Certificate(models.Model):
     certificate = models.BinaryField()
     issuer_ca = models.ForeignKey(Ca)
     objects = CertificateManager()
+    expired=models.BooleanField(default=False)
     class Meta:
         managed = False
         db_table = 'certificate'
