@@ -1,6 +1,6 @@
 #!/bin/sh
 
-python manage.py makemigrations;
-python manage.py migrate;
-python manage.py collectstatic --noinput;
-gunicorn observatory.wsgi:application --log-level=debug --timeout 120 -w $NUM_WORKER -b :7801
+python /observatory/manage.py makemigrations;
+python /observatory/manage.py migrate;
+python /observatory/manage.py collectstatic --noinput;
+gunicorn observatory.wsgi:application --log-level=debug --timeout 120 -w 8 -b :7801
