@@ -1,4 +1,3 @@
 django
 psycopg2
 pyopenssl
-gunicorn

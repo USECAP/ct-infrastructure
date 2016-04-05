@@ -1,9 +1,20 @@
-FROM django:python2
+FROM httpd:2.4
 MAINTAINER ct
 
 RUN apt-get update && \
-    apt-get install -y libpq-dev libffi-dev
+    apt-get install -y apache2-dev libpq-dev libffi-dev gcc postgresql-client libpq-dev python python-dev python-pip wget --no-install-recommends
 
 COPY ./observatory /observatory
 
 RUN pip install -r /observatory/requirements.txt
+
+RUN mkdir /static #&& pip install -r /app/requirements.txt
+
+RUN python /observatory/manage.py makemigrations && \
+    python /observatory/manage.py migrate && \
+    python /observatory/manage.py collectstatic --noinput
+
+RUN wget https://github.com/GrahamDumpleton/mod_wsgi/archive/4.5.0.tar.gz && tar xvfz 4.5.0.tar.gz && \
+    cd mod_wsgi-4.5.0 && ./configure --with-apxs=/usr/local/apache2/bin/apxs && make && make install
+
+RUN cp /observatory/httpd.conf /usr/local/apache2/conf/httpd.conf
