@@ -41,8 +41,8 @@ ctobservatory:
     links:
         - ctdatabase:ctdatabase
     ports:
-        - 7801:7801
-    command: ./observatory/startup.sh #python /observatory/manage.py runserver 0.0.0.0:7801 #TODO use WSGI
+        - 80:80
+#    command: ./observatory/startup.sh #python /observatory/manage.py runserver 0.0.0.0:7801 #TODO use WSGI
 
 ctanalyzer:
     dockerfile: analyzer/Dockerfile
