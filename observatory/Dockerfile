@@ -6,6 +6,10 @@ RUN apt-get update && \
 
 COPY ./observatory /observatory
 
+RUN mv /observatory/observatory.pem /etc/ssl/certs/observatory.pem && \
+    mv /observatory/observatory_key.pem /etc/ssl/private/observatory_key.pem && \
+    mv /observatory/observatory_chain.pem /etc/ssl/certs/observatory_chain.pem
+
 RUN pip install -r /observatory/requirements.txt
 
 RUN mkdir /static #&& pip install -r /app/requirements.txt
