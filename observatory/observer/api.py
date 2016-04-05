@@ -252,7 +252,7 @@ def get_ca_distribution(request):
     cas = []
     
     with connection.cursor() as c:
-        command = "SELECT date_trunc('month', x509_notBefore(crt.certificate)) AS month, crt.ISSUER_CA_ID, ca.NAME, count(crt.ISSUER_CA_ID) AS count FROM certificate crt JOIN ca ON crt.ISSUER_CA_ID = ca.id GROUP BY month, crt.ISSUER_CA_ID, ca.name ORDER BY month ASC;"
+        command = "SELECT date_trunc('month', x509_notBefore(crt.certificate)) AS month, crt.ISSUER_CA_ID, ca.NAME, count(crt.ISSUER_CA_ID) AS count FROM certificate crt JOIN ca ON crt.ISSUER_CA_ID = ca.id GROUP BY month, crt.ISSUER_CA_ID, ca.name ORDER BY month DESC;"
         c.execute(command)
         
         table = {}
@@ -260,7 +260,7 @@ def get_ca_distribution(request):
             month = row[0].strftime("%Y-%m")
             if month not in table:
                 table[month] = []
-            table[month].append({"ca" : "{0}-{1}".format(row[1], row[2]), "count" : row[3]})
+            table[month].append({"ca" : "{0}-{1}".format(row[1], row[2].encode('utf-8')), "count" : row[3]})
             
         for month in table:
             # sort cas in descending order
@@ -294,7 +294,7 @@ def get_ca_distribution(request):
             for month in sorted(table):
                 value = 0
                 for localca in table[month]:
-                    if(localca["signaturealgorithm"] == ca):
+                    if(localca["ca"] == ca):
                         value = localca["count"]
                 values.append([month, value])
             result.append({"key" : ca, "values" : values})
