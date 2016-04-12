@@ -20,7 +20,7 @@ class ESInserter:
         print('max_id',maxId, ' lastid: ',last_id)
 
         while last_id < maxId :
-            cursor.execute("SELECT id, x509_commonName(certificate) as cn, x509_keyAlgorithm(certificate) as algo, x509_keySize(certificate) as size, x509_notAfter(certificate) as notafter, x509_notBefore(certificate) as notbefore, x509_issuerName(certificate) as issuer, count(*) as dnsnames from (SELECT id, certificate, x509_altNames(certificate) from certificate where not x509_canIssueCerts(certificate) and id > (SELECT value from certificate_analysis where type='es_last_cert_id')) as foo group by id, certificate order by id LIMIT 1000;")
+            cursor.execute("SELECT id, x509_commonName(certificate) as cn, x509_keyAlgorithm(certificate) as algo, x509_keySize(certificate) as size, x509_notAfter(certificate) as notafter, x509_notBefore(certificate) as notbefore, x509_issuerName(certificate) as issuer, count(*) as dnsnames from (SELECT id, certificate, x509_altNames(certificate) from certificate where not x509_canIssueCerts(certificate) and id > (SELECT value from certificate_analysis where type='es_last_cert_id') LIMIT 1000) as foo group by id, certificate order by id;")
             certs_to_update = cursor.fetchall()
 
             if not certs_to_update:
