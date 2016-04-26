@@ -1,5 +1,5 @@
 FROM ubuntu:16.04
-MAINTAINER ct
+MAINTAINER christian tiefenau
 
 RUN apt-get update && \
     apt-get install -y git gcc wget \

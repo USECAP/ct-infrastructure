@@ -1,5 +1,7 @@
 elasticsearch:
     image: elasticsearch:latest
+    volumes:
+        - /mnt/data/ct-infrastructure/elasticsearch/data:/usr/share/elasticsearch/data
     ports:
         - 9200:9200
         - 9300:9300
@@ -17,7 +19,7 @@ ctdatabase:
     build: .
     entrypoint: /config.sh
     volumes:
-        - /mnt/data/ct-monitor/data:/var/lib/postgresql/data
+        - /mnt/data/ct-infrastructure/ct-monitor/data:/var/lib/postgresql/data
     ports:
         - 5432:5432
     command: postgres
