@@ -4,7 +4,8 @@ from elasticsearch import Elasticsearch
 class ESInserter:
 
     def __init__(self, db, host_es):
-        self.new_inserted = 0
+        self.insert_successful = 0
+        self.insert_failed = 0
         self.db = db
         self.host_es = host_es
 
@@ -29,14 +30,18 @@ class ESInserter:
             print("fetched: ",len(certs_to_update))
 
             for row in certs_to_update:
-                es.create(id=row[0],index='ct', ignore=409,doc_type='certificate',body={'cn':row[1],'algo':row[2],'size':row[3],'notafter':row[4],'notbefore':row[5], 'issuer':row[6],'dnsnames':int(row[7])})
+                res = es.create(id=row[0],index='ct', ignore=409,doc_type='certificate',body={'cn':row[1],'algo':row[2],'size':row[3],'notafter':row[4],'notbefore':row[5], 'issuer':row[6],'dnsnames':int(row[7])})
                 last_id=row[0]
+                if res['created']:
+                    self.insert_successful += 1
+                else:
+                    self.insert_failed += 1
+
             print(last_id)
-            self.new_inserted += cursor.rowcount
             cursor.execute("UPDATE certificate_analysis SET value={} WHERE type='es_last_cert_id'".format(last_id))
             self.db.commit()
 
         return self.print_log()
 
     def print_log(self):
-        return "{{'type':'es','data':{{'new':{} }} }},".format(self.new_inserted)
+        return "{{'type':'es','data':{{'total':{}, 'success':{}, 'failed':{} }} }},".format(self.insert_successful+self.insert_failed, self.insert_successful, self.insert_failed)
