@@ -36,6 +36,8 @@ ctobservatory:
     restart: always
     dockerfile: observatory/Dockerfile
     build: .
+    volumes:
+        - misc:/observatory/static/data
     environment:
         - POSTGRESHOST=ctdatabase
         - VIRTUAL_HOST=localhost
@@ -45,11 +47,12 @@ ctobservatory:
     ports:
         - 80:80
         - 443:443
-#    command: ./observatory/startup.sh #python /observatory/manage.py runserver 0.0.0.0:7801 #TODO use WSGI
 
 ctanalyzer:
     dockerfile: analyzer/Dockerfile
     build: .
+    volumes:
+        - misc:/data
     environment:
         - POSTGRESHOST=ctdatabase
     links:
