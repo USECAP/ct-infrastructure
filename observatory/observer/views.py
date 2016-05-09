@@ -7,7 +7,8 @@ from django.core.paginator import Paginator
 from django.http import HttpResponse
 from django.http import HttpResponsePermanentRedirect
 import datetime
-
+import os
+from ctobservatory.settings import BASE_DIR
 from .models import *
 
 ITEMS_PER_PAGE = 50
@@ -274,10 +275,10 @@ def logdetail(request,log_id):
 
 def flag(request, flag_id):
     try:
-        with open("static/flags/png/{0}.png".format(flag_id.lower()), "rb") as f:
+        with open(os.path.join(BASE_DIR, "static/flags/png/{0}.png".format(flag_id.lower())), "rb") as f:
             return HttpResponse(f.read(), content_type="image/png")
     except IOError:
-        with open("static/flags/png/-.png", "rb") as f:
+        with open(os.path.join(BASE_DIR, "static/flags/png/-.png"), "rb") as f:
             return HttpResponse(f.read(), content_type="image/png")
 
 def imprint(request):
