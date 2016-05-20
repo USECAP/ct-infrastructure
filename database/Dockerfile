@@ -5,7 +5,7 @@ RUN apt-get update && \
     apt-get install -y git gcc wget \
     build-essential libpq-dev postgresql-server-dev-9.5 libtool autoconf automake libcurl4-openssl-dev python ssh
 
-COPY ./database/libx509pq /libx509pq
+#COPY ./database/libx509pq /libx509pq
 COPY ./database/certwatch_db /certwatch_db
 COPY ./database/config.sh /config.sh
 
@@ -16,7 +16,8 @@ RUN wget https://www.openssl.org/source/old/1.0.2/openssl-1.0.2d.tar.gz && \
 	./config enable-shared enable-md2 && make && make install
 
 #Compile PQ-Library
-RUN cd /libx509pq && make && make install && cp libx509pq.so /libx509pq.so
+ENV OPENSSL_HOME=/usr/local/ssl
+RUN git clone https://github.com/crtsh/libx509pq.git && cd /libx509pq && make && make install && cp libx509pq.so /libx509pq.so
 
 RUN rm -rf libx509pq && rm -rf json-c && rm -rf openssl-1.0.2d
 
