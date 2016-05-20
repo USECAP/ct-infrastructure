@@ -347,6 +347,43 @@ if [ "$1" = 'postgres' ]; then
         					('number_of_interesting_cas',0),
         					('number_of_certs_in_biggest_log',0),
         					('number_of_certs_in_smallest_log',0);
+        					
+                                        CREATE TABLE issues (
+                                            ID          serial,
+                                            TITLE       text NOT NULL,
+                                            DESCRIPTION text NOT NULL,
+                                            CONSTRAINT i_pk
+                                                PRIMARY KEY (ID),
+                                            CONSTRAINT issue_unq UNIQUE (TITLE)
+                                        );
+                                        
+                                        CREATE TABLE found_issues (
+                                            ID  serial,
+                                            CERTIFICATE integer NOT NULL,
+                                            ISSUE       integer NOT NULL,
+                                            TIMESTAMP   timestamp DEFAULT current_timestamp,
+                                            CONSTRAINT fi_pk
+                                                PRIMARY KEY (ID),
+                                            CONSTRAINT fi_c_fk
+                                                FOREIGN KEY (CERTIFICATE)
+                                                REFERENCES CERTIFICATE(ID),
+                                            CONSTRAINT fi_i_fk
+                                                FOREIGN KEY (ISSUE)
+                                                REFERENCES ISSUES(ID),
+                                            CONSTRAINT fi_unq
+                                                UNIQUE (CERTIFICATE, ISSUE)
+                                        );
+                                        
+                                        
+                                        INSERT INTO issues(TITLE, DESCRIPTION) VALUES
+                                            ('First certificate (dnsname)','This is the first certificate for this dnsname that we know of.'),
+                                            ('First certificate (common name)','This is the first certificate for this common name that we know of.'),
+                                            ('New CA','This certificate has been issued by another CA than the previous one(s).'),
+                                            ('Early renewal','This certificate has been renewed long before the previous certificate expired.'),
+                                            ('Weaker crypto (keysize)','This certificate uses the same algorithm with a shorter key size than the previous certificate(s).'),
+                                            ('Weaker crypto (algorithm)','This certificate uses a weaker algorithm than the previous certificate(s).'),
+                                            ('RFC violation','This certificate does not conform to the RFC.');
+                                        
 
                         CREATE TABLE certificate_analysis (
                             ID serial,
@@ -354,7 +391,7 @@ if [ "$1" = 'postgres' ]; then
                             value integer
                         );
 
-                        INSERt INTO certificate_analysis (type, value) VALUES ('es_last_cert_id',-1);
+                        INSERT INTO certificate_analysis (type, value) VALUES ('es_last_cert_id',-1);
 
                         CREATE TABLE notification_dns_names (
                             ID serial,
@@ -386,10 +423,13 @@ if [ "$1" = 'postgres' ]; then
 
         				GRANT SELECT ON ct_log TO crtsh;
 
-        				GRANT SELECT ON ct_log_entry TO crtsh;
+                                        GRANT SELECT ON ct_log_entry TO crtsh;
 
-        				GRANT USAGE ON metadata TO crtsh;
+        				GRANT SELECT ON metadata TO crtsh;
 
+                                        GRANT SELECT ON issues TO crtsh;
+                                        
+        				GRANT SELECT ON found_issues TO crtsh;
 
         				\i /certwatch_db/download_cert.fnc
         				\i /certwatch_db/extract_cert_names.fnc
