@@ -12,7 +12,7 @@ RUN mv /observatory/certs/observatory.pem /etc/ssl/certs/observatory.pem && \
 
 RUN pip install -r /observatory/requirements.txt
 
-RUN mkdir /static #&& pip install -r /app/requirements.txt
+RUN mkdir /static
 
 RUN python /observatory/manage.py collectstatic --noinput
 
