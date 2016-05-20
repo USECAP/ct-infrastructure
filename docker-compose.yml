@@ -37,7 +37,7 @@ ctobservatory:
     dockerfile: observatory/Dockerfile
     build: .
     volumes:
-        - misc:/observatory/static/data
+        - /mnt/data/ct-infrastructure/ct-monitor/misc:/observatory/static/data
     environment:
         - POSTGRESHOST=ctdatabase
         - VIRTUAL_HOST=localhost
@@ -52,7 +52,7 @@ ctanalyzer:
     dockerfile: analyzer/Dockerfile
     build: .
     volumes:
-        - misc:/data
+        - /mnt/data/ct-infrastructure/ct-monitor/misc:/data
     environment:
         - POSTGRESHOST=ctdatabase
     links:
