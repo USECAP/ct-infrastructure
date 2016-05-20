@@ -2,6 +2,9 @@ import psycopg2
 import re
 import urllib2
 from OpenSSL import crypto
+import logging
+import Queue
+import threading
 
 
 class RevokedCertificateAnalyzer:
@@ -12,25 +15,59 @@ class RevokedCertificateAnalyzer:
         self.db = db
         
     def refresh_crls(self):
+        output_queue = Queue.Queue()
+        semaphore = threading.Semaphore(5) # number of concurrent threads
         for crl_url in self.get_crl_urls_out_of_certificate_extensions():
-            self.download_and_parse_crl(crl_url)
+            logging.debug("waiting for relase on semaphore")
+            semaphore.acquire(blocking=True)
+            logging.debug("retrieving and parsing {0}".format(crl_url))
+            t = CrlDownloadThread(crl_url, output_queue, semaphore)
+            t.start()
+        while(threading.active_count() > 1 or not output_queue.empty()):
+            logging.debug("fetching crl from queue, {0} active threads".format(threading.active_count()))
+            if(threading.active_count() < 3):
+                for thread in threading.enumerate():
+                    if isinstance(thread, CrlDownloadThread): 
+                        logging.debug("Running thread working on {0}".format(thread.getCrl()))
+            try:
+                crlraw = output_queue.get(block=True, timeout=10)
+                logging.debug("parsing crl")
+                self.parse_crl(crlraw)
+            except Queue.Empty:
+                logging.debug("Queue was empty")
+            except Exception as e:
+                logging.warn("Exception: {0}".format(str(e)))
+        logging.debug("RevokedCertificateAnalyzer done")
         return self.print_log()
 
-    def download_and_parse_crl(self, url):
-        try:
-            crlraw = urllib2.urlopen(url).read()
-            self.parse_crl(crlraw)
-        except Exception as e:
-            pass
+    #def download_and_parse_crl(self, url):
+        #try:
+            #crlraw = urllib2.urlopen(url).read()
+            #self.parse_crl(crlraw)
+        #except Exception as e:
+            #pass
 
-    def get_url_from_certificate(self, certificate):
+    def get_urls_from_certificate(self, certificate):
+        urls = {'crl':[], 'ocsp':[]}
         for e_idx in range(0, certificate.get_extension_count()):
-            try:
-                m = re.search('https?:\/\/([\w\.\-\/]*)\.crl(\??[\w\.\-\/=&]*)', str(certificate.get_extension(e_idx)))
-                if m: return m.group(0)
-            except Exception as e:
-                pass
-        return ""
+            extension = certificate.get_extension(e_idx)
+            short_name = extension.get_short_name()
+            if(short_name == "crlDistributionPoints"):
+                for line in str(extension).split("\n"):
+                    m = re.search('URI:(.+)$',line)
+                    if m: 
+                        url = m.group(1)
+                        logging.debug("found crl url: {0}".format(url))
+                        urls['crl'].append(url)
+            if(short_name == "authorityInfoAccess"):
+                for line in str(extension).split("\n"):
+                    m = re.search('OCSP - URI:(.+)$',line)
+                    if m: 
+                        url = m.group(1)
+                        logging.debug("found ocsp url: {0}".format(url))
+                        urls['ocsp'].append(url) 
+                        # we probably need to include data about the certificate
+        return urls
 
     def get_crl_urls_out_of_certificate_extensions(self):
         crl_urls = []
@@ -39,8 +76,9 @@ class RevokedCertificateAnalyzer:
             "SELECT c.certificate FROM ca_certificate cac inner join certificate c on cac.certificate_id = c.id")
         for cert in cursor.fetchall():
             decoded_x509 = crypto.load_certificate(crypto.FILETYPE_ASN1, str(cert[0]))
-            crlurl = self.get_url_from_certificate(decoded_x509)
-            if crlurl: crl_urls.append(crlurl)
+            urls = self.get_urls_from_certificate(decoded_x509)
+            for crlurl in urls['crl']: 
+                crl_urls.append(crlurl)
         return set(crl_urls)
 
     def parse_crl(self, crlraw):
@@ -68,3 +106,24 @@ class RevokedCertificateAnalyzer:
 
     def print_log(self):
         return "{{'type':'revokedcerts','data':{{'found':{},'knew':{},'updated':{} }} }},".format(self.revoke_counter,self.found_in_database_counter,self.updated_counter)
+
+class CrlDownloadThread(threading.Thread):
+    def __init__(self, crl, output_queue, semaphore):
+        threading.Thread.__init__(self)
+        self.crl = crl
+        self.output_queue = output_queue
+        self.semaphore = semaphore
+    
+    def getCrl(self):
+        return self.crl
+    
+    def run(self):
+        logging.debug("starting thread to download {0}".format(self.crl))
+        try:
+            crlraw = urllib2.urlopen(self.crl).read()
+            self.output_queue.put(crlraw)
+            logging.debug("downloading {0} finished".format(self.crl))
+        except Exception as e:
+            logging.warn("Exception when downloading {0}: {1}".format(self.crl, str(e)))
+        finally:
+            self.semaphore.release()

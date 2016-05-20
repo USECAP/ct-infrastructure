@@ -1,9 +1,12 @@
+#! /usr/bin/env python2
+
 import sys
 import psycopg2
 import argparse
 import os
 import time
 from datetime import datetime
+import logging
 
 from notifier import Notifier
 from metadata import Metadata
@@ -19,6 +22,7 @@ parser.add_argument('-u', help='update expired certs', action='store_true')
 parser.add_argument('-r', help='update revoked certs', action='store_true')
 parser.add_argument('-m', help='update metadata certs', action='store_true')
 parser.add_argument('-n', help='notify people that registered for updates', action='store_true')
+parser.add_argument('-d', help='debug output', action='store_true')
 parser.add_argument('--t', help='time interval between refresh in minutes')
 parser.add_argument('--pg', help='postgres database ip (default localhost)')
 parser.add_argument('--es', help='elasticsearch database ip (default localhost)')
@@ -31,6 +35,8 @@ interval = int(args.t)*60 if args.t else 180*60
 while True:
     log = ""
     print("hallo")
+    if args.d:
+        logging.basicConfig(level=logging.DEBUG)
     try:
         db = psycopg2.connect("dbname='certwatch' user='postgres' host='"+host_db+"'")
         log += "{{ 'date':{}, 'data':{{".format(datetime.now())
