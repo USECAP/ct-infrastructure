@@ -58,4 +58,5 @@ ctanalyzer:
     links:
         - ctdatabase:ctdatabase
         - elasticsearch:elasticsearch
-    command: python /analyzer/analyzer.py --pg=ctdatabase --es=elasticsearch --t=60 -m -u -l -e
+        - ctobservatory:ctobservatory
+    command: python2 /analyzer/analyzer.py --pg=ctdatabase --es=elasticsearch --web=ctobservatory --t=60 -m -u -l -e

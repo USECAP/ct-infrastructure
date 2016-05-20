@@ -108,7 +108,7 @@
 {% endblock %}
 {% block scripts %}
 $(function(){
-d3.json('/api/getsignaturealgorithmdistribution', function(data) {
+d3.json('/static/data/getsignaturealgorithmdistribution', function(data) {
         d3.select('#signaturealgorithmdiagram .spinner').remove();
         var format = d3.time.format('%Y-%m');
         nv.addGraph(function() {
@@ -140,7 +140,7 @@ d3.json('/api/getsignaturealgorithmdistribution', function(data) {
         });
     });
     
-    d3.json('/api/getactivekeysizedistribution', function(data) {
+    d3.json('/static/data/getactivekeysizedistribution', function(data) {
         d3.select('#keysizediagram .spinner').remove();
         nv.addGraph(function() {
             var chart = nv.models.multiBarHorizontalChart()

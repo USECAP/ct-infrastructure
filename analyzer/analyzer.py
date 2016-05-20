@@ -13,6 +13,7 @@ from metadata import Metadata
 from revokedcertificateanalyzer import RevokedCertificateAnalyzer
 from dbtransformer import DBTransformer
 from esinserter import ESInserter
+from diagramdata import Diagramdata
 
 parser = argparse.ArgumentParser(prog='ct-analyzer')
 
@@ -23,13 +24,16 @@ parser.add_argument('-r', help='update revoked certs', action='store_true')
 parser.add_argument('-m', help='update metadata certs', action='store_true')
 parser.add_argument('-n', help='notify people that registered for updates', action='store_true')
 parser.add_argument('-d', help='debug output', action='store_true')
+parser.add_argument('-g', help='update diagram data', action='store_true')
 parser.add_argument('--t', help='time interval between refresh in minutes')
 parser.add_argument('--pg', help='postgres database ip (default localhost)')
 parser.add_argument('--es', help='elasticsearch database ip (default localhost)')
+parser.add_argument('--web', help='web server ip (default localhost)')
 args = parser.parse_args()
 
 host_db = args.pg if args.pg else "localhost"
 host_es = args.es if args.es else "localhost"
+host_web = args.web if args.web else "localhost"
 interval = int(args.t)*60 if args.t else 180*60
 #
 while True:
@@ -52,6 +56,9 @@ while True:
         if args.e:
             log += ESInserter(db,host_es).update_database()
             print("e", log)
+        if args.g:
+            log += Diagramdata('https://'+host_web,'/data',debug=args.d).update_diagrams()
+            print("g", log)
         if args.n:
             log += Notifier(db).notify()
             print("n", log)
