@@ -14,6 +14,7 @@ from revokedcertificateanalyzer import RevokedCertificateAnalyzer
 from dbtransformer import DBTransformer
 from esinserter import ESInserter
 from diagramdata import Diagramdata
+from issuefinder import IssueFinder
 
 parser = argparse.ArgumentParser(prog='ct-analyzer')
 
@@ -25,6 +26,7 @@ parser.add_argument('-m', help='update metadata certs', action='store_true')
 parser.add_argument('-n', help='notify people that registered for updates', action='store_true')
 parser.add_argument('-d', help='debug output', action='store_true')
 parser.add_argument('-g', help='update diagram data', action='store_true')
+parser.add_argument('-i', help='identify issues', action='store_true')
 parser.add_argument('--t', help='time interval between refresh in minutes')
 parser.add_argument('--pg', help='postgres database ip (default localhost)')
 parser.add_argument('--es', help='elasticsearch database ip (default localhost)')
@@ -59,6 +61,9 @@ while True:
         if args.g:
             log += Diagramdata('https://'+host_web,'/data',debug=args.d).update_diagrams()
             print("g", log)
+        if args.i:
+            log += IssueFinder(db).testing()
+            print("i", log)
         if args.n:
             log += Notifier(db).notify()
             print("n", log)
