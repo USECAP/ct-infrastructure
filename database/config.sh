@@ -349,12 +349,13 @@ if [ "$1" = 'postgres' ]; then
         					('number_of_certs_in_smallest_log',0);
         					
                                         CREATE TABLE issues (
-                                            ID          serial,
-                                            TITLE       text NOT NULL,
+                                            ID         serial,
+                                            NAME       text NOT NULL,
+                                            TITLE text NOT NULL,
                                             DESCRIPTION text NOT NULL,
                                             CONSTRAINT i_pk
                                                 PRIMARY KEY (ID),
-                                            CONSTRAINT issue_unq UNIQUE (TITLE)
+                                            CONSTRAINT issue_unq UNIQUE (NAME)
                                         );
                                         
                                         CREATE TABLE found_issues (
@@ -375,14 +376,14 @@ if [ "$1" = 'postgres' ]; then
                                         );
                                         
                                         
-                                        INSERT INTO issues(TITLE, DESCRIPTION) VALUES
-                                            ('First certificate (dnsname)','This is the first certificate for this dnsname that we know of.'),
-                                            ('First certificate (common name)','This is the first certificate for this common name that we know of.'),
-                                            ('New CA','This certificate has been issued by another CA than the previous one(s).'),
-                                            ('Early renewal','This certificate has been renewed long before the previous certificate expired.'),
-                                            ('Weaker crypto (keysize)','This certificate uses the same algorithm with a shorter key size than the previous certificate(s).'),
-                                            ('Weaker crypto (algorithm)','This certificate uses a weaker algorithm than the previous certificate(s).'),
-                                            ('RFC violation','This certificate does not conform to the RFC.');
+                                        INSERT INTO issues(NAME, TITLE, DESCRIPTION) VALUES
+                                            ('ctobs.issues.first_cert_dnsname', 'First certificate (dnsname)','This is the first certificate for this dnsname that we know of.'),
+                                            ('ctobs.issues.first_cert_cn', 'First certificate (common name)','This is the first certificate for this common name that we know of.'),
+                                            ('ctobs.issues.ca_switch', 'CA switch','This certificate has been issued by another CA than the previous one(s).'),
+                                            ('ctobs.issues.early_renewal', 'Early renewal','This certificate has been renewed long before the previous certificate expired.'),
+                                            ('ctobs.issues.weaker_crypto_keysize', 'Weaker crypto (keysize)','This certificate uses the same algorithm with a shorter key size than the previous certificate(s).'),
+                                            ('ctobs.issues.weaker_crypto_algorithm', 'Weaker crypto (algorithm)','This certificate uses a weaker algorithm than the previous certificate(s).'),
+                                            ('ctobs.issues.rfc_violation', 'RFC violation','This certificate does not conform to the RFC.');
                                         
 
                         CREATE TABLE certificate_analysis (
