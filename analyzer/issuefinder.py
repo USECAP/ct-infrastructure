@@ -1,6 +1,7 @@
 import psycopg2
 import logging
 from OpenSSL import crypto
+from dateutil import parser
 
 class IssueFinder:
 	def __init__(self, db):
@@ -55,6 +56,57 @@ class IssueFinder:
 					break
 		return result
 	
+	
+	def check_first_cert_dnsname(self, ordered_list_of_certificates):
+		"""ctobs.issues.first_cert_dnsname"""
+		logging.debug("calling check_first_cert_dnsname")
+		
+		return self._get_first_certificates(ordered_list_of_certificates)
+		
+		
+	def check_first_cert_cn(self, ordered_list_of_certificates):
+		"""ctobs.issues.first_cert_cn"""
+		logging.debug("calling check_first_cert_cn")
+		
+		return self._get_first_certificates(ordered_list_of_certificates)
+	
+	def _get_first_certificates(self, ordered_list_of_certificates):
+		logging.debug("calling _get_first_certificates")
+		
+		result = []
+		
+		first_timestamp_str = crypto.load_certificate(crypto.FILETYPE_ASN1, str(ordered_list_of_certificates[0][1])).get_notBefore()
+		first_timestamp = parser.parse(first_timestamp_str)
+		logging.debug("First timestamp is {0}".format(first_timestamp))
+		
+		for ID, certificate_bin, ca_id in ordered_list_of_certificates:
+			certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(certificate_bin))
+			current_timestamp_str = certificate.get_notBefore()
+			current_timestamp = parser.parse(current_timestamp_str)
+			
+			if(current_timestamp == first_timestamp):
+				result.append(ID)
+			else:
+				# the certificates are ordered, so there will 
+				# be no certificate with a smaller timestamp
+				break
+		return result
+	
+	def check_ca_switch(self, ordered_list_of_certificates):
+		"""ctobs.issues.ca_switch"""
+		logging.debug("calling check_ca_switch")
+		
+		result = []
+		
+		last_ca = ordered_list_of_certificates[0][2]
+		for ID, certificate_bin, ca_id in ordered_list_of_certificates:
+			
+			if(ca_id != last_ca):
+				logging.debug("CA switched from {0} to {1} at ID {2}".format(last_ca, ca_id, ID))
+				result.append(ID)
+			last_ca = ca_id
+			logging.debug("Last ca is {0}".format(last_ca))
+		return result
 	
 	def check_weaker_crypto_algorithm(self, ordered_list_of_certificates):
 		"""ctobs.issues.weaker_crypto_algorithm"""
@@ -119,22 +171,35 @@ class IssueFinder:
 	def testing(self):
 		
 		#./analyzer.py --pg=ctdatabase --es=elasticsearch --web=ctobservatory -d -i
-		all_cn = self.get_all_cn()
-		print("Fetched all CN values: {0} in total.".format(len(all_cn)))
-		for i in range(100):
-			print(all_cn[i])
+		#all_cn = self.get_all_cn()
+		#print("Fetched all CN values: {0} in total.".format(len(all_cn)))
+		#for i in range(100):
+			#print(all_cn[i])
 			
-		all_dnsname = self.get_all_dnsname()
-		print("Fetched all dNSName values: {0} in total.".format(len(all_dnsname)))
-		for i in range(100):
-			print(all_dnsname[i])
+		#all_dnsname = self.get_all_dnsname()
+		#print("Fetched all dNSName values: {0} in total.".format(len(all_dnsname)))
+		#for i in range(100):
+			#print(all_dnsname[i])
 			
-		ggl_history = self.get_history_for_cn("www.google.com")
-		print("Fetched all history values: {0} in total.".format(len(ggl_history)))
+		ggl_cn_history = self.get_history_for_cn("www.google.com")
+		print("Fetched all cn history values: {0} in total.".format(len(ggl_cn_history)))
+		ggl_dnsname_history = self.get_history_for_cn("www.google.com")
+		print("Fetched all dNSName history values: {0} in total.".format(len(ggl_dnsname_history)))
 		
-		weaker_ggl_crypto_algorithm = self.check_weaker_crypto_algorithm(ggl_history)
-		weaker_ggl_crypto_keysize = self.check_weaker_crypto_keysize(ggl_history)
+		weaker_ggl_cn_crypto_algorithm = self.check_weaker_crypto_algorithm(ggl_cn_history)
+		weaker_ggl_cn_crypto_keysize = self.check_weaker_crypto_keysize(ggl_dnsname_history)
 		
+		first_ggl_cn_certificate = self.check_first_cert_cn(ggl_cn_history)
+		first_ggl_dnsname_certificate = self.check_first_cert_dnsname(ggl_dnsname_history)
+		
+		print(first_ggl_cn_certificate)
+		print(first_ggl_dnsname_certificate)
+		
+		ggl_cn_ca_switch = self.check_ca_switch(ggl_cn_history)
+		ggl_dnsname_ca_switch = self.check_ca_switch(ggl_dnsname_history)
+		
+		print(ggl_cn_ca_switch)
+		print(ggl_dnsname_ca_switch)
 		
 			
-		return "{{'testing':'done', 'weaker_crypto_algorithm_counter':{0}, 'weaker_crypto_keysize_counter':{1}}}".format(len(weaker_ggl_crypto_algorithm), len(weaker_ggl_crypto_keysize))
+		return "{{'testing':'done', 'weaker_crypto_algorithm_counter':{0}, 'weaker_crypto_keysize_counter':{1}, 'first_cn_certificate_counter':{2}, 'first_dnsname_certificate_counter':{3}, 'ca_switch_counter':{4}}}".format(len(weaker_ggl_cn_crypto_algorithm), len(weaker_ggl_cn_crypto_keysize), len(first_ggl_cn_certificate), len(first_ggl_dnsname_certificate), len(ggl_cn_ca_switch)+len(ggl_dnsname_ca_switch))
