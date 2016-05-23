@@ -362,6 +362,7 @@ if [ "$1" = 'postgres' ]; then
                                             ID  serial,
                                             CERTIFICATE integer NOT NULL,
                                             ISSUE       integer NOT NULL,
+                                            EXTRA	text,
                                             TIMESTAMP   timestamp DEFAULT current_timestamp,
                                             CONSTRAINT fi_pk
                                                 PRIMARY KEY (ID),
