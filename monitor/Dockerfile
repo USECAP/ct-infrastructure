@@ -9,6 +9,7 @@ COPY ./monitor /monitor
 
 #Compile JSON-C
 RUN git clone https://github.com/json-c/json-c.git && \
+    sed -i -- 's/"json_inttypes.h"/<stdint.h>/' json-c/configure.ac && \
     cd /json-c && sh autogen.sh && ./configure && make && make install && \
     cp /usr/local/lib/libjson-c.so /usr/lib/libjson-c.so.3
 
