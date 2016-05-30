@@ -2,6 +2,8 @@ import psycopg2
 import logging
 from OpenSSL import crypto
 from dateutil import parser
+from datetime import datetime
+from datetime import timedelta
 
 class IssueFinder:
 	def __init__(self, db):
@@ -135,36 +137,84 @@ class IssueFinder:
 			logging.debug("Last order is {0} ({1})".format(ordering[current_algorithm], current_algorithm))
 		return result
 	
-	def check_weaker_crypto_keysize(self, ordered_list_of_certificates):
-		"""ctobs.issues.weaker_crypto_keysize"""
-		logging.debug("calling check_weaker_crypto_keysize")
+        def check_weaker_crypto_keysize(self, ordered_list_of_certificates):
+                """ctobs.issues.weaker_crypto_keysize"""
+                logging.debug("calling check_weaker_crypto_keysize")
+                
+                ordering = {}
+                ordering['sha1WithRSAEncryption'] = 100
+                ordering['sha256WithRSAEncryption'] = 1000
+                
+                result = []
+                
+                last_order = 0
+                last_keysize = 0
+                for ID, certificate_bin, ca_id in ordered_list_of_certificates:
+                        logging.debug("loading certificate")
+                        certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(certificate_bin))
+                        current_algorithm = certificate.get_signature_algorithm()
+                        current_keysize = certificate.get_pubkey().bits()
+                        
+                        current_order = 0
+                        if(current_algorithm in ordering):
+                                current_order = ordering[current_algorithm]
+                        else:
+                                logging.warning("unknown algorithm: '{0}'".format(current_algorithm))
+                                
+                        if(current_order == last_order):
+                                if(current_keysize < last_keysize):
+                                        result.append(ID)
+                        last_order = ordering[current_algorithm]
+                        last_keysize = current_keysize
+                        logging.debug("Last order is {0} ({1}), last keysize is {2}".format(last_order, current_algorithm, last_keysize))
+                return result
+            
+	def check_early_renewal(self, ordered_list_of_certificates):
+		"""ctobs.issues.early_renewal"""
 		
-		ordering = {}
-		ordering['sha1WithRSAEncryption'] = 100
-		ordering['sha256WithRSAEncryption'] = 1000
+		# early = before the middle of the validity period of a previous set of certificates. Kind of willy-nilly, but hey.
+		
+		minimum_diff_between_certificates = timedelta(minutes=30)
+		logging.debug("calling check_early_renewal")
 		
 		result = []
 		
-		last_order = 0
-		last_keysize = 0
+		if(len(ordered_list_of_certificates) < 1):
+			logging.debug("received an empty list")
+			return result
+		
+		
+		first_certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(ordered_list_of_certificates[0][1]))
+		
+		last_start = parser.parse(first_certificate.get_notBefore())
+		last_end = parser.parse(first_certificate.get_notAfter())
+		flag_as_early = False
+		
 		for ID, certificate_bin, ca_id in ordered_list_of_certificates:
 			logging.debug("loading certificate")
 			certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(certificate_bin))
-			current_algorithm = certificate.get_signature_algorithm()
-			current_keysize = certificate.get_pubkey().bits()
+			notbefore = parser.parse(certificate.get_notBefore())
+			notafter = parser.parse(certificate.get_notAfter())
 			
-			current_order = 0
-			if(current_algorithm in ordering):
-				current_order = ordering[current_algorithm]
-			else:
-				logging.warning("unknown algorithm: '{0}'".format(current_algorithm))
+			if((notbefore - last_start) > minimum_diff_between_certificates):
+				# new set 
+				flag_as_early = False
+				center = (last_start + ((last_end - last_start) // 2)) 	# does this work?
+				if(notbefore < center):					# especially this part?
+					#early renewal
+					flag_as_early = True
+				last_start = notbefore
+				last_end = notafter
 				
-			if(current_order == last_order):
-				if(current_keysize < last_keysize):
-					result.append(ID)
-			last_order = ordering[current_algorithm]
-			last_keysize = current_keysize
-			logging.debug("Last order is {0} ({1}), last keysize is {2}".format(last_order, current_algorithm, last_keysize))
+			else:
+				# old set
+				last_end = max(last_end, notafter)
+			
+			if(flag_as_early):
+				result.append(ID)
+				
+			
+			
 		return result
 	
 	
@@ -201,5 +251,11 @@ class IssueFinder:
 		print(ggl_cn_ca_switch)
 		print(ggl_dnsname_ca_switch)
 		
+		ggl_cn_early_renewal = self.check_early_renewal(ggl_cn_history)
+		ggl_dnsname_early_renewal = self.check_early_renewal(ggl_dnsname_history)
+		
+		print(ggl_cn_early_renewal)
+		print(ggl_dnsname_early_renewal)
+		
 			
-		return "{{'testing':'done', 'weaker_crypto_algorithm_counter':{0}, 'weaker_crypto_keysize_counter':{1}, 'first_cn_certificate_counter':{2}, 'first_dnsname_certificate_counter':{3}, 'ca_switch_counter':{4}}}".format(len(weaker_ggl_cn_crypto_algorithm), len(weaker_ggl_cn_crypto_keysize), len(first_ggl_cn_certificate), len(first_ggl_dnsname_certificate), len(ggl_cn_ca_switch)+len(ggl_dnsname_ca_switch))
+		return "{{'testing':'done', 'weaker_crypto_algorithm_counter':{0}, 'weaker_crypto_keysize_counter':{1}, 'first_cn_certificate_counter':{2}, 'first_dnsname_certificate_counter':{3}, 'ca_switch_counter':{4}, 'early_renewal_counter':{5}}}".format(len(weaker_ggl_cn_crypto_algorithm), len(weaker_ggl_cn_crypto_keysize), len(first_ggl_cn_certificate), len(first_ggl_dnsname_certificate), len(ggl_cn_ca_switch)+len(ggl_dnsname_ca_switch), len(ggl_cn_early_renewal)+len(ggl_dnsname_early_renewal))
