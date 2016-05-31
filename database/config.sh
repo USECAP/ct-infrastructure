@@ -382,6 +382,8 @@ if [ "$1" = 'postgres' ]; then
                                             ('ctobs.issues.first_cert_cn', 'First certificate (common name)','This is the first certificate for this common name that we know of.'),
                                             ('ctobs.issues.ca_switch', 'CA switch','This certificate has been issued by another CA than the previous one(s).'),
                                             ('ctobs.issues.early_renewal', 'Early renewal','This certificate has been renewed long before the previous certificate expired.'),
+                                            ('ctobs.issues.short_validity', 'Short validity','This certificate is valid for a much shorter period of time than the previous certificate(s).'),
+                                            ('ctobs.issues.long_validity', 'Long validity','This certificate is valid for a much longer period of time than the previous certificate(s).'),
                                             ('ctobs.issues.weaker_crypto_keysize', 'Weaker crypto (keysize)','This certificate uses the same algorithm with a shorter key size than the previous certificate(s).'),
                                             ('ctobs.issues.weaker_crypto_algorithm', 'Weaker crypto (algorithm)','This certificate uses a weaker algorithm than the previous certificate(s).'),
                                             ('ctobs.issues.rfc_violation', 'RFC violation','This certificate does not conform to the RFC.');

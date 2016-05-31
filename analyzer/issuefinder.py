@@ -11,6 +11,8 @@ class IssueFinder:
 		self.first_cert_cn_counter = 0
 		self.ca_switch_counter = 0
 		self.early_renewal_counter = 0
+		self.short_validity_counter = 0
+		self.long_validity_counter = 0
 		self.weaker_crypto_keysize_counter = 0
 		self.weaker_crypto_algorithm_counter = 0
 		self.rfc_violation_counter = 0
@@ -59,21 +61,10 @@ class IssueFinder:
 		return result
 	
 	
-	def check_first_cert_dnsname(self, ordered_list_of_certificates):
+	def check_first_certificates(self, ordered_list_of_certificates):
 		"""ctobs.issues.first_cert_dnsname"""
-		logging.debug("calling check_first_cert_dnsname")
-		
-		return self._get_first_certificates(ordered_list_of_certificates)
-		
-		
-	def check_first_cert_cn(self, ordered_list_of_certificates):
 		"""ctobs.issues.first_cert_cn"""
-		logging.debug("calling check_first_cert_cn")
-		
-		return self._get_first_certificates(ordered_list_of_certificates)
-	
-	def _get_first_certificates(self, ordered_list_of_certificates):
-		logging.debug("calling _get_first_certificates")
+		logging.debug("calling check_first_certificates")
 		
 		result = []
 		
@@ -216,11 +207,187 @@ class IssueFinder:
 			
 			
 		return result
+            
+	def check_short_validity(self, ordered_list_of_certificates):
+		"""ctobs.issues.short_validity"""
+		
+		logging.debug("calling check_short_validity")
+		
+		result = []
+		
+		if(len(ordered_list_of_certificates) < 1):
+			logging.debug("received an empty list")
+			return result
+		
+		
+		first_certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(ordered_list_of_certificates[0][1]))
+		
+		first_start = parser.parse(first_certificate.get_notBefore())
+		first_end = parser.parse(first_certificate.get_notAfter())
+		last_duration = first_end - first_start
+		
+		durations = []
+		
+		for ID, certificate_bin, ca_id in ordered_list_of_certificates:
+			logging.debug("loading certificate")
+			certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(certificate_bin))
+			notbefore = parser.parse(certificate.get_notBefore())
+			notafter = parser.parse(certificate.get_notAfter())
+			
+			duration = notafter - notbefore
+			
+			# do not warn if duration is approx. equal to last_duration
+			
+			if(abs(last_duration - duration) < last_duration // 10): # We will allow a 10% deviation
+				# ok, same duration as last one
+				pass
+			else:
+				if(len(durations) > 4):
+					# take the last 5 values,
+					# discard their min and max value,
+					# take the average of the remaining 3,
+					# check for a 50 % decrease
+					values = durations[-5:]
+					values.sort()
+					avg = timedelta(0)
+					for x in values[1:4]:
+						avg += x
+					avg //= 3
+					logging.debug("id: {2} duration: {0} avg: {1}".format(duration, avg, ID))
+					if(duration < (avg // 2)):
+						result.append(ID)
+					
+					
+				else:
+					# we do not have 5 values yet:
+					# just average the existing values,
+					# check for a 50 % decrease
+					avg = timedelta(0)
+					for x in durations:
+						avg += x
+					avg //= 3
+					
+					logging.debug("id: {2} duration: {0} avg: {1}".format(duration, avg, ID))
+					if(duration < (avg // 2)):
+						result.append(ID)
+			
+			
+			last_duration = duration
+			durations.append(duration)
+			
+		return result
 	
+	def check_long_validity(self, ordered_list_of_certificates):
+		"""ctobs.issues.long_validity"""
+		
+		logging.debug("calling check_long_validity")
+		
+		result = []
+		
+		if(len(ordered_list_of_certificates) < 1):
+			logging.debug("received an empty list")
+			return result
+		
+		
+		first_certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(ordered_list_of_certificates[0][1]))
+		
+		first_start = parser.parse(first_certificate.get_notBefore())
+		first_end = parser.parse(first_certificate.get_notAfter())
+		last_duration = first_end - first_start
+		durations = []
+		
+		for ID, certificate_bin, ca_id in ordered_list_of_certificates:
+			logging.debug("loading certificate")
+			certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(certificate_bin))
+			notbefore = parser.parse(certificate.get_notBefore())
+			notafter = parser.parse(certificate.get_notAfter())
+			
+			duration = notafter - notbefore
+			
+			# do not warn if duration is approx. equal to last_duration
+			
+			if(abs(last_duration - duration) < last_duration // 10): # We will allow a 10% deviation
+				# ok, same duration as last one
+				pass
+			else:
+				if(len(durations) > 4):
+					# take the last 5 values,
+					# discard their min and max value,
+					# take the average of the remaining 3,
+					# check for a 50 % increase
+					values = durations[-5:]
+					values.sort()
+					avg = timedelta(0)
+					for x in values[1:4]:
+						avg += x
+					avg //= 3
+					
+					if(duration > avg * 3 // 2):
+						result.append(ID)
+					
+					
+				else:
+					# we do not have 5 values yet:
+					# just average the existing values,
+					# check for a 50 % increase
+					avg = timedelta(0)
+					for x in durations:
+						avg += x
+					avg //= 3
+					
+					if(duration > avg * 3 // 2):
+						result.append(ID)
+			
+			
+			last_duration = duration
+			durations.append(duration)
+			
+		return result
+	
+	def analyzeCN(self, commonName):
+		history = self.get_history_for_cn(commonName)
+		
+		results = {}
+		
+		results['ctobs.issues.weaker_crypto_algorithm'] = self.check_weaker_crypto_algorithm(history)
+		results['ctobs.issues.weaker_crypto_keysize'] = self.check_weaker_crypto_keysize(history)
+		results['ctobs.issues.ca_switch'] = self.check_ca_switch(history)
+		results['ctobs.issues.first_cert_cn'] = self.check_first_certificates(history)
+		results['ctobs.issues.early_renewal'] = self.check_early_renewal(history)
+		results['ctobs.issues.long_validity'] = self.check_long_validity(history)
+		results['ctobs.issues.short_validity'] = self.check_short_validity(history)
+		
+		cursor = self.db.cursor()
+		
+		logging.debug("Fetching issue ids from database")
+		cursor.execute("SELECT ID, NAME FROM ISSUES")
+		mapping = {}
+		for ID, name in cursor.fetchall():
+			mapping[name] = ID
+		
+		for key in results:
+			logging.debug("Handling '{0}'".format(key))
+			if(key not in mapping):
+				logging.error("'{0}' has not registered as an issue in the database".format(key))
+			else:
+				issue = mapping[key]
+				for certificate in results[key]:
+					logging.debug("Inserting {0}-{1}-{2}".format(certificate, issue, commonName))
+					cursor.execute("INSERT INTO found_issues(CERTIFICATE, ISSUE, EXTRA) VALUES (%(certificate)s, %(issue)s, %(extra)s)", {'certificate':certificate,'issue':issue,'extra':commonName})
+					logging.debug(cursor.statusmessage)
+				self.db.commit()
+	
+		
+		
 	
 	def testing(self):
 		
 		#./analyzer.py --pg=ctdatabase --es=elasticsearch --web=ctobservatory -d -i
+		
+		self.analyzeCN("www.google.com")
+		
+		return '{"Jo mei":9001}'
+		
 		#all_cn = self.get_all_cn()
 		#print("Fetched all CN values: {0} in total.".format(len(all_cn)))
 		#for i in range(100):
@@ -231,31 +398,43 @@ class IssueFinder:
 		#for i in range(100):
 			#print(all_dnsname[i])
 			
-		ggl_cn_history = self.get_history_for_cn("www.google.com")
-		print("Fetched all cn history values: {0} in total.".format(len(ggl_cn_history)))
-		ggl_dnsname_history = self.get_history_for_cn("www.google.com")
-		print("Fetched all dNSName history values: {0} in total.".format(len(ggl_dnsname_history)))
+		#ggl_cn_history = self.get_history_for_cn("www.google.com")
+		#print("Fetched all cn history values: {0} in total.".format(len(ggl_cn_history)))
+		#ggl_dnsname_history = self.get_history_for_cn("www.google.com")
+		#print("Fetched all dNSName history values: {0} in total.".format(len(ggl_dnsname_history)))
 		
-		weaker_ggl_cn_crypto_algorithm = self.check_weaker_crypto_algorithm(ggl_cn_history)
-		weaker_ggl_cn_crypto_keysize = self.check_weaker_crypto_keysize(ggl_dnsname_history)
+		#weaker_ggl_cn_crypto_algorithm = self.check_weaker_crypto_algorithm(ggl_cn_history)
+		#weaker_ggl_cn_crypto_keysize = self.check_weaker_crypto_keysize(ggl_dnsname_history)
 		
-		first_ggl_cn_certificate = self.check_first_cert_cn(ggl_cn_history)
-		first_ggl_dnsname_certificate = self.check_first_cert_dnsname(ggl_dnsname_history)
+		#first_ggl_cn_certificate = self.check_first_certificates(ggl_cn_history)
+		#first_ggl_dnsname_certificate = self.check_first_certificates(ggl_dnsname_history)
 		
-		print(first_ggl_cn_certificate)
-		print(first_ggl_dnsname_certificate)
+		#print(first_ggl_cn_certificate)
+		#print(first_ggl_dnsname_certificate)
 		
-		ggl_cn_ca_switch = self.check_ca_switch(ggl_cn_history)
-		ggl_dnsname_ca_switch = self.check_ca_switch(ggl_dnsname_history)
+		#ggl_cn_ca_switch = self.check_ca_switch(ggl_cn_history)
+		#ggl_dnsname_ca_switch = self.check_ca_switch(ggl_dnsname_history)
 		
-		print(ggl_cn_ca_switch)
-		print(ggl_dnsname_ca_switch)
+		#print(ggl_cn_ca_switch)
+		#print(ggl_dnsname_ca_switch)
 		
-		ggl_cn_early_renewal = self.check_early_renewal(ggl_cn_history)
-		ggl_dnsname_early_renewal = self.check_early_renewal(ggl_dnsname_history)
+		#ggl_cn_early_renewal = self.check_early_renewal(ggl_cn_history)
+		#ggl_dnsname_early_renewal = self.check_early_renewal(ggl_dnsname_history)
 		
-		print(ggl_cn_early_renewal)
-		print(ggl_dnsname_early_renewal)
+		#print(ggl_cn_early_renewal)
+		#print(ggl_dnsname_early_renewal)
+		
+		#ggl_cn_long_validity = self.check_long_validity(ggl_cn_history)
+		#ggl_dns_long_validity = self.check_long_validity(ggl_dnsname_history)
+		
+		#print(ggl_cn_long_validity)
+		#print(ggl_dns_long_validity)
+		
+		#ggl_cn_short_validity = self.check_short_validity(ggl_cn_history)
+		#ggl_dns_short_validity = self.check_short_validity(ggl_dnsname_history)
+		
+		#print(ggl_cn_short_validity)
+		#print(ggl_dns_short_validity)
 		
 			
-		return "{{'testing':'done', 'weaker_crypto_algorithm_counter':{0}, 'weaker_crypto_keysize_counter':{1}, 'first_cn_certificate_counter':{2}, 'first_dnsname_certificate_counter':{3}, 'ca_switch_counter':{4}, 'early_renewal_counter':{5}}}".format(len(weaker_ggl_cn_crypto_algorithm), len(weaker_ggl_cn_crypto_keysize), len(first_ggl_cn_certificate), len(first_ggl_dnsname_certificate), len(ggl_cn_ca_switch)+len(ggl_dnsname_ca_switch), len(ggl_cn_early_renewal)+len(ggl_dnsname_early_renewal))
+		#return "{{'testing':'done', 'weaker_crypto_algorithm_counter':{0}, 'weaker_crypto_keysize_counter':{1}, 'first_cn_certificate_counter':{2}, 'first_dnsname_certificate_counter':{3}, 'ca_switch_counter':{4}, 'early_renewal_counter':{5}, 'long_validity_counter':{6}, 'short_validity_counter':{7}}}".format(len(weaker_ggl_cn_crypto_algorithm), len(weaker_ggl_cn_crypto_keysize), len(first_ggl_cn_certificate), len(first_ggl_dnsname_certificate), len(ggl_cn_ca_switch)+len(ggl_dnsname_ca_switch), len(ggl_cn_early_renewal)+len(ggl_dnsname_early_renewal), len(ggl_cn_long_validity)+len(ggl_dns_long_validity), len(ggl_cn_short_validity)+len(ggl_dns_short_validity))
