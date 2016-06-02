@@ -358,10 +358,15 @@ if [ "$1" = 'postgres' ]; then
                                             CONSTRAINT issue_unq UNIQUE (NAME)
                                         );
                                         
+                                        CREATE TYPE field_type AS ENUM (
+        				'commonName', 'dNSName'
+        				);
+                                        
                                         CREATE TABLE found_issues (
                                             ID  serial,
                                             CERTIFICATE integer NOT NULL,
                                             ISSUE       integer NOT NULL,
+                                            FIELD 	field_type,
                                             EXTRA	text,
                                             TIMESTAMP   timestamp DEFAULT current_timestamp,
                                             CONSTRAINT fi_pk
@@ -373,7 +378,7 @@ if [ "$1" = 'postgres' ]; then
                                                 FOREIGN KEY (ISSUE)
                                                 REFERENCES ISSUES(ID),
                                             CONSTRAINT fi_unq
-                                                UNIQUE (CERTIFICATE, ISSUE)
+                                                UNIQUE (CERTIFICATE, ISSUE, FIELD, EXTRA)
                                         );
                                         
                                         

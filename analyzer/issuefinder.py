@@ -346,6 +346,7 @@ class IssueFinder:
 	
 	def analyzeCN(self, commonName):
 		history = self.get_history_for_cn(commonName)
+		field = 'commonName'
 		
 		results = {}
 		
@@ -373,7 +374,7 @@ class IssueFinder:
 				issue = mapping[key]
 				for certificate in results[key]:
 					logging.debug("Inserting {0}-{1}-{2}".format(certificate, issue, commonName))
-					cursor.execute("INSERT INTO found_issues(CERTIFICATE, ISSUE, EXTRA) VALUES (%(certificate)s, %(issue)s, %(extra)s)", {'certificate':certificate,'issue':issue,'extra':commonName})
+					cursor.execute("INSERT INTO found_issues(CERTIFICATE, ISSUE, FIELD, EXTRA) VALUES (%(certificate)s, %(issue)s, %(field)s, %(extra)s)", {'certificate':certificate,'issue':issue,'field':field,'extra':commonName})
 					logging.debug(cursor.statusmessage)
 				self.db.commit()
 	
