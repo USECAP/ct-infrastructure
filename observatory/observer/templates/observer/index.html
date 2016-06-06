@@ -118,7 +118,7 @@ d3.json('/static/data/getsignaturealgorithmdistribution', function(data) {
             .y(function(d) { return d[1] })
             //.controlLabels({stacked: "Stacked"})
             .duration(300)
-            .margin({"left":50});
+            .margin({"left":60});
             
             chart.xAxis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
             chart.x2Axis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
