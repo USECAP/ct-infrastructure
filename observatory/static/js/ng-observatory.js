@@ -14,6 +14,7 @@ observatoryapp.controller("IndexController",function($scope, $http){
     });*/
 
     $http.get("/api/getloginfo").then(function(promise){
+	    d3.select('#certsinlogdistribution .spinner').remove();
         nv.addGraph(function() {
             var chart = nv.models.multiBarHorizontalChart()
                 .x(function(d) { return d.label })
@@ -60,6 +61,7 @@ observatoryapp.controller("IndexController",function($scope, $http){
         return d3.format('d')(d);
       });
       d3.json("/api/getlogdist", function(error, json) {
+	d3.select('#distributionchart .spinner').remove();
         if (error) return console.warn(error);
         d3.select("#distributionchart svg")
             .datum(json)
