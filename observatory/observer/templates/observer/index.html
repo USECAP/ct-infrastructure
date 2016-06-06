@@ -110,35 +110,48 @@
 {% endblock %}
 {% block scripts %}
 $(function(){
-d3.json('/static/data/getsignaturealgorithmdistribution', function(data) {
+    d3.json('/static/data/getsignaturealgorithmdistribution', function(data) {
+        max_value = 0
+        data.forEach(function(entry){
+        last_element = entry.values[entry.values.length-1];
+        last_element_date = new Date(last_element[0].substr(0,4),
+    last_element[0].substr(4,2)).getTime();
+        if (last_element_date > max_value)
+            max_value = last_element_date;
+        });
+
+
         d3.select('#signaturealgorithmdiagram .spinner').remove();
         var format = d3.time.format('%Y-%m');
         nv.addGraph(function() {
-            chart = nv.models.stackedAreaWithFocusChart()
-            .useInteractiveGuideline(true)
-            .x(function(d) { return format.parse(d[0]); })
-            .y(function(d) { return d[1] })
-            //.controlLabels({stacked: "Stacked"})
-            .duration(300)
-            .margin({"left":60});
-            
-            chart.xAxis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
-            chart.x2Axis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
-            chart.yAxis.tickFormat(d3.format('0,'));
-            d3.select('#signaturealgorithmdiagram svg')
-            .datum(data)
-            .transition().duration(1000)
-            .call(chart)
-            .each('start', function() {
-                setTimeout(function() {
-                    d3.selectAll('#signaturealgorithmdiagram svg *').each(function() {
-                        if(this.__transition__)
-                            this.__transition__.duration = 1;
-                    })
-                }, 0)
-            });
-            nv.utils.windowResize(chart.update);
-            return chart;
+        chart = nv.models.stackedAreaWithFocusChart()
+        .options({
+            brushExtent: [ 1293836400000, max_value]
+        })
+        .useInteractiveGuideline(true)
+        .x(function(d) { return format.parse(d[0]); })
+        .y(function(d) { return d[1] })
+        //.controlLabels({stacked: "Stacked"})
+        .duration(300)
+        .margin({"left":60});
+
+        chart.xAxis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
+        chart.x2Axis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
+        chart.yAxis.tickFormat(d3.format('0,'));
+        d3.select('#signaturealgorithmdiagram svg')
+        .datum(data)
+        .transition().duration(1000)
+        .call(chart)
+        .each('start', function() {
+            setTimeout(function() {
+                d3.selectAll('#signaturealgorithmdiagram svg *').each(function() {
+                    if(this.__transition__)
+                    this.__transition__.duration = 1;
+                })
+            }, 0)
+        });
+        nv.utils.windowResize(chart.update);
+        return chart;
         });
     });
     
