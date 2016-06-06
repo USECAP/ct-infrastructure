@@ -89,9 +89,7 @@ class Certificate(models.Model):
     def has_expired(self, cert=None):
         if(cert == None):
             cert = self.get_x509_data()
-        if(cert.has_expired()):
-            return True
-        return False
+        return cert.has_expired()
     
     def signature_algorithm(self, cert=None):
         if(cert == None):
