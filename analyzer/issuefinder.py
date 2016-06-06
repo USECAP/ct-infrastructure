@@ -107,7 +107,15 @@ class IssueFinder:
 		
 		ordering = {}
 		ordering['sha1WithRSAEncryption'] = 100
+                ordering['md5WithRSAEncryption'] = 100
 		ordering['sha256WithRSAEncryption'] = 1000
+		ordering['sha512WithRSAEncryption'] = 1000
+		ordering['ecdsa-with-SHA256'] = 1000
+		
+                ordering['sha384WithRSAEncryption'] = 100
+                ordering['dsa_with_SHA256'] = 100
+                ordering['sha1WithRSA'] = 100
+                ordering['ecdsa-with-SHA384'] = 1000
 		
 		result = []
 		
@@ -124,8 +132,8 @@ class IssueFinder:
 				
 			if(current_order < last_order):
 				result.append(ID)
-			last_order = ordering[current_algorithm]
-			logging.debug("Last order is {0} ({1})".format(ordering[current_algorithm], current_algorithm))
+			last_order = current_order
+			logging.debug("Last order is {0} ({1})".format(last_order, current_algorithm))
 		return result
 	
         def check_weaker_crypto_keysize(self, ordered_list_of_certificates):
@@ -134,7 +142,15 @@ class IssueFinder:
                 
                 ordering = {}
                 ordering['sha1WithRSAEncryption'] = 100
+                ordering['md5WithRSAEncryption'] = 100
                 ordering['sha256WithRSAEncryption'] = 1000
+                ordering['sha512WithRSAEncryption'] = 1000
+		ordering['ecdsa-with-SHA256'] = 1000
+		
+                ordering['sha384WithRSAEncryption'] = 100
+                ordering['dsa_with_SHA256'] = 100
+                ordering['sha1WithRSA'] = 100
+                ordering['ecdsa-with-SHA384'] = 1000
                 
                 result = []
                 
@@ -155,7 +171,7 @@ class IssueFinder:
                         if(current_order == last_order):
                                 if(current_keysize < last_keysize):
                                         result.append(ID)
-                        last_order = ordering[current_algorithm]
+                        last_order = current_order
                         last_keysize = current_keysize
                         logging.debug("Last order is {0} ({1}), last keysize is {2}".format(last_order, current_algorithm, last_keysize))
                 return result
@@ -374,7 +390,7 @@ class IssueFinder:
 				issue = mapping[key]
 				for certificate in results[key]:
 					logging.debug("Inserting {0}-{1}-{2}".format(certificate, issue, commonName))
-					cursor.execute("INSERT INTO found_issues(CERTIFICATE, ISSUE, FIELD, EXTRA) VALUES (%(certificate)s, %(issue)s, %(field)s, %(extra)s)", {'certificate':certificate,'issue':issue,'field':field,'extra':commonName})
+					cursor.execute("INSERT INTO found_issues(CERTIFICATE, ISSUE, FIELD, EXTRA) VALUES (%(certificate)s, %(issue)s, %(field)s, %(extra)s) ON CONFLICT DO NOTHING", {'certificate':certificate,'issue':issue,'field':field,'extra':commonName})
 					logging.debug(cursor.statusmessage)
 				self.db.commit()
 	
@@ -385,7 +401,13 @@ class IssueFinder:
 		
 		#./analyzer.py --pg=ctdatabase --es=elasticsearch --web=ctobservatory -d -i
 		
-		self.analyzeCN("www.google.com")
+		all_cn = self.get_all_cn()
+		
+		for i in range(len(all_cn)):
+			if(i % 10000 == 0):
+				logging.info("Processing cn {0} of {1} ({2})".format(i, len(all_cn), datetime.now()))
+			self.analyzeCN(all_cn[i])
+		#self.analyzeCN("www.google.com")
 		
 		return '{"Jo mei":9001}'
 		

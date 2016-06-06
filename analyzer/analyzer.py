@@ -43,6 +43,8 @@ while True:
     print("hallo")
     if args.d:
         logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
     try:
         db = psycopg2.connect("dbname='certwatch' user='postgres' host='"+host_db+"'")
         log += "{{ 'date':{}, 'data':{{".format(datetime.now())
