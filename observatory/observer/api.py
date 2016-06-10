@@ -181,11 +181,8 @@ def get_active_keysize_distribution(request, ca_id=None):
 @cache_page(60*60*24)
 def get_signature_algorithm_distribution(request, ca_id=None):
     
-    group_1 = []
-    group_2 = []
-    group_3 = []
     months = []
-    algorithms = []
+    algorithms = ['SHA-1-RSA','SHA-256-RSA','SHA-256-ECDSA']
     
     with connection.cursor() as c:
         if(ca_id == None):
@@ -202,34 +199,10 @@ def get_signature_algorithm_distribution(request, ca_id=None):
             if month not in table:
                 table[month] = []
             table[month].append({"signaturealgorithm" : "{0}-{1}".format(row[1], row[2]), "count" : row[3]})
-            
-        for month in table:
-            # sort algorithms in descending order
-            sortedlist = sorted(table[month], key=lambda k: k['count'], reverse=True)
-            if(len(sortedlist) > 0):
-                if(sortedlist[0]["signaturealgorithm"] not in group_1):
-                    group_1.append(sortedlist[0]["signaturealgorithm"])
-            if(len(sortedlist) > 1):
-                if(sortedlist[1]["signaturealgorithm"] not in group_2):
-                    group_2.append(sortedlist[1]["signaturealgorithm"])
-            if(len(sortedlist) > 2):
-                if(sortedlist[2]["signaturealgorithm"] not in group_3):
-                    group_3.append(sortedlist[2]["signaturealgorithm"])
-            
-        # fill algorithms filter with at least 3 signature algorithms
-        algorithms = group_1[:]
-        
-        for g in group_2:
-            if(len(algorithms) < 3):
-                if(g not in algorithms):
-                    algorithms.append(g)
-        for g in group_3:
-            if(len(algorithms) < 3):
-                if(g not in algorithms):
-                    algorithms.append(g)
-        
+
         result = []
         
+        # create entries for selected algorithms
         for algo in algorithms:
             values = []
             for month in sorted(table):
@@ -239,7 +212,8 @@ def get_signature_algorithm_distribution(request, ca_id=None):
                         value = localalgorithm["count"]
                 values.append([month, value])
             result.append({"key" : algo, "values" : values})
-        # create 'other' group
+            
+        # create entries for 'other'
         values = []
         for month in sorted(table):
             value = 0
