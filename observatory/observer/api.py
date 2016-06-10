@@ -239,6 +239,15 @@ def get_signature_algorithm_distribution(request, ca_id=None):
                         value = localalgorithm["count"]
                 values.append([month, value])
             result.append({"key" : algo, "values" : values})
+        # create 'other' group
+        values = []
+        for month in sorted(table):
+            value = 0
+            for localalgorithm in table[month]:
+                if(localalgorithm["signaturealgorithm"] not in algorithms):
+                    value += localalgorithm["count"]
+            values.append([month, value])
+        result.append({"key" : 'other', "values" : values})
             
         return HttpResponse(json.dumps(result))
 
