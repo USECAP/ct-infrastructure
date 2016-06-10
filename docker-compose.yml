@@ -59,4 +59,4 @@ ctanalyzer:
         - ctdatabase:ctdatabase
         - elasticsearch:elasticsearch
         - ctobservatory:ctobservatory
-    command: python2 /analyzer/analyzer.py --pg=ctdatabase --es=elasticsearch --web=https://www.ct-observatory.org --t=60 -m -u -l -e -g
+    command: python2 /analyzer/analyzer.py --pg=ctdatabase --es=elasticsearch --web=www.ct-observatory.org --t=60 -m -u -l -e -g
