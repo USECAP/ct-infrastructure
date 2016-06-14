@@ -226,7 +226,7 @@ nv.models.stackedAreaWithFocusChart = function() {
                 
                 if ( margin.top != Math.max(controls.height(), legend.height()) ) {
                     margin.top = Math.max(controls.height(), legend.height());
-                    availableHeight = nv.utils.availableHeight(height, container, margin);
+                    availableHeight1 = nv.utils.availableHeight(height, container, margin);
                 }
                 
                 g.select('.nv-controlsWrap')
