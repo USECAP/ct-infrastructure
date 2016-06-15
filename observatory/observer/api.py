@@ -355,16 +355,13 @@ def search_cn_dnsname(request, term, offset):
     counter = 0
     for cert in found_cn_dnsname:
         if(counter < limit):
-            status = "<b>active</b>"
-            if(cert.has_expired()):
-                status = "expired"
             result["values"].append({
                 "cert_id":cert.id,
                 "cert_cn":cert.subject_common_name(),
                 "ca_id":cert.issuer_ca.id,
                 "ca_cn":cert.issuer_ca.get_name_CN(),
                 "cert_not_before":cert.not_before(),
-                "cert_status":status,
+                "cert_status":"expired" if cert.has_expired() else "<b>active</b>",
                 "cert_not_after":cert.not_after()
             })
         else:
@@ -373,4 +370,34 @@ def search_cn_dnsname(request, term, offset):
     
     result['has_more_data'] = has_more_data
     
+    return HttpResponse(json.dumps(result))
+
+def search_certificate_by_fingerprint(request, fingerprint):
+    if fingerprint:
+        try:
+            search_result = Certificate.objects.raw("SELECT * "
+                                           "from certificate where x509_publickey(certificate) = '%s' "
+                                           "OR x509_publickeymd5(certificate) = '%s'" % (fingerprint,fingerprint))[0]
+            print(search_result)
+            return HttpResponse(True)
+        except:
+            pass
+    return HttpResponse(False)
+
+def get_last_certificates_for_dnsname(request, term, limit=5):
+    found_cn_dnsname = Certificate.objects.raw("SELECT DISTINCT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID, x509_notBefore(CERTIFICATE) AS notBefore FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE (NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) OR (NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) ORDER BY notBefore DESC LIMIT %s", [term, term, limit])
+    print(term, limit, found_cn_dnsname)
+    result = []
+    for cert in found_cn_dnsname:
+        result.append(
+           {
+                "cert_id":cert.id,
+                "cert_cn":cert.subject_common_name(),
+                "ca_id":cert.issuer_ca.id,
+                "ca_cn":cert.issuer_ca.get_name_CN(),
+                "cert_not_before":cert.not_before(),
+                "expired":cert.has_expired(),
+                "cert_not_after":cert.not_after()
+            }
+        )
     return HttpResponse(json.dumps(result))
