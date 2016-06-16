@@ -25,7 +25,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['www.ct-observatory.org']
+ALLOWED_HOSTS = ['ct-observatory.org','www.ct-observatory.org']
 
 
 # Application definition
