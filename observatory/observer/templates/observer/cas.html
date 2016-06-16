@@ -78,6 +78,13 @@ $(function(){
         var pagenumber = $('#pagenumber').val();
         window.location.href = "./"+pagenumber;
     });
+    
+    $('#pagenumber').keypress(function (e) {
+        if (e.which == 13) {
+            $('#callpage').click();
+            return false;    
+        }
+    });
 });
 
 {% endblock %}
