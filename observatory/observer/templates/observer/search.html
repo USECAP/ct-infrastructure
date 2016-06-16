@@ -20,7 +20,7 @@
         <tbody id="ca_results">
         </tbody>
         <tfoot>
-        <tr><td colspan="6"><button class="btn btn-block btn-primary" id="button_ca_more">Load more results <span class="spinner" id="load_ca_more_spinner"><i class="fa fa-refresh fa-spin"></i></button></td></tr>
+        <tr><td colspan="6"><button class="btn btn-block btn-primary" id="button_ca_more">Load more results</button></td></tr>
         </tfoot>
         </table>
     <hr/>
@@ -42,7 +42,7 @@
         <tbody id="cn_dnsname_results">
         </tbody>
         <tfoot>
-        <tr><td colspan="5"><button class="btn btn-block btn-primary" id="button_cn_dnsname_more">Load more results <span class="spinner" id="load_cn_dnsname_more_spinner"><i class="fa fa-refresh fa-spin"></i></button></td></tr>
+        <tr><td colspan="5"><button class="btn btn-block btn-primary" id="button_cn_dnsname_more">Load more results</button></td></tr>
         </tfoot>
         </table>
         
@@ -52,15 +52,19 @@
 var totaloffset_cn_dnsname = 0;
 var totaloffset_ca = 0;
 
+var string_action_load = "Load more results";
+var string_currently_loading = 'Loading <i class="fa fa-refresh fa-spin"></i>';
+var string_no_more_results = "No more results.";
+
 function disableCnDnsnameMoreButton(){
-    $('#button_cn_dnsname_more').text("No more results.");
+    $('#button_cn_dnsname_more').text(string_no_more_results);
     $('#button_cn_dnsname_more').prop("disabled",true);
     $('#button_cn_dnsname_more').removeClass("btn-primary");
     $('#button_cn_dnsname_more').addClass("btn-default");
 }
 
 function disableCaMoreButton(){
-    $('#button_ca_more').text("No more results.");
+    $('#button_ca_more').text(string_no_more_results);
     $('#button_ca_more').prop("disabled",true);
     $('#button_ca_more').removeClass("btn-primary");
     $('#button_ca_more').addClass("btn-default");
@@ -83,8 +87,10 @@ function loadResultsCnDnsname(offset){
         totaloffset_cn_dnsname += items;
         if(!data.has_more_data){
             disableCnDnsnameMoreButton();
+        } else {
+            $('#button_cn_dnsname_more').prop('disabled', false);
+            $('#button_cn_dnsname_more').text(string_action_load);
         }
-        $('#load_cn_dnsname_more_spinner').hide();
     });
 }
 
@@ -102,8 +108,10 @@ function loadResultsCa(offset){
         totaloffset_ca += items;
         if(!data.has_more_data){
             disableCaMoreButton();
+        } else {
+            $('#button_ca_more').prop('disabled', false);
+            $('#button_ca_more').text(string_action_load);
         }
-        $('#load_ca_more_spinner').hide();
     });
 }
 
@@ -112,16 +120,18 @@ $(function(){
     $('#button_cn_dnsname_more').prop("disabled",false);
     $('#button_ca_more').prop("disabled",false);
     
-    loadResultsCnDnsname(0);
-    loadResultsCa(0);
-    
     $('#button_cn_dnsname_more').click(function(){
-        $('#load_cn_dnsname_more_spinner').show();
+        $('#button_cn_dnsname_more').prop('disabled', true);
+        $('#button_cn_dnsname_more').html(string_currently_loading);
         loadResultsCnDnsname(totaloffset_cn_dnsname);
     });
     $('#button_ca_more').click(function(){
-        $('#load_ca_more_spinner').show();
+        $('#button_cn_dnsname_more').prop('disabled', true);
+        $('#button_cn_dnsname_more').html(string_currently_loading);
         loadResultsCa(totaloffset_ca);
     });
+    
+    $('#button_cn_dnsname_more').click();
+    $('#button_ca_more').click();
 });
 {% endblock %}
