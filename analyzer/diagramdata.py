@@ -17,6 +17,9 @@ class Diagramdata:
 	def update_getsignaturealgorithmdistribution(self):
 		self.update_data("/api/getsignaturealgorithmdistribution", 'getsignaturealgorithmdistribution')
 		
+	def update_getcadistribution(self):
+		self.update_data("/api/getcadistribution", 'getcadistribution')
+		
 	def update_data(self, url, filename):
 		request_url = urlparse.urljoin(self.baseurl, url)
 		target_filename = os.path.join(self.target_directory, filename)
@@ -33,6 +36,9 @@ class Diagramdata:
 		
 		
 	def update_diagrams(self):
+		logging.debug("Updating getcadistribution...")
+		self.update_getcadistribution()
+		
 		logging.debug("Updating getactivekeysizedistribution...")
 		self.update_getactivekeysizedistribution()
 		

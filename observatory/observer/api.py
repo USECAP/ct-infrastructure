@@ -227,10 +227,7 @@ def get_signature_algorithm_distribution(request, ca_id=None):
 
 @cache_page(60*60*24)
 def get_ca_distribution(request):
-    
-    group_1 = []
-    group_2 = []
-    group_3 = []
+
     months = []
     cas = []
     
@@ -242,33 +239,18 @@ def get_ca_distribution(request):
         for row in c.fetchall():
             month = row[0].strftime("%Y-%m")
             if month not in table:
-                table[month] = []
-            table[month].append({"ca" : "{0}-{1}".format(row[1], row[2].encode('utf-8')), "count" : row[3]})
-            
+                table[month] = {}
+            ca = normalize_ca_name(row[2].encode('utf-8'))
+            if(ca not in table[month]):
+                table[month][ca] = 0
+            table[month][ca] += row[3]
+        
         for month in table:
             # sort cas in descending order
-            sortedlist = sorted(table[month], key=lambda k: k['count'], reverse=True)
-            if(len(sortedlist) > 0):
-                if(sortedlist[0]["ca"] not in group_1):
-                    group_1.append(sortedlist[0]["ca"])
-            if(len(sortedlist) > 1):
-                if(sortedlist[1]["ca"] not in group_2):
-                    group_2.append(sortedlist[1]["ca"])
-            if(len(sortedlist) > 2):
-                if(sortedlist[2]["ca"] not in group_3):
-                    group_3.append(sortedlist[2]["ca"])
-            
-        # fill cas filter with at least 3 cas
-        cas = group_1[:]
-        
-        for g in group_2:
-            if(len(cas) < 3):
-                if(g not in cas):
-                    cas.append(g)
-        for g in group_3:
-            if(len(cas) < 3):
-                if(g not in cas):
-                    cas.append(g)
+            for ca in table[month]:
+                if(table[month][ca] > 50000):
+                    if(ca not in cas):
+                        cas.append(ca)
         
         result = []
         
@@ -277,14 +259,34 @@ def get_ca_distribution(request):
             for month in sorted(table):
                 value = 0
                 for localca in table[month]:
-                    if(localca["ca"] == ca):
-                        value = localca["count"]
+                    if(localca == ca):
+                        value = table[month][localca]
                 values.append([month, value])
+                
             result.append({"key" : ca, "values" : values})
+        
+        # now add up the other CAs
+        values = []
+        for month in sorted(table):
+            value = 0
+            for localca in table[month]:
+                if(localca not in cas):
+                    value += table[month][localca]
+            values.append([month, value])
+            
+        result.append({"key" : 'other', "values" : values})
             
         return HttpResponse(json.dumps(result))
 
-
+def normalize_ca_name(ca_name):
+    m = re.search('O=(.*?)(,|$)', ca_name)
+    if(m != None):
+        ca_name = m.group(1).strip('"')
+    else:
+        m = re.search('O="(.*?)"(,|$)', ca_name)
+        if(m != None):
+            ca_name = m.group(1).strip('"')
+    return ca_name
 
 @cache_page(60*60*24)
 def get_all_cert_information(request):
