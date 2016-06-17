@@ -115,7 +115,7 @@ $(function(){
         data.forEach(function(entry){
         last_element = entry.values[entry.values.length-1];
         last_element_date = new Date(last_element[0].substr(0,4),
-    last_element[0].substr(4,2)).getTime();
+    last_element[0].substr(5,2)).getTime();
         if (last_element_date > max_value)
             max_value = last_element_date;
         });
