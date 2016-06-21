@@ -387,6 +387,8 @@ def search_certificate_by_fingerprint(request, fingerprint):
     return HttpResponse(False)
 
 def get_last_certificates_for_dnsname(request, term, limit=5):
+    if limit > 20:
+        limit = 20
     found_cn_dnsname = Certificate.objects.raw("SELECT DISTINCT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID, x509_notBefore(CERTIFICATE) AS notBefore FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE (NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) OR (NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) ORDER BY notBefore DESC LIMIT %s", [term, term, limit])
     print(term, limit, found_cn_dnsname)
     result = []
