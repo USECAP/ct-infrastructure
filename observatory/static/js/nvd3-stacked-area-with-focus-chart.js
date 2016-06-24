@@ -294,6 +294,7 @@ nv.models.stackedAreaWithFocusChart = function() {
             var contextLinesWrap = g.select('.nv-context .nv-linesWrap')
                 .datum(data.filter(function(d) { return !d.disabled }))
 
+            d3.transition(contextLinesWrap).call(lines);
             d3.transition(contextLinesWrap).call(lines2);
 
             // Setup Main (Focus) Axes

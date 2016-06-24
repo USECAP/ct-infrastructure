@@ -105,11 +105,13 @@
         </div>
         <div class="col-md-12">
             <div class="card">
-                <div id="cadiagram" class="card-block diagram" style="height: 400px;">
+                <div class="card-block diagram">
                     <h4 class="card-title">Most frequent CAs</h4>
                     <h6 class="card-subtitle text-muted">Number of issued certificates per month, for CAs that issued at least 50,000 certificates in a single month</h6>
-                    <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
-                    <svg></svg>
+                    <div id="cadiagram" style="height: 400px;">
+                        <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+                        <svg></svg>
+                    </div>
                 </div>
             </div>
         </div>
@@ -185,8 +187,7 @@ $(function(){
         })
         .useInteractiveGuideline(true)
         .x(function(d) { return format.parse(d[0]); })
-        .y(function(d) { return d[1] })
-        //.controlLabels({stacked: "Stacked"})
+        .y(function(d) { return d[1]; })
         .duration(300)
         .margin({"left":60});
 
