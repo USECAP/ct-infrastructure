@@ -10,15 +10,7 @@ class Diagramdata:
 		self.baseurl = baseurl
 		self.target_directory = target_directory
 		self.debug = debug
-	
-	def update_getactivekeysizedistribution(self):
-		self.update_data("/api/getactivekeysizedistribution", 'getactivekeysizedistribution')
 		
-	def update_getsignaturealgorithmdistribution(self):
-		self.update_data("/api/getsignaturealgorithmdistribution", 'getsignaturealgorithmdistribution')
-		
-	def update_getcadistribution(self):
-		self.update_data("/api/getcadistribution", 'getcadistribution')
 		
 	def update_data(self, url, filename):
 		request_url = urlparse.urljoin(self.baseurl, url)
@@ -36,14 +28,20 @@ class Diagramdata:
 		
 		
 	def update_diagrams(self):
+		logging.debug("Updating getloginfo...")
+		self.update_data("/api/getloginfo", 'getloginfo')
+		
+		logging.debug("Updating getlogdist...")
+		self.update_data("/api/getlogdist", 'getlogdist')
+		
 		logging.debug("Updating getcadistribution...")
-		self.update_getcadistribution()
+		self.update_data("/api/getcadistribution", 'getcadistribution')
 		
 		logging.debug("Updating getactivekeysizedistribution...")
-		self.update_getactivekeysizedistribution()
+		self.update_data("/api/getactivekeysizedistribution", 'getactivekeysizedistribution')
 		
 		logging.debug("Updating getsignaturealgorithmdistribution...")
-		self.update_getsignaturealgorithmdistribution()
+		self.update_data("/api/getsignaturealgorithmdistribution", 'getsignaturealgorithmdistribution')
 		
 		logging.debug("Done (Diagramdata.update_diagrams).")
 		
