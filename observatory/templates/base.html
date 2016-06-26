@@ -45,6 +45,7 @@
     <script type="text/javascript" src="{% static "js/ng-table.min.js" %}"></script>
     <script type="text/javascript" src="{% static "js/ng-observatory.js" %}"></script>
     <script type="text/javascript" src="{% static "js/gantt-chart-d3v2.js" %}"></script>
+    {% block additionalscripts %}{% endblock %}
     <script type="text/javascript">
     {% block scripts %}{% endblock %}
     </script>
