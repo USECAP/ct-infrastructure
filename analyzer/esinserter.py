@@ -1,19 +1,28 @@
 import psycopg2
 from elasticsearch import Elasticsearch
+import threading
 
-class ESInserter:
+class ESInserter(threading.Thread):
 
-    def __init__(self, db, host_es):
+    def __init__(self, dbname, dbuser, dbhost, host_es):
+        threading.Thread.__init__(self)
         self.insert_successful = 0
         self.insert_failed = 0
-        self.db = db
         self.host_es = host_es
+        self.dbname = dbname
+        self.dbuser = dbuser
+        self.dbhost = dbhost
+    
+    def run(self):
+        db = psycopg2.connect(dbname=self.dbname, user=self.dbuser, host=self.dbhost)
+        self.update_database(db)
+        db.close()
 
-    def update_database(self):
+    def update_database(self, db):
         es = Elasticsearch(self.host_es)
         es.indices.create(index='ct', ignore=400)
 
-        cursor = self.db.cursor()
+        cursor = db.cursor()
         cursor.execute("select max(id) from certificate;")
         maxId = cursor.fetchall()[0][0]
         cursor.execute("select value from certificate_analysis where type='es_last_cert_id';")
@@ -39,8 +48,7 @@ class ESInserter:
 
             print(last_id)
             cursor.execute("UPDATE certificate_analysis SET value={} WHERE type='es_last_cert_id'".format(last_id))
-            self.db.commit()
-
+            db.commit()
         return self.print_log()
 
     def print_log(self):

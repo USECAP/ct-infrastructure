@@ -4,13 +4,17 @@ import shutil
 import logging
 import os
 import ssl
+import threading
 
-class Diagramdata:
+class Diagramdata(threading.Thread):
 	def __init__(self, baseurl, target_directory,debug):
+		threading.Thread.__init__(self)
 		self.baseurl = baseurl
 		self.target_directory = target_directory
 		self.debug = debug
-		
+	
+	def run(self):
+            self.update_diagrams()
 		
 	def update_data(self, url, filename):
 		request_url = urlparse.urljoin(self.baseurl, url)

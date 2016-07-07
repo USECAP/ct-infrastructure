@@ -4,9 +4,12 @@ from OpenSSL import crypto
 from dateutil import parser
 from datetime import datetime
 from datetime import timedelta
+import threading
 
-class IssueFinder:
-    def __init__(self, db):
+
+class IssueFinder(threading.Thread):
+    def __init__(self, dbname, dbuser, dbhost):
+        threading.Thread.__init__(self)
         self.first_cert_dnsname_counter = 0
         self.first_cert_cn_counter = 0
         self.ca_switch_counter = 0
@@ -16,7 +19,15 @@ class IssueFinder:
         self.weaker_crypto_keysize_counter = 0
         self.weaker_crypto_algorithm_counter = 0
         self.rfc_violation_counter = 0
-        self.db = db
+        self.dbname = dbname
+        self.dbuser = dbuser
+        self.dbhost = dbhost
+        self.db = None
+    
+    def run(self):
+        self.db = psycopg2.connect(dbname=self.dbname, user=self.dbuser, host=self.dbhost)
+        self.testing() #TODO
+        self.db.close()
 
     def get_all_cn(self):
         logging.debug("calling get_all_cn")
@@ -36,6 +47,13 @@ class IssueFinder:
         return self._get_result_list(
             "SELECT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE))=reverse(lower(%s)) ORDER BY x509_notBefore(CERTIFICATE) ASC",
             (cn,))
+
+    def get_history_for_dnsname(self, dnsname):
+        logging.debug("calling get_history_for_dnsname")
+
+        return self._get_result_list(
+            "SELECT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE))=reverse(lower(%s)) ORDER BY x509_notBefore(CERTIFICATE) ASC",
+            (dnsname,))
 
     def _get_result_list(self, query, parameters=None):
         logging.debug("calling _get_result_list")
@@ -219,8 +237,8 @@ class IssueFinder:
                 # new set
                 flag_as_early = False
                 center = (
-                last_start + ((last_end - last_start) // 2))  # does this work?
-                if (notbefore < center):  # especially this part?
+                last_start + ((last_end - last_start) // 2))
+                if (notbefore < center):
                     # early renewal
                     flag_as_early = True
                 last_start = notbefore
@@ -366,7 +384,7 @@ class IssueFinder:
                     # check for a 50 % increase
                     avg = timedelta(0)
                     for x in durations:
-                        avg += x
+                IssueFinder        avg += x
                     avg //= 3
 
                     if (duration > avg * 3 // 2):
@@ -422,8 +440,10 @@ class IssueFinder:
                     cursor.execute(
                         "INSERT INTO found_issues(CERTIFICATE, ISSUE, FIELD, EXTRA) VALUES (%(certificate)s, %(issue)s, %(field)s, %(extra)s) ON CONFLICT DO NOTHING",
                         {
-                            'certificate': certificate, 'issue': issue,
-                            'field'      : field, 'extra': commonName
+                            'certificate': certificate, 
+                            'issue'      : issue,
+                            'field'      : field, 
+                            'extra'      : commonName
                             })
                     logging.debug(cursor.statusmessage)
                 self.db.commit()

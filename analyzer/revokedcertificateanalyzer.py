@@ -7,12 +7,16 @@ import Queue
 import threading
 
 
-class RevokedCertificateAnalyzer:
+class RevokedCertificateAnalyzer(threading.Thread):
     def __init__(self, db):
+        threading.Thread.__init__(self)
         self.revoke_counter = 0
         self.found_in_database_counter = 0
         self.updated_counter = 0
         self.db = db
+        
+    def run(self):
+        self.refresh_crls()
         
     def refresh_crls(self):
         output_queue = Queue.Queue()

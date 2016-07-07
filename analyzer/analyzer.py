@@ -37,7 +37,56 @@ host_db = args.pg if args.pg else "localhost"
 host_es = args.es if args.es else "localhost"
 host_web = args.web if args.web else "localhost"
 interval = int(args.t)*60 if args.t else 180*60
-#
+
+
+# Thread structure:
+# 
+# Main
+# |-> elasticsearch
+# |-> diagram data
+# |-> issues -> notify
+# |-> |
+#     |-> expired |
+#     |-> revoked |
+#                 |-> metadata
+
+class ERMwrapper(threading.Thread):
+    def __init__(self, dbname, dbuser, dbhost, doRCA, doDBT, doMD):
+        threading.Thread.__init__(self)
+        self.dbname = dbname
+        self.dbuser = dbuser
+        self.dbhost = dbhost
+        self.doRCA = doRCA
+        self.doDBT = doDBT
+        self.doMD = doMD
+        
+    def run(self):
+        RCAthread = None
+        DBTthread = None
+        if(self.doRCA):
+            RCAthread = RevokedCertificateAnalyzer(self.dbname, self.dbuser, self.dbhost)
+            RCAthread.start()
+         
+        if(self.doDBT):
+            DBTthread = DBTransformer(self.dbname, self.dbuser, self.dbhost)
+            DBTthread.start()
+            
+        if(self.doRCA):
+            RCAthread.join()
+         
+        if(self.doDBT):
+            DBTthread.join()
+            
+        if(self.doMD):
+            MDthread = Metadata(self.dbname, self.dbuser, self.dbhost)
+            MDthread.start()
+            MDthread.join()
+            
+        
+         
+
+
+
 while True:
     log = ""
     print("hallo")
@@ -48,24 +97,35 @@ while True:
     try:
         db = psycopg2.connect("dbname='certwatch' user='postgres' host='"+host_db+"'")
         log += "{{ 'date':{}, 'data':{{".format(datetime.now())
-        if args.u:
-            log += DBTransformer(db).update_expired_flag()
-            print("u", log)
-        if args.r:
-            log += RevokedCertificateAnalyzer(db).refresh_crls()
-            print("r", log)
-        if args.m:
-            log += Metadata(db).update_metadata()
-            print("m", log)
+        #if args.u:
+            #log += DBTransformer(db).update_expired_flag()
+            #print("u", log)
+        #if args.r:
+            #RCAthread = RevokedCertificateAnalyzer(db)
+            #RCAthread.start()
+            ##TODO logging
+            #print("r", 'log')
+        #if args.m:
+            #log += Metadata(db).update_metadata()
+            #print("m", log)
+        ERMthread = ERMwrapper('certwatch', 'postgres', host_db, args.r, args.u, args.m)
+        ERMthread.start() # if none of r, u and m are true, nothing happens.
+        
+        
         if args.e:
-            log += ESInserter(db,host_es).update_database()
-            print("e", log)
+            ESIthread = ESInserter('certwatch', 'postgres', host_db, host_es)
+            ESIthread.start()
+            #TODO logging
+            print("e", 'log')
         if args.g:
-            log += Diagramdata('https://'+host_web,'/data',debug=args.d).update_diagrams()
-            print("g", log)
+            DDthread = Diagramdata('https://'+host_web,'/data',debug=args.d)
+            DDthread.start()
+            print("g", 'log')
         if args.i:
-            log += IssueFinder(db).testing()
-            print("i", log)
+            IFthread = IssueFinder('certwatch', 'postgres', host_db)
+            IFthread.start()
+            #TODO logging
+            print("i", 'log')
         if args.n:
             log += Notifier(db).notify()
             print("n", log)
