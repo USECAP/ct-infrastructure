@@ -156,6 +156,9 @@ if [ "$1" = 'postgres' ]; then
                 CREATE OR REPLACE FUNCTION x509pq_opensslVersion() RETURNS text
                     AS '$libdir/libx509pq.so' LANGUAGE C IMMUTABLE;
 
+                CREATE OR REPLACE FUNCTION x509lint_embedded(bytea,integer) RETURNS SETOF text
+	                AS '$libdir/libx509lintpq.so' LANGUAGE c IMMUTABLE;
+
         		CREATE EXTENSION pgcrypto;
 		EOSQL
 
@@ -577,7 +580,7 @@ if [ "$1" = 'postgres' ]; then
                                 PRIMARY KEY (CERTIFICATE_ID, TRUST_CONTEXT_ID, TRUST_PURPOSE_ID),
                             CONSTRAINT rtp_c_fk
                                 FOREIGN KEY (CERTIFICATE_ID)
-                                REFERENCES ca_certificate(CERTIFICATE_ID),
+                                REFERENCES ca_certificate(ID),
                             CONSTRAINT rtp_tc_fk
                                 FOREIGN KEY (TRUST_CONTEXT_ID)
                                 REFERENCES trust_context(ID),
@@ -796,7 +799,6 @@ if [ "$1" = 'postgres' ]; then
                         GRANT SELECT ON ca_trust_purpose TO crtsh;
                         GRANT SELECT ON applicable_purpose TO crtsh;
                         GRANT SELECT ON microsoft_disallowedcert TO crtsh;
-                        GRANT SELECT ON mozilla_onecrl TO crtsh;
                         GRANT SELECT ON google_revoked TO crtsh;
 
                         \i /certwatch_db/lint_cached.fnc

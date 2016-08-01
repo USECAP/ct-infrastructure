@@ -141,6 +141,7 @@ BEGIN
 
 EXCEPTION
 	WHEN others THEN
+	    raise notice '% %', SQLERRM, SQLSTATE;
 		RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
