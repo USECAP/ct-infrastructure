@@ -1,6 +1,6 @@
 /* libx509pq - a certificate parsing library for PostgreSQL
  * Written by Rob Stradling
- * Copyright (C) 2015 COMODO CA Limited
+ * Copyright (C) 2015-2016 COMODO CA Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -219,8 +219,10 @@ static int ASN1_GENERALIZEDTIME_parse(
 		if ((t_data[i] > '9') || (t_data[i] < '0'))
 			goto label_error;
 
-	v_time->tm_year = (t_data[0] - '0') * 1000 + (t_data[1] - '0') * 100
-			+ (t_data[2] - '0') * 10 + (t_data[3] - '0');
+	v_time->tm_year = (
+		((t_data[0] - '0') * 1000) + ((t_data[1] - '0') * 100)
+		+ ((t_data[2] - '0') * 10) + (t_data[3] - '0')
+	) - 1900;
 
 	v_time->tm_mon = (t_data[4] - '0') * 10 + (t_data[5] - '0');
 	if ((v_time->tm_mon > 12) || (v_time->tm_mon < 1))
@@ -278,7 +280,6 @@ static int ASN1_UTCTIME_parse(
 	v_time->tm_year = (t_data[0] - '0') * 10 + (t_data[1] - '0');
 	if (v_time->tm_year < 50)
 		v_time->tm_year += 100;
-	v_time->tm_year += 1900;
 
 	v_time->tm_mon = (t_data[2] - '0') * 10 + (t_data[3] - '0');
 	if ((v_time->tm_mon > 12) || (v_time->tm_mon < 1))
@@ -523,7 +524,6 @@ Datum x509_notafter(
 	if (!t_iResult)
 		PG_RETURN_NULL();
 
-	t_time.tm_year -= 1900;
 	t_timestamp = (timegm(&t_time) - 946684800) * USECS_PER_SEC;
 
 	PG_RETURN_TIMESTAMP(t_timestamp);
@@ -560,7 +560,6 @@ Datum x509_notbefore(
 	if (!t_iResult)
 		PG_RETURN_NULL();
 
-	t_time.tm_year -= 1900;
 	t_timestamp = (timegm(&t_time) - 946684800) * USECS_PER_SEC;
 
 	PG_RETURN_TIMESTAMP(t_timestamp);
@@ -994,6 +993,53 @@ Datum x509_commonname(
 }
 
 
+/******************************************************************************
+ * x509_subjectkeyidentifier()                                                *
+ ******************************************************************************/
+PG_FUNCTION_INFO_V1(x509_subjectkeyidentifier);
+Datum x509_subjectkeyidentifier(
+	PG_FUNCTION_ARGS
+)
+{
+	X509* t_x509 = NULL;
+	ASN1_OCTET_STRING* t_asn1OctetString;
+	bytea* t_bytea = NULL;
+	bytea* t_subjectKeyIdentifier = NULL;
+	unsigned char* t_pointer = NULL;
+	int t_size;
+
+	if (PG_ARGISNULL(0))
+		PG_RETURN_NULL();
+	t_bytea = PG_GETARG_BYTEA_P(0);
+	t_pointer = (unsigned char*)VARDATA(t_bytea);
+	t_x509 = d2i_X509(
+		NULL, (const unsigned char**)&t_pointer,
+		VARSIZE(t_bytea) - VARHDRSZ
+	);
+	if (!t_x509)
+		PG_RETURN_NULL();
+
+	t_asn1OctetString = X509_get_ext_d2i(
+		t_x509, NID_subject_key_identifier, NULL, NULL
+	);
+	if (!t_asn1OctetString) {
+		X509_free(t_x509);
+		PG_RETURN_NULL();
+	}
+
+	t_size = ASN1_STRING_length(t_asn1OctetString);
+	t_subjectKeyIdentifier = palloc(VARHDRSZ + t_size);
+	t_pointer = (unsigned char*)t_subjectKeyIdentifier + VARHDRSZ;
+	memcpy(t_pointer, ASN1_STRING_data(t_asn1OctetString), t_size);
+	SET_VARSIZE(t_subjectKeyIdentifier, VARHDRSZ + t_size);
+
+	ASN1_OCTET_STRING_free(t_asn1OctetString);
+	X509_free(t_x509);
+
+	PG_RETURN_BYTEA_P(t_subjectKeyIdentifier);
+}
+
+
 typedef struct tExtKeyUsageCtx_st{
 	EXTENDED_KEY_USAGE* m_extKeyUsages;
 	int m_index;
@@ -1076,10 +1122,8 @@ Datum x509_extkeyusages(
 				t_funcCtx, PointerGetDatum(t_text)
 			);
 		}
-	}
-
-	if (t_extKeyUsageCtx && t_extKeyUsageCtx->m_extKeyUsages)
 		EXTENDED_KEY_USAGE_free(t_extKeyUsageCtx->m_extKeyUsages);
+	}
 
 	SRF_RETURN_DONE(t_funcCtx);
 }
@@ -1145,7 +1189,7 @@ Datum x509_isekupermitted(
 					break;
 				}
 			}
-			EXTENDED_KEY_USAGE(t_extendedKeyUsage);
+			EXTENDED_KEY_USAGE_free(t_extendedKeyUsage);
 		}
 
 	label_done:
@@ -1240,10 +1284,8 @@ Datum x509_certpolicies(
 				t_funcCtx, PointerGetDatum(t_text)
 			);
 		}
-	}
-
-	if (t_certPoliciesCtx && t_certPoliciesCtx->m_certPolicies)
 		CERTIFICATEPOLICIES_free(t_certPoliciesCtx->m_certPolicies);
+	}
 
 	SRF_RETURN_DONE(t_funcCtx);
 }
@@ -1663,24 +1705,47 @@ Datum x509_nameattributes(
 					&& (t_x509NameCtx->m_nid != NID_X509))
 				continue;
 
-			t_asn1String = X509_NAME_ENTRY_get_data(t_nameEntry);
-			(void)ASN1_STRING_to_UTF8(
-				(unsigned char**)&t_utf8String, t_asn1String
-			);
-			if (t_utf8String) {
-				text* t_text = palloc(
-					strlen(t_utf8String) + VARHDRSZ
+			text* t_text;
+			if (PG_GETARG_BOOL(3)) {
+				t_asn1String = X509_NAME_ENTRY_get_data(
+					t_nameEntry
 				);
-				SET_VARSIZE(
-					t_text, strlen(t_utf8String) + VARHDRSZ
+				(void)ASN1_STRING_to_UTF8(
+					(unsigned char**)&t_utf8String,
+					t_asn1String
 				);
-				memcpy((void*)VARDATA(t_text), t_utf8String,
-					strlen(t_utf8String));
-				OPENSSL_free(t_utf8String);
-				SRF_RETURN_NEXT(
-					t_funcCtx, PointerGetDatum(t_text)
-				);
+				if (t_utf8String) {
+					t_text = palloc(
+						strlen(t_utf8String) + VARHDRSZ
+					);
+					SET_VARSIZE(
+						t_text,
+						strlen(t_utf8String) + VARHDRSZ
+					);
+					memcpy((void*)VARDATA(t_text),
+						t_utf8String,
+						strlen(t_utf8String));
+					OPENSSL_free(t_utf8String);
+				}
 			}
+			else {
+				char t_buffer[80];
+				OBJ_obj2txt(
+					t_buffer, sizeof t_buffer,
+					X509_NAME_ENTRY_get_object(t_nameEntry),
+					1
+				);
+				t_text = palloc(strlen(t_buffer) + VARHDRSZ);
+				SET_VARSIZE(
+					t_text, strlen(t_buffer) + VARHDRSZ
+				);
+				memcpy((void*)VARDATA(t_text), t_buffer,
+					strlen(t_buffer));
+			}
+
+			SRF_RETURN_NEXT(
+				t_funcCtx, PointerGetDatum(t_text)
+			);
 		}
 	}
 
@@ -1804,7 +1869,10 @@ Datum x509_altnames(
 				continue;
 
 			/* IA5String types */
-			if ((t_generalName->type == GEN_EMAIL)
+			if (!PG_GETARG_BOOL(3))
+				/* We're only interested in OtherName OIDs */
+				;
+			else if ((t_generalName->type == GEN_EMAIL)
 					|| (t_generalName->type == GEN_DNS)
 					|| (t_generalName->type == GEN_URI))
 				(void)ASN1_STRING_to_UTF8(
@@ -1877,8 +1945,9 @@ Datum x509_altnames(
 				);
 			}
 
+			text* t_text = NULL;
 			if (t_utf8String) {
-				text* t_text = palloc(
+				t_text = palloc(
 					strlen(t_utf8String) + VARHDRSZ
 				);
 				SET_VARSIZE(
@@ -1887,13 +1956,35 @@ Datum x509_altnames(
 				memcpy((void*)VARDATA(t_text), t_utf8String,
 					strlen(t_utf8String));
 				OPENSSL_free(t_utf8String);
+			}
+			else if ((!PG_GETARG_BOOL(3)) && (t_generalName->type
+							== GEN_OTHERNAME)) {
+				ASN1_OBJECT* t_oid;
+				char t_buffer[80];
+				(void)GENERAL_NAME_get0_otherName(
+					(GENERAL_NAME*)t_generalName, &t_oid,
+					NULL
+				);
+				OBJ_obj2txt(
+					t_buffer, sizeof t_buffer, t_oid, 1
+				);
+				t_text = palloc(strlen(t_buffer) + VARHDRSZ);
+				SET_VARSIZE(
+					t_text, strlen(t_buffer) + VARHDRSZ
+				);
+				memcpy((void*)VARDATA(t_text), t_buffer,
+					strlen(t_buffer));
+			}
+
+			if (t_text)
 				SRF_RETURN_NEXT(
 					t_funcCtx, PointerGetDatum(t_text)
 				);
-			}
 		}
-		GENERAL_NAMES_free(t_altNamesCtx->m_genNames);
 	}
+
+	if (t_altNamesCtx->m_genNames)
+		GENERAL_NAMES_free(t_altNamesCtx->m_genNames);
 
 	SRF_RETURN_DONE(t_funcCtx);
 }
@@ -2009,13 +2100,10 @@ Datum x509_crldistributionpoints(
 				);
 			}
 		}
-	}
-
-	if (t_cRLDistributionPointsCtx
-			&& t_cRLDistributionPointsCtx->m_cRLDistributionPoints)
 		CRL_DIST_POINTS_free(
 			t_cRLDistributionPointsCtx->m_cRLDistributionPoints
 		);
+	}
 
 	SRF_RETURN_DONE(t_funcCtx);
 }
@@ -2120,7 +2208,7 @@ Datum x509_authorityinfoaccess(
 
 			if (t_accessDescription->location->type != GEN_URI)
 				continue;
-			
+
 			(void)ASN1_STRING_to_UTF8(
 				(unsigned char**)&t_utf8String,
 				t_accessDescription->location->d.ia5
@@ -2141,13 +2229,10 @@ Datum x509_authorityinfoaccess(
 				);
 			}
 		}
+		AUTHORITY_INFO_ACCESS_free(
+			t_authorityInfoAccessCtx->m_authorityInfoAccess
+		);
 	}
-
-	if (t_authorityInfoAccessCtx)
-		if (t_authorityInfoAccessCtx->m_authorityInfoAccess)
-			AUTHORITY_INFO_ACCESS_free(
-				t_authorityInfoAccessCtx->m_authorityInfoAccess
-			);
 
 	SRF_RETURN_DONE(t_funcCtx);
 }
@@ -2252,15 +2337,238 @@ Datum x509_verify(
 }
 
 
-/* URL Encode Escape Chars */
-/* 48-57 (0-9) 65-90 (A-Z) 97-122 (a-z) 95 (_) 45 (-) */
+/******************************************************************************
+ * x509_anynameswithnuls()                                                    *
+ ******************************************************************************/
+PG_FUNCTION_INFO_V1(x509_anynameswithnuls);
+Datum x509_anynameswithnuls(
+	PG_FUNCTION_ARGS
+)
+{
+	X509* t_x509 = NULL;
+	X509_NAME* t_name;
+	X509_NAME_ENTRY* t_nameEntry;
+	STACK_OF(GENERAL_NAME)* t_genNames;
+	const GENERAL_NAME* t_generalName;
+	bytea* t_bytea = NULL;
+	const unsigned char* t_pointer = NULL;
+	int l_indexNo;
+	bool t_bResult = FALSE;
+
+	if (PG_ARGISNULL(0))
+		PG_RETURN_NULL();
+	t_bytea = PG_GETARG_BYTEA_P(0);
+	t_pointer = (unsigned char*)VARDATA(t_bytea);
+	t_x509 = d2i_X509(NULL, &t_pointer, VARSIZE(t_bytea) - VARHDRSZ);
+	if (!t_x509)
+		PG_RETURN_NULL();
+
+	t_name = X509_get_subject_name(t_x509);
+	if (t_name) {
+		for (l_indexNo = 0; l_indexNo < X509_NAME_entry_count(t_name);
+								l_indexNo++) {
+			char* t_utf8String = NULL;
+			t_nameEntry = X509_NAME_get_entry(t_name, l_indexNo);
+			int t_length = ASN1_STRING_to_UTF8(
+				(unsigned char**)&t_utf8String,
+				X509_NAME_ENTRY_get_data(t_nameEntry)
+			);
+			if (t_utf8String) {
+				if (t_length != strlen(t_utf8String))
+					t_bResult = TRUE;
+				OPENSSL_free(t_utf8String);
+			}
+		}
+	}
+
+	t_name = X509_get_issuer_name(t_x509);
+	if (t_name) {
+		for (l_indexNo = 0; l_indexNo < X509_NAME_entry_count(t_name);
+								l_indexNo++) {
+			char* t_utf8String = NULL;
+			t_nameEntry = X509_NAME_get_entry(t_name, l_indexNo);
+			int t_length = ASN1_STRING_to_UTF8(
+				(unsigned char**)&t_utf8String,
+				X509_NAME_ENTRY_get_data(t_nameEntry)
+			);
+			if (t_utf8String) {
+				if (t_length != strlen(t_utf8String))
+					t_bResult = TRUE;
+				OPENSSL_free(t_utf8String);
+			}
+		}
+	}
+
+	t_genNames = X509_get_ext_d2i(t_x509, NID_subject_alt_name, NULL, NULL);
+	if (t_genNames) {
+		for (l_indexNo = 0; l_indexNo < sk_GENERAL_NAME_num(t_genNames);
+								l_indexNo++) {
+			char* t_utf8String = NULL;
+			t_generalName = sk_GENERAL_NAME_value(
+				t_genNames, l_indexNo
+			);
+			if ((t_generalName->type == GEN_EMAIL)
+					|| (t_generalName->type == GEN_DNS)
+					|| (t_generalName->type == GEN_URI)) {
+				int t_length = ASN1_STRING_to_UTF8(
+					(unsigned char**)&t_utf8String,
+					t_generalName->d.ia5
+				);
+				if (t_utf8String) {
+					if (t_length != strlen(t_utf8String))
+						t_bResult = TRUE;
+					OPENSSL_free(t_utf8String);
+				}
+			}
+		}
+		GENERAL_NAMES_free(t_genNames);
+	}
+
+	t_genNames = X509_get_ext_d2i(t_x509, NID_issuer_alt_name, NULL, NULL);
+	if (t_genNames) {
+		for (l_indexNo = 0; l_indexNo < sk_GENERAL_NAME_num(t_genNames);
+								l_indexNo++) {
+			char* t_utf8String = NULL;
+			t_generalName = sk_GENERAL_NAME_value(
+				t_genNames, l_indexNo
+			);
+			if ((t_generalName->type == GEN_EMAIL)
+					|| (t_generalName->type == GEN_DNS)
+					|| (t_generalName->type == GEN_URI)) {
+				int t_length = ASN1_STRING_to_UTF8(
+					(unsigned char**)&t_utf8String,
+					t_generalName->d.ia5
+				);
+				if (t_utf8String) {
+					if (t_length != strlen(t_utf8String))
+						t_bResult = TRUE;
+					OPENSSL_free(t_utf8String);
+				}
+			}
+		}
+		GENERAL_NAMES_free(t_genNames);
+	}
+
+	X509_free(t_x509);
+
+	PG_RETURN_BOOL(t_bResult);
+}
+
+
+typedef struct tExtensionsCtx_st{
+	X509* m_x509;
+	STACK_OF(X509_EXTENSION)* m_extensions;
+	int m_index;
+} tExtensionsCtx;
+
+
+/******************************************************************************
+ * X509_extensions()                                                          *
+ ******************************************************************************/
+PG_FUNCTION_INFO_V1(x509_extensions);
+Datum x509_extensions(
+	PG_FUNCTION_ARGS
+)
+{
+	X509_EXTENSION* t_extension;
+	ASN1_OBJECT* t_extensionOID;
+	tExtensionsCtx* t_extensionsCtx;
+	FuncCallContext* t_funcCtx;
+
+	if (SRF_IS_FIRSTCALL()) {
+		MemoryContext t_oldMemoryCtx;
+		bytea* t_bytea = NULL;
+		text* t_text = NULL;
+		const unsigned char* t_pointer = NULL;
+
+		/* Create a function context for cross-call persistence */
+		t_funcCtx = SRF_FIRSTCALL_INIT();
+		/* Switch to memory context appropriate for multiple function
+		  calls */
+		t_oldMemoryCtx = MemoryContextSwitchTo(
+			t_funcCtx->multi_call_memory_ctx
+		);
+
+		/* Allocate memory for our user-defined structure and initialize
+		  it */
+		t_funcCtx->user_fctx = t_extensionsCtx
+					= palloc(sizeof(tExtensionsCtx));
+		memset(t_extensionsCtx, '\0', sizeof(tExtensionsCtx));
+
+		/* One-time setup code */
+		if (!PG_ARGISNULL(0)) {
+			t_bytea = PG_GETARG_BYTEA_P(0);
+			t_pointer = (unsigned char*)VARDATA(t_bytea);
+			t_extensionsCtx->m_x509 = d2i_X509(
+				NULL, &t_pointer, VARSIZE(t_bytea) - VARHDRSZ
+			);
+		}
+		if (t_extensionsCtx->m_x509) {
+#ifdef X509_get0_extensions
+			t_extensionsCtx->m_extensions = X509_get0_extensions(
+				t_extensionsCtx->m_x509
+			);
+#else
+			t_extensionsCtx->m_extensions =
+				t_extensionsCtx->m_x509->cert_info->extensions;
+#endif
+		}
+
+		MemoryContextSwitchTo(t_oldMemoryCtx);
+	}
+
+	/* Each-time setup code */
+	t_funcCtx = SRF_PERCALL_SETUP();
+	t_extensionsCtx = t_funcCtx->user_fctx;
+
+	if (t_extensionsCtx->m_extensions) {
+		while (t_extensionsCtx->m_index < sk_X509_EXTENSION_num(
+					t_extensionsCtx->m_extensions)) {
+			t_extension = sk_X509_EXTENSION_value(
+				t_extensionsCtx->m_extensions,
+				t_extensionsCtx->m_index++
+			);
+			t_extensionOID = X509_EXTENSION_get_object(t_extension);
+
+			text* t_text = palloc(MAX_OIDSTRING_LENGTH + VARHDRSZ);
+
+			(void)OBJ_obj2txt(
+				VARDATA(t_text), MAX_OIDSTRING_LENGTH,
+				t_extensionOID, PG_GETARG_BOOL(1) ? 1 : 0
+			);
+
+			SET_VARSIZE(t_text, strlen(VARDATA(t_text)) + VARHDRSZ);
+
+			SRF_RETURN_NEXT(
+				t_funcCtx, PointerGetDatum(t_text)
+			);
+		}
+	}
+
+	if (t_extensionsCtx->m_x509)
+		X509_free(t_extensionsCtx->m_x509);
+
+	SRF_RETURN_DONE(t_funcCtx);
+}
+
+
+/* URL Encoding - characters to not encode:
+ * 33 (!)
+ * 39-42 ('()*)
+ * 45-46 (-.)
+ * 48-57 (0-9)
+ * 65-90 (A-Z)
+ * 95 (_)
+ * 97-122 (a-z)
+ * 126 (~)
+ */
 
 static int chars_to_not_encode[] = {
 	0,0,0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,
-	0,0,0,0,0,0,0,0,0,0,
-	0,0,0,0,0,1,0,0,1,1,
+	0,0,0,1,0,0,0,0,0,1,
+	1,1,1,0,0,1,1,0,1,1,
 	1,1,1,1,1,1,1,1,0,0,
 	0,0,0,0,0,1,1,1,1,1,
 	1,1,1,1,1,1,1,1,1,1,
@@ -2268,7 +2576,7 @@ static int chars_to_not_encode[] = {
 	1,0,0,0,0,1,0,1,1,1,
 	1,1,1,1,1,1,1,1,1,1,
 	1,1,1,1,1,1,1,1,1,1,
-	1,1,1,0,0,0,0,0
+	1,1,1,0,0,0,1,0
 };
 
 /******************************************************************************
