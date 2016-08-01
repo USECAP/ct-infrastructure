@@ -11,7 +11,8 @@ class Metadata:
 
         logging.debug("counting all certificates")
         cursor.execute(
-            "UPDATE metadata SET NAME_VALUE=(SELECT reltuples FROM pg_class WHERE relname = 'certificate') WHERE NAME_TYPE='number_of_certs'")  # All Certs
+            #"UPDATE metadata SET NAME_VALUE=(SELECT reltuples FROM pg_class WHERE relname = 'certificate') WHERE NAME_TYPE='number_of_certs'")  # All Certs
+            "UPDATE metadata SET NAME_VALUE=(SELECT count(*) FROM certificate) WHERE NAME_TYPE='number_of_certs'")  # All Certs
 	
 	logging.debug("counting all CAs")
         cursor.execute(

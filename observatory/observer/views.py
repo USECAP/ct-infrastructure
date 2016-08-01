@@ -190,10 +190,23 @@ def certrevoked(request, page=None):
         }
     )
 
-def certs_by_log(request, log_id):
+def certs_by_log(request, log_id, page=None):
+    if(page==None):
+        return HttpResponsePermanentRedirect("./1")
+
+    page = int(page)
+    log_id = int(log_id)
+    
+    list_of_certs = []
+    
+    paginator = Paginator(CtLogEntry.objects.filter(ct_log=log_id), ITEMS_PER_PAGE)
+    if(page in paginator.page_range):
+        list_of_entries = paginator.page(page)
+
     return render(request, 'observer/log_certs.html',
         {
-            'log': get_object_or_404(CtLog, pk=log_id)
+            'log': get_object_or_404(CtLog, pk=log_id),
+            'list_of_entries' : list_of_entries
         }
     )
 

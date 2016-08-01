@@ -64,19 +64,12 @@
                             <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
                             <svg></svg>
                         </div>
-                        <table class="table table-sm">
+                        <table class="table table-sm" id="logentries">
                             <tr>
                                 <td></td>
                                 <td><b>Log</b></td>
                                 <td><b>Entries</b></td>
                             </tr>
-                            {% verbatim %}
-                            <tr ng-repeat="log in logs">
-                                <td ng-style="{'background-color': log.color}"></td>
-                                <td> <a ng-href="/log/{{log.id}}">{{ log.key }}</a></td>
-                                <td> {{ log.values[0].value }}</td>
-                            </tr>
-                            {% endverbatim %}
                         </table>
                     </li>
                 </ul>
@@ -105,11 +98,13 @@
         </div>
         <div class="col-md-12">
             <div class="card">
-                <div id="cadiagram" class="card-block diagram" style="height: 400px;">
+                <div class="card-block diagram">
                     <h4 class="card-title">Most frequent CAs</h4>
                     <h6 class="card-subtitle text-muted">Number of issued certificates per month, for CAs that issued at least 50,000 certificates in a single month</h6>
-                    <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
-                    <svg></svg>
+                    <div id="cadiagram" style="height: 400px;">
+                        <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+                        <svg></svg>
+                    </div>
                 </div>
             </div>
         </div>
@@ -117,125 +112,12 @@
 </div>
 
 
+
+{% endblock %}
+{% block additionalscripts %}
+<script type="text/javascript" src="/static/js/ctobs-index-charts.js"></script>
 {% endblock %}
 {% block scripts %}
-$(function(){
-    d3.json('/static/data/getsignaturealgorithmdistribution', function(data) {
-        max_value = 0
-        data.forEach(function(entry){
-        last_element = entry.values[entry.values.length-1];
-        last_element_date = new Date(last_element[0].substr(0,4),
-    last_element[0].substr(5,2)).getTime();
-        if (last_element_date > max_value)
-            max_value = last_element_date;
-        });
 
-
-        d3.select('#signaturealgorithmdiagram .spinner').remove();
-        var format = d3.time.format('%Y-%m');
-        nv.addGraph(function() {
-        chart = nv.models.stackedAreaWithFocusChart()
-        .options({
-            brushExtent: [ 1293836400000, max_value]
-        })
-        .useInteractiveGuideline(true)
-        .x(function(d) { return format.parse(d[0]); })
-        .y(function(d) { return d[1] })
-        //.controlLabels({stacked: "Stacked"})
-        .duration(300)
-        .margin({"left":60});
-
-        chart.xAxis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
-        chart.x2Axis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
-        chart.yAxis.tickFormat(d3.format('0,'));
-        d3.select('#signaturealgorithmdiagram svg')
-        .datum(data)
-        .transition().duration(1000)
-        .call(chart)
-        .each('start', function() {
-            setTimeout(function() {
-                d3.selectAll('#signaturealgorithmdiagram svg *').each(function() {
-                    if(this.__transition__)
-                    this.__transition__.duration = 1;
-                })
-            }, 0)
-        });
-        nv.utils.windowResize(chart.update);
-        return chart;
-        });
-    });
-    
-    d3.json('/static/data/getcadistribution', function(data) {
-        max_value = 0
-        data.forEach(function(entry){
-        last_element = entry.values[entry.values.length-1];
-        last_element_date = new Date(last_element[0].substr(0,4),
-    last_element[0].substr(5,2)).getTime();
-        if (last_element_date > max_value)
-            max_value = last_element_date;
-        });
-
-
-        d3.select('#cadiagram .spinner').remove();
-        var format = d3.time.format('%Y-%m');
-        nv.addGraph(function() {
-        chart = nv.models.stackedAreaWithFocusChart()
-        .options({
-            brushExtent: [ 1293836400000, max_value]
-        })
-        .useInteractiveGuideline(true)
-        .x(function(d) { return format.parse(d[0]); })
-        .y(function(d) { return d[1] })
-        //.controlLabels({stacked: "Stacked"})
-        .duration(300)
-        .margin({"left":60});
-
-        chart.xAxis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
-        chart.x2Axis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
-        chart.yAxis.tickFormat(d3.format('0,'));
-        d3.select('#cadiagram svg')
-        .datum(data)
-        .transition().duration(1000)
-        .call(chart)
-        .each('start', function() {
-            setTimeout(function() {
-                d3.selectAll('#cadiagram svg *').each(function() {
-                    if(this.__transition__)
-                    this.__transition__.duration = 1;
-                })
-            }, 0)
-        });
-        nv.utils.windowResize(chart.update);
-        return chart;
-        });
-    });
-    
-    d3.json('/static/data/getactivekeysizedistribution', function(data) {
-        d3.select('#keysizediagram .spinner').remove();
-        nv.addGraph(function() {
-            var chart = nv.models.multiBarHorizontalChart()
-                .x(function(d) { return d.label })
-                .y(function(d) { return d.value })
-                .margin({top: 20, right: 40, bottom: 20, left: 20})
-                .showValues(true)
-                .showLegend(true)
-                .showXAxis(false)
-                .stacked(true)
-
-            chart.yAxis
-                .tickFormat(d3.format('d'));
-
-            chart.valueFormat(d3.format('d'));
-
-            d3.select('#keysizediagram svg')
-                .datum(data)
-                .call(chart);
-
-            nv.utils.windowResize(chart.update);
-
-            return chart;
-        });
-    });
-});
 {% endblock %}
 
