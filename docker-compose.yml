@@ -30,7 +30,7 @@ ctmonitor:
     build: .
     links:
         - ctdatabase:ctdatabase
-    command: ./ct-monitor
+    command: ./ct-monitor 1
 
 ctobservatory:
     restart: always
