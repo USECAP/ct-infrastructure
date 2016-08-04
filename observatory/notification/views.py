@@ -13,7 +13,7 @@ def index(request, dnsname=""):
 def subscribe(request):
     mail = request.POST['email']
     dnsname = request.POST['dnsname']
-    mode = request.POST['notifyfor']
+    mode = 0
     request.session['email'] = mail
 
     if dnsname :

@@ -4,66 +4,143 @@
 
 {% block content %}
 
-<h1>Welcome to the CT Observatory!</h1>
-<br>
-<div ng-controller="IndexController">
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-block text-center">
-                    <h4 class="card-title">{{ total_certs }} Certificate{{ total_certs|pluralize }}</h4>
-                </div>
-                <div class="card-block" style="height:100px;">
-                    <p class="card-text">A total of <a href="{% url 'observer:certall' %}">{{ total_certs }} certificate{{ total_certs|pluralize }}</a> from {{ total_logs }} log{{ total_logs|pluralize }} have been collected and observed by this observatory.</p>
-                </div>
-
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">
-                        <a href="{% url 'observer:certactive' %}" class="btn btn-success btn-block"><span class="pull-left text-right obs-info">{{ active_certs }}</span>active</a>
-                        <a href="{% url 'observer:certexpired' %}" class="btn btn-secondary active btn-block"><span class="pull-left text-right obs-info">{{ expired_certs }}</span>expired</a>
-                        <a href="{% url 'observer:certrevoked' %}" class="btn btn-warning btn-block"><span class="pull-left text-right obs-info">{{ revoked_certs }}</span>revoked</a>
-                        <a href="/" class="btn btn-danger btn-block"><span class="pull-left text-right obs-info">{{ misissued_certs }}</span>misissued</a>
-                    </li>
-                </ul>
-                <div class="card-block" id="distributionchart">
-                    <h6 class="card-title">Number of occurrences in logs</h6>
-
-                    <p class="card-text">This chart shows the number of occurrences of a certificate in all monitored logs.</p>
-                    <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
-                    <svg style="width:300px;height:300px"></svg>
+    <div ng-controller="IndexController">
+        <div class="row">
+            <div class="col-xs-12 col-md-4">
+                <div class="card">
+                    <div class="card-header text-md-center">
+                        Certificates seen
+                    </div>
+                    <div class="card-block text-lg-center">
+                        <h4 class="card-title">{{ total_certs }}</h4>
+                    </div>
+                    <div class="card-footer">
+                        <div class="col-xs-12"><a href="{% url 'observer:certactive' %}"><span
+                                class="tag tag-pill tag-success btn-block">{{ active_certs }} active</span></a></div>
+                        <div class="col-xs-12"><a href="{% url 'observer:certexpired' %}"><span
+                                class="tag tag-pill tag-default btn-block">{{ expired_certs }} expired</span></a></div>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-block text-center">
-                    <h4 class="card-title">{{ total_ca }} Certificate Authorities</h4>
-                </div>
-                <div class="card-block" style="height:100px;">
-                    <p class="card-text">A total of <a href="{% url 'observer:caall' %}">{{ total_ca }} CA{{ total_ca|pluralize }}</a> are observed.</p>
-                </div>
-                <!--<ul class="list-group list-group-flush">
-                    <li class="list-group-item">
-                        <a href="{% url 'observer:caall' %}" class="btn btn-success btn-block"><span class="pull-left text-right obs-info">{{ behaving_cas }}</span>correctly operating</a>
-                        <a href="{% url 'observer:caall' %}" class="btn btn-warning btn-block"><span class="pull-left text-right obs-info">{{ interesting_cas }}</span>show interesting behaviour</a>
-                    </li>
-                </ul>-->
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-block text-center">
-                    <h4 class="card-title">{{ total_logs }} Log{{ total_logs|pluralize }}</h4>
-                </div>
-                <div class="card-block" style="height:100px;">
-                    <p class="card-text">A total of <a href="{% url 'observer:log' %}">{{ total_logs }} log{{ total_logs|pluralize }}</a> are being observed. The biggest log holds {{ biggest_log }} certificates and the smallest log holds {{ smallest_log }} certificate{{ smallest_log|pluralize }}.</p>
-                </div>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">
-                        <div id="certsinlogdistribution">
-                            <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
-                            <svg></svg>
+            <div class="col-xs-12 col-md-4">
+                <div class="card">
+                    <div class="card-header text-md-center">
+                        Certificate Authorities found
+                    </div>
+                    <div class="card-block text-lg-center">
+                        <h4 class="card-title">{{ total_ca }}</h4>
+                    </div>
+                    <div class="card-footer">
+                        <div class="col-xs-12"><a href="{% url 'observer:caall' %}"><span
+                                class="tag tag-pill tag-success btn-block">{{ behaving_cas }} correctly operating</span></a>
                         </div>
+                        <div class="col-xs-12">&nbsp;</div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="col-xs-12 col-md-4">
+                <div class="card">
+                    <div class="card-header text-md-center">
+                        Logs observed
+                    </div>
+                    <div class="card-block text-lg-center">
+                        <h4 class="card-title">{{ total_logs }}</h4>
+                    </div>
+                    <div class="card-footer">
+                        <div class="col-xs-12"><span class="btn-block">Biggest Log: <br/> <a
+                                href="{% url 'observer:log' %}">Google Pilot</a> ({{ biggest_log }} certificates)</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="row" style="margin-bottom:20px;">
+            <div style="position:absolute;height:259px;width:100%;left:0px;background: lightslategrey;"></div>
+            <div class="col-xs-12 col-md-6" style="margin-top:15px;">
+                <div class="card">
+                    <div class="card-header text-md-center">Search for certificates for your domain or Certificate
+                        Authorities
+                    </div>
+                    <div class="card-block">
+                        <form action="{% url 'observer:search' %}" method="GET">
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <label for="searchTerm">URL</label>
+                                <input type="text" class="form-control" id="searchTerm" name="term"
+                                       aria-describedby="searchTermHelp" placeholder="www.google.com">
+                                <small id="searchTermHelp" class="form-text text-muted">Enter CommonName /
+                                    dNSName /
+                                    CA-Name (e.g. www.google.com)
+                                </small>
+                            </div>
+                            <button class="btn btn-primary btn-block">Search</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xs-12 col-md-6" style="margin-top:15px;">
+                <div class="card">
+                    <div class="card-header text-md-center">Register for email-notificiation when new Certificates are
+                        found
+                    </div>
+                    <div class="card-block">
+                        <form action="/notification/subscribe" method="post">
+                            {% csrf_token %}
+                            <div class="row">
+                                <div class="col-md-6 col-xs-12">
+                                    <div class="form-group">
+                                        <label for="searchDnsTerm">URL</label>
+                                        <input type="text" class="form-control" id="searchDnsTerm" name="dnsname"
+                                               aria-describedby="searchDnsTermHelp" placeholder="www.google.com">
+                                        <small id="searchDnsTermHelp" class="form-text text-muted">&nbsp;
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-xs-12">
+                                    <div class="form-group">
+                                        <label for="searchTerm">Email</label>
+                                        <input type="email" class="form-control" id="searchTerm" name="email"
+                                               aria-describedby="searchTermHelp" placeholder="you@example.com">
+                                        <small id="searchTermHelp" class="form-text text-muted">
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-primary btn-block">Subscribe</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <div class="row" style="">
+            <div class="col-md-4 col-xs-12">
+                <div class="card">
+                    <div class="card-header text-md-center">
+                        Number of occurrences in logs
+                    </div>
+                    <div class="card-block" id="distributionchart">
+                    <span class="spinner"><i
+                            class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+                        <svg style="width:300px;height:300px"></svg>
+                    </div>
+                    <div class="card-footer">
+                        This chart shows the number of occurrences of a certificate in all monitored logs.
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8 col-xs-12">
+                <div class="card">
+                    <div class="card-header">
+                        Logdistribution
+                    </div>
+                    <div class="card-block" id="certsinlogdistribution">
+                        <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+                        <svg></svg>
                         <table class="table table-sm" id="logentries">
                             <tr>
                                 <td></td>
@@ -71,51 +148,58 @@
                                 <td><b>Entries</b></td>
                             </tr>
                         </table>
-                    </li>
-                </ul>
-            </div>
-        </div>
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-block diagram">
-                    <h4 class="card-title">Most frequent signature algorithms</h4>
-                    <h6 class="card-subtitle text-muted">notBefore, per month</h6>
-                    <div id="signaturealgorithmdiagram" style="height: 400px;">
-                        <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
-                        <svg></svg>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-md-12">
-            <div class="card">
-                <div id="keysizediagram" class="card-block diagram">
-                    <h4 class="card-title">Most frequent key sizes</h4>
-                    <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
-                    <svg></svg>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-block diagram">
-                    <h4 class="card-title">Most frequent CAs</h4>
-                    <h6 class="card-subtitle text-muted">Number of issued certificates per month, for CAs that issued at least 50,000 certificates in a single month</h6>
-                    <div id="cadiagram" style="height: 400px;">
+            <div class="col-xs-12">
+                <div class="card">
+                    <div class="card-header">Most frequent key sizes
+                    </div>
+                    <div id="keysizediagram" class="card-block diagram">
                         <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
                         <svg></svg>
                     </div>
+                    <div class="card-footer text-muted">
+                    </div>
                 </div>
             </div>
+            <div class="col-xs-12">
+                <div class="card">
+                    <div class="card-header">
+                        Most frequent signature algorithms (grouped by notBefore, per month)
+                    </div>
+                    <div class="card-block diagram">
+                        <div id="signaturealgorithmdiagram" style="height: 400px;">
+                            <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+                            <svg></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xs-12">
+                <div class="card">
+                    <div class="card-header">
+                        Most frequent Certificate Authorities
+                    </div>
+                    <div class="card-block diagram">
+                        <div id="cadiagram" style="height: 400px;">
+                            <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+                            <svg></svg>
+                        </div>
+                    </div>
+                    <div class="card-footer text-muted">
+                        Number of issued certificates per month, for CAs that issued at least 50,000 certificates in a
+                        single month
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
-</div>
-
-
 
 {% endblock %}
 {% block additionalscripts %}
-<script type="text/javascript" src="/static/js/ctobs-index-charts.js"></script>
+    <script type="text/javascript" src="/static/js/ctobs-index-charts.js"></script>
 {% endblock %}
 {% block scripts %}
 
