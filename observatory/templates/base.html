@@ -22,11 +22,11 @@
                   <a class="nav-link nav-item {% if 'notification' in request.path %} active {% endif %}" href="/notification/change">Subscribe</a>
             </div>
             <form action="{% url 'observer:search' %}" method="GET" class="form-inline navbar-form pull-right">
-              <input class="form-control" type="text" placeholder="Search" name="term">
-              <button class="btn btn-success-outline" type="submit">Search</button>
+              <input class="form-control hidden-xs-down" type="text" placeholder="Search" name="term">
+              <button class="btn btn-success-outline hidden-xs-down" type="submit">Search</button>
             </form>
-            <div class="nav navbar-nav pull-right" style="margin-right: 1em;">
-                <span class="nav-item nav-link">Search in commonName/dnsName (wildcard: %) or CA names</span>
+            <div class="nav navbar-nav pull-right hidden-md-down" style="margin-right: 1em;">
+                <span class="nav-item nav-link hidden-md-down">Search in commonName/dnsName (wildcard: %) or CA names</span>
             </div>
         </nav>
 
