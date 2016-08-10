@@ -200,7 +200,7 @@ if [ "$1" = 'postgres' ]; then
         				ID						serial,
         				CERTIFICATE				bytea		NOT NULL,
         				ISSUER_CA_ID			integer		NOT NULL,
-        				EXPIRED                 boolean,
+        				EXPIRED                 boolean     DEFAULT False,
                         CABLINT_CACHED_AT		timestamp,
                         X509LINT_CACHED_AT		timestamp,
         				CONSTRAINT c_pk
