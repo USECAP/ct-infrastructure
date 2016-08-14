@@ -6,6 +6,13 @@
 
     <div ng-controller="IndexController">
         <div class="row">
+        {% for message in messages %}
+            <div class="alert {{message.class}}" role="alert">
+             {{message.text|safe}}
+            </div>
+        {% endfor %}
+        </div>
+        <div class="row">
             <div class="col-xs-12 col-md-4">
                 <div class="card">
                     <div class="card-header text-md-center">
@@ -68,12 +75,12 @@
                         <form action="{% url 'observer:search' %}" method="GET">
                             {% csrf_token %}
                             <div class="form-group">
-                                <label for="searchTerm">URL</label>
+                                <label for="searchTerm">CN / DNS name</label>
                                 <input type="text" class="form-control" id="searchTerm" name="term"
-                                       aria-describedby="searchTermHelp" placeholder="www.google.com">
+                                       aria-describedby="searchTermHelp" placeholder="www.example.com">
                                 <small id="searchTermHelp" class="form-text text-muted">Enter CommonName /
                                     dNSName /
-                                    CA-Name (e.g. www.google.com)
+                                    CA-Name (e.g. www.example.com)
                                 </small>
                             </div>
                             <button class="btn btn-primary btn-block">Search</button>
@@ -92,9 +99,9 @@
                             <div class="row">
                                 <div class="col-md-6 col-xs-12">
                                     <div class="form-group">
-                                        <label for="searchDnsTerm">URL</label>
+                                        <label for="searchDnsTerm">CN / DNS name</label>
                                         <input type="text" class="form-control" id="searchDnsTerm" name="dnsname"
-                                               aria-describedby="searchDnsTermHelp" placeholder="www.google.com">
+                                               aria-describedby="searchDnsTermHelp" placeholder="www.example.com">
                                         <small id="searchDnsTermHelp" class="form-text text-muted">&nbsp;
                                         </small>
                                     </div>

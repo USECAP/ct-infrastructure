@@ -12,20 +12,25 @@
                         Register for email-notificiation when new certificates are found
                     </div>
                     <div class="card-block">
-                        <div class="form-group row">
-                            <label for="example-text-input" class="col-xs-2 col-form-label">Email address</label>
-                            <div class="col-xs-10">
-                                <input class="form-control" type="text" value="" id="email" name="email">
+                    {{ subscribeform.non_field_errors }}
+                    {{ subscribeform.email.errors }}
+                       <div class="form-group row">
+                            <label for="{{subscribeform.email.id_for_label}}" class="col-xs-3 col-form-label">{{subscribeform.email.label}}</label>
+                            <div class="col-xs-9">
+                                <input class="form-control" type="email" value="{% if subscribeform.email.value %}{{subscribeform.email.value}}{% endif %}" id="{{subscribeform.email.id_for_label}}" name="{{subscribeform.email.html_name}}" placeholder="you@example.com">
                             </div>
                         </div>
+                        
+                    {{ subscribeform.name.errors }}
                         <div class="form-group row">
-                            <label for="example-text-input" class="col-xs-2 col-form-label">URL</label>
-                            <div class="col-xs-10">
-                                <input class="form-control" type="text" value="{{ dnsname }}" name="dnsname"
-                                       id="dnsname">
+                            <label for="{{subscribeform.name.id_for_label}}" class="col-xs-3 col-form-label">{{subscribeform.name.label}}</label>
+                            <div class="col-xs-9">
+                                <input class="form-control" type="text" value="{% if subscribeform.name.value %}{{subscribeform.name.value}}{% endif %}" name="{{subscribeform.name.html_name}}"
+                                       id="{{subscribeform.name.id_for_label}}" placeholder="www.example.com">
                             </div>
 
                         </div>
+                        
                         <button class="btn btn-primary btn-block ">subscribe</button>
                         <input type="hidden" id="notifyfor" name="notifyfor" value="0" checked="checked">
                     </div>
@@ -40,17 +45,21 @@
                         Cancel notifcations for new certificates
                     </div>
                     <div class="card-block">
-                        <div class="form-group row">
-                            <label for="example-text-input" class="col-xs-2 col-form-label">Email address</label>
-                            <div class="col-xs-10">
-                                <input class="form-control" type="text" value="" id="email" name="email">
+                    {{ unsubscribeform.non_field_errors }}
+                    {{ unsubscribeform.email.errors }}
+                       <div class="form-group row">
+                            <label for="{{unsubscribeform.email.id_for_label}}" class="col-xs-3 col-form-label">{{unsubscribeform.email.label}}</label>
+                            <div class="col-xs-9">
+                                <input class="form-control" type="email" value="{% if unsubscribeform.email.value %}{{unsubscribeform.email.value}}{% endif %}" id="{{unsubscribeform.email.id_for_label}}" name="{{unsubscribeform.email.html_name}}" placeholder="you@example.com">
                             </div>
                         </div>
+                        
+                    {{ unsubscribeform.name.errors }}
                         <div class="form-group row">
-                            <label for="example-text-input" class="col-xs-2 col-form-label">URL</label>
-                            <div class="col-xs-10">
-                                <input class="form-control" type="text" value="{{ dnsname }}" name="dnsname"
-                                       id="dnsname">
+                            <label for="{{unsubscribeform.name.id_for_label}}" class="col-xs-3 col-form-label">{{unsubscribeform.name.label}}</label>
+                            <div class="col-xs-9">
+                                <input class="form-control" type="text" value="{% if unsubscribeform.name.value %}{{unsubscribeform.name.value}}{% endif %}" name="{{unsubscribeform.name.html_name}}"
+                                       id="{{unsubscribeform.name.id_for_label}}" placeholder="www.example.com">
                             </div>
 
                         </div>
