@@ -99,8 +99,8 @@
                             <div class="row">
                                 <div class="col-md-6 col-xs-12">
                                     <div class="form-group">
-                                        <label for="searchDnsTerm">CN / DNS name</label>
-                                        <input type="text" class="form-control" id="searchDnsTerm" name="dnsname"
+                                        <label for="{{subscribeform.name.id_for_label}}">{{subscribeform.name.label}}</label>
+                                        <input type="text" class="form-control" id="{{subscribeform.name.id_for_label}}" name="{{subscribeform.name.html_name}}"
                                                aria-describedby="searchDnsTermHelp" placeholder="www.example.com">
                                         <small id="searchDnsTermHelp" class="form-text text-muted">&nbsp;
                                         </small>
@@ -108,8 +108,8 @@
                                 </div>
                                 <div class="col-md-6 col-xs-12">
                                     <div class="form-group">
-                                        <label for="searchTerm">Email</label>
-                                        <input type="email" class="form-control" id="searchTerm" name="email"
+                                        <label for="{{subscribeform.email.id_for_label}}">{{subscribeform.email.label}}</label>
+                                        <input type="email" class="form-control" id="{{subscribeform.email.id_for_label}}" name="{{subscribeform.email.html_name}}"
                                                aria-describedby="searchTermHelp" placeholder="you@example.com">
                                         <small id="searchTermHelp" class="form-text text-muted">
                                         </small>
