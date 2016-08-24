@@ -16,7 +16,7 @@
       <nav class="text-center" style="margin-bottom: 0.5em;">
             <div class="form-inline">
             {% if list_of_entries.has_previous %}
-            <a href="{{ list_of_entries.previous_page_number }}" aria-label="Previous" class="btn btn-secondary">
+            <a href="{% url 'observer:certs_by_log' log_id=log.id page=list_of_entries.previous_page_number %}" aria-label="Previous" class="btn btn-secondary">
                 <span aria-hidden="true">&laquo;</span>
             </a>
             {% else %}
@@ -32,7 +32,7 @@
             </div>
             
             {% if list_of_entries.has_next %}
-            <a href="{{ list_of_entries.next_page_number }}" aria-label="Next" class="btn btn-secondary">
+            <a href="{% url 'observer:certs_by_log' log_id=log.id page=list_of_entries.next_page_number %}" aria-label="Next" class="btn btn-secondary">
                 <span aria-hidden="true">&raquo;</span>
             </a>
             {% else %}

@@ -42,7 +42,7 @@
       <nav class="text-center" style="margin-bottom: 0.5em;">
             <div class="form-inline">
             {% if list_of_ca.has_previous %}
-            <a href="{{ list_of_ca.previous_page_number }}" aria-label="Previous" class="btn btn-secondary">
+            <a href="{% url 'observer:caall' page=list_of_ca.previous_page_number %}" aria-label="Previous" class="btn btn-secondary">
                 <span aria-hidden="true">&laquo;</span>
             </a>
             {% else %}
@@ -58,7 +58,7 @@
             </div>
             
             {% if list_of_ca.has_next %}
-            <a href="{{ list_of_ca.next_page_number }}" aria-label="Next" class="btn btn-secondary">
+            <a href="{% url 'observer:caall' page=list_of_ca.next_page_number %}" aria-label="Next" class="btn btn-secondary">
                 <span aria-hidden="true">&raquo;</span>
             </a>
             {% else %}

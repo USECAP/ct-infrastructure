@@ -26,8 +26,8 @@
     <hr/>
     <h4>Certificates (by commonName or dNSName)</h4>
     <ul>
-        <li><a href="/cert/dnsname/{{term}}">List all certificates with that exact dnsName</a></li>
-        <li><a href="/cert/cn/{{term}}">List all certificates with that exact common name</a>
+        <li><a href="{% url 'observer:list_dnsname_certs' dnsname=term %}">List all certificates with that exact dnsName</a></li>
+        <li><a href="{% url 'observer:list_cn_certs' cn=term %}">List all certificates with that exact common name</a>
     </ul>
         <table class="table table-striped table-sm">
         <thead>

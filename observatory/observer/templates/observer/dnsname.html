@@ -54,7 +54,7 @@
 
 {% block content %}
 
-<h2 id="top">Certificates for {{field_id}} '{{expression}}'</h2> <a href="/notification/change/{{ expression }}">subscribe to changes</a>
+<h2 id="top">Certificates for {{field_id}} '{{expression}}'</h2> <a href="{% url 'notification:index' dnsname=expression %}">subscribe to changes</a>
 
 <p><a href="#timeline">Jump to timeline</a></p>
 
