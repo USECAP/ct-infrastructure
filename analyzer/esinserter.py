@@ -1,6 +1,7 @@
 import psycopg2
 from elasticsearch import Elasticsearch
 import threading
+import logging
 
 class ESInserter(threading.Thread):
 
@@ -30,25 +31,60 @@ class ESInserter(threading.Thread):
         print('max_id',maxId, ' lastid: ',last_id)
 
         while last_id < maxId :
-            cursor.execute("SELECT id, x509_commonName(certificate) AS cn, x509_keyAlgorithm(certificate) AS algo, x509_keySize(certificate) AS size, x509_notAfter(certificate) AS notafter, x509_notBefore(certificate) AS notbefore, x509_issuerName(certificate) AS issuer, count(*) AS dnsnames FROM (SELECT id, certificate, x509_altNames(certificate) FROM certificate WHERE id IN (SELECT id FROM certificate WHERE NOT x509_canIssueCerts(certificate) AND id > (SELECT value FROM certificate_analysis  WHERE type='es_last_cert_id') ORDER BY id ASC LIMIT 1000)) AS foo GROUP BY id, certificate ORDER BY id ASC;")
+            logging.debug("Fetching up to 1000 entries (maxId = {}, es_last_cert_id = {})".format(maxId, last_id))
+            
+            cursor.execute("""SELECT id, x509_commonName(certificate) AS cn, x509_keyAlgorithm(certificate) AS algo, x509_keySize(certificate) AS size, x509_notAfter(certificate) AS notafter, x509_notBefore(certificate) AS notbefore, x509_issuerName(certificate) AS issuer, count(*) AS dnsnames 
+            FROM (SELECT id, certificate, x509_altNames(certificate) 
+                  FROM certificate 
+                  WHERE id IN (SELECT id 
+                               FROM certificate 
+                               WHERE (NOT x509_canIssueCerts(certificate)) 
+                                     AND id > (SELECT value 
+                                               FROM certificate_analysis  
+                                               WHERE type='es_last_cert_id') 
+                               ORDER BY id ASC LIMIT 1000)
+                  ) AS foo 
+            GROUP BY id, certificate ORDER BY id ASC;""")
+	    
+	    
+	    """
+	    SELECT c.id, x509_commonName(c.certificate) AS cn, x509_keyAlgorithm(c.certificate) AS algo, x509_keySize(c.certificate) AS size, x509_notAfter(c.certificate) AS notafter, x509_notBefore(c.certificate) AS notbefore, x509_issuerName(c.certificate) AS issuer, COUNT(ci.name_value) AS dnsname_count
+	    FROM (SELECT id, certificate 
+                  FROM certificate 
+                  WHERE (NOT x509_canIssueCerts(certificate)) 
+                         AND id > (SELECT value 
+                                   FROM certificate_analysis  
+                                   WHERE type='es_last_cert_id') 
+                   ORDER BY id ASC LIMIT 1000) AS c 
+                  LEFT OUTER JOIN (SELECT certificate_id, name_value FROM certificate_identity WHERE name_type = 'dNSName') AS ci ON c.id = ci.certificate_id
+	    GROUP BY c.id, certificate
+	    ORDER BY c.id ASC
+	    """
+
+	    
+	    
             certs_to_update = cursor.fetchall()
+            
+            logging.debug("Fetched {} entries".format(len(certs_to_update)))
 
             if not certs_to_update:
-                break
-
-            print("fetched: ",len(certs_to_update))
+                # x509_altNames(certificate) probably returned an empty set
+                cursor.execute("SELECT id FROM certificate WHERE (NOT x509_canIssueCerts(certificate)) AND id > (SELECT value FROM certificate_analysis  WHERE type='es_last_cert_id') ORDER BY id ASC LIMIT 1000")
+                cert_ids = cursor.fetchall()
+                last_id = cert_ids[-1][0]
 
             for row in certs_to_update:
                 res = es.create(id=row[0],index='ct', ignore=409,doc_type='certificate',body={'cn':row[1],'algo':row[2],'size':row[3],'notafter':row[4],'notbefore':row[5], 'issuer':row[6],'dnsnames':int(row[7])})
                 last_id=row[0]
-                if res['created']:
+                if ('created' in res) and res['created']:
                     self.insert_successful += 1
                 else:
                     self.insert_failed += 1
 
-            print(last_id)
+            logging.debug("Updating es_last_cert_id to {}".format(last_id))
             cursor.execute("UPDATE certificate_analysis SET value={} WHERE type='es_last_cert_id'".format(last_id))
             db.commit()
+        print(self.print_log())
         return self.print_log()
 
     def print_log(self):

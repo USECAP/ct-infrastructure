@@ -384,8 +384,8 @@ class IssueFinder(threading.Thread):
                     # check for a 50 % increase
                     avg = timedelta(0)
                     for x in durations:
-                IssueFinder        avg += x
-                    avg //= 3
+                        avg += x
+                    avg //= len(durations)
 
                     if (duration > avg * 3 // 2):
                         result.append(ID)

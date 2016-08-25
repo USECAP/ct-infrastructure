@@ -7,16 +7,21 @@ import Queue
 import threading
 
 
-class RevokedCertificateAnalyzer(threading.Thread):
-    def __init__(self, db):
+class RevocationDetector(threading.Thread):
+    def __init__(self,  dbname, dbuser, dbhost):
         threading.Thread.__init__(self)
         self.revoke_counter = 0
         self.found_in_database_counter = 0
         self.updated_counter = 0
-        self.db = db
+        self.dbname = dbname
+        self.dbuser = dbuser
+        self.dbhost = dbhost
+        self.db = None
         
     def run(self):
+        self.db = psycopg2.connect(dbname=self.dbname, user=self.dbuser, host=self.dbhost)
         self.refresh_crls()
+        self.db.close()
         
     def refresh_crls(self):
         output_queue = Queue.Queue()
@@ -41,7 +46,7 @@ class RevokedCertificateAnalyzer(threading.Thread):
                 logging.debug("Queue was empty")
             except Exception as e:
                 logging.warn("Exception: {0}".format(str(e)))
-        logging.debug("RevokedCertificateAnalyzer done")
+        logging.debug("RevocationDetector done")
         return self.print_log()
 
     #def download_and_parse_crl(self, url):

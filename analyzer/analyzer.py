@@ -7,11 +7,12 @@ import os
 import time
 from datetime import datetime
 import logging
+import threading
 
 from notifier import Notifier
 from metadata import Metadata
-from revokedcertificateanalyzer import RevokedCertificateAnalyzer
-from dbtransformer import DBTransformer
+from revocationdetector import RevocationDetector
+from expirationdetector import ExpirationDetector
 from esinserter import ESInserter
 from diagramdata import Diagramdata
 from issuefinder import IssueFinder
@@ -20,7 +21,7 @@ parser = argparse.ArgumentParser(prog='ct-analyzer')
 
 parser.add_argument('-l', help='log stuff', action='store_true')
 parser.add_argument('-e', help='enable elasticsearch import', action='store_true')
-parser.add_argument('-u', help='update expired certs', action='store_true')
+parser.add_argument('-x', help='update expired certs', action='store_true')
 parser.add_argument('-r', help='update revoked certs', action='store_true')
 parser.add_argument('-m', help='update metadata certs', action='store_true')
 parser.add_argument('-n', help='notify people that registered for updates', action='store_true')
@@ -45,39 +46,41 @@ interval = int(args.t)*60 if args.t else 180*60
 # |-> elasticsearch
 # |-> diagram data
 # |-> issues -> notify
-# |-> |
-#     |-> expired |
+# |-> | (RXMwrapper)
 #     |-> revoked |
+#     |-> expired |
 #                 |-> metadata
 
-class ERMwrapper(threading.Thread):
-    def __init__(self, dbname, dbuser, dbhost, doRCA, doDBT, doMD):
+ # ./analyzer.py --pg=ctdatabase --es=elasticsearch --web=ctobservatory -d
+
+class RXMwrapper(threading.Thread):
+    def __init__(self, dbname, dbuser, dbhost, do_revocation_detection, do_expiration_detection, do_metadata):
         threading.Thread.__init__(self)
         self.dbname = dbname
         self.dbuser = dbuser
         self.dbhost = dbhost
-        self.doRCA = doRCA
-        self.doDBT = doDBT
-        self.doMD = doMD
+        self.do_revocation_detection = do_revocation_detection
+        self.do_expiration_detection = do_expiration_detection
+        self.do_metadata = do_metadata
         
     def run(self):
-        RCAthread = None
-        DBTthread = None
-        if(self.doRCA):
-            RCAthread = RevokedCertificateAnalyzer(self.dbname, self.dbuser, self.dbhost)
-            RCAthread.start()
+        RDthread = None
+        EDthread = None
+        if(self.do_revocation_detection):
+            RDthread = RevocationDetector(self.dbname, self.dbuser, self.dbhost)
+            RDthread.start()
          
-        if(self.doDBT):
-            DBTthread = DBTransformer(self.dbname, self.dbuser, self.dbhost)
-            DBTthread.start()
+        if(self.do_expiration_detection):
+            EDthread = ExpirationDetector(self.dbname, self.dbuser, self.dbhost)
+            EDthread.start()
             
-        if(self.doRCA):
-            RCAthread.join()
+        if(self.do_revocation_detection):
+            RDthread.join()
          
-        if(self.doDBT):
-            DBTthread.join()
+        if(self.do_expiration_detection):
+            EDthread.join()
             
-        if(self.doMD):
+        if(self.do_metadata):
             MDthread = Metadata(self.dbname, self.dbuser, self.dbhost)
             MDthread.start()
             MDthread.join()
@@ -101,15 +104,15 @@ while True:
             #log += DBTransformer(db).update_expired_flag()
             #print("u", log)
         #if args.r:
-            #RCAthread = RevokedCertificateAnalyzer(db)
-            #RCAthread.start()
+            #RDthread = RevokedCertificateAnalyzer(db)
+            #RDthread.start()
             ##TODO logging
             #print("r", 'log')
         #if args.m:
             #log += Metadata(db).update_metadata()
             #print("m", log)
-        ERMthread = ERMwrapper('certwatch', 'postgres', host_db, args.r, args.u, args.m)
-        ERMthread.start() # if none of r, u and m are true, nothing happens.
+        RXMthread = RXMwrapper('certwatch', 'postgres', host_db, args.r, args.x, args.m)
+        RXMthread.start() # if none of r, u and m are true, nothing happens.
         
         
         if args.e:
