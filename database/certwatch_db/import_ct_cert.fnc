@@ -28,7 +28,24 @@ DECLARE
 BEGIN
 	t_certificateID := import_cert(cert_data);
 	IF t_certificateID IS NULL THEN
-		RETURN NULL;
+		t_certificateID := import_cert(cert_data);
+	END IF;
+	IF t_certificateID IS NULL THEN
+		INSERT INTO certificate (
+				CERTIFICATE, ISSUER_CA_ID
+			)
+			VALUES (
+				cert_data, -1
+			)
+			RETURNING ID
+				INTO t_certificateID;
+
+		INSERT INTO invalid_certificate (
+				CERTIFICATE_ID
+			)
+			VALUES (
+				t_certificateID
+			);
 	END IF;
 
 	INSERT INTO ct_log_entry (
@@ -38,6 +55,10 @@ BEGIN
 		SELECT t_certificateID, ct_log_id, ct_log_entry_id,
 			timestamp without time zone 'epoch'
 				+ (ct_log_timestamp * interval '1 millisecond');
+
+	UPDATE ct_log
+		SET LATEST_ENTRY_ID = ct_log_entry_id
+		WHERE ID = ct_log_id;
 
 	RETURN t_certificateID;
 END;

@@ -318,7 +318,7 @@ def get_log_information(request):
         i += 1
     return HttpResponse(json.dumps({"unique_certificates": Certificate.objects.count(), "data": result}))
 
-def search_ca(request, term, offset):
+def search_ca(request, term, offset=0):
     limit = 50
     result = {"limit":limit, "values":[]}
     has_more_data = False
@@ -347,7 +347,7 @@ def search_ca(request, term, offset):
     
     return HttpResponse(json.dumps(result))
 
-def search_cn_dnsname(request, term, offset):
+def search_cn_dnsname(request, term, offset=0):
     limit = 50
     result = {"limit":limit, "values":[]}
     has_more_data = False

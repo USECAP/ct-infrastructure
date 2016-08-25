@@ -40,12 +40,11 @@ urlpatterns = [
     url(r'^api/getsignaturealgorithmdistribution$', api.get_signature_algorithm_distribution, name='get_signature_algorithm_distribution'),
     url(r'^api/getsignaturealgorithmdistribution/(?P<ca_id>[0-9]+)$', api.get_signature_algorithm_distribution, name='get_signature_algorithm_distribution'),
     url(r'^api/getcadistribution$', api.get_ca_distribution, name='get_ca_distribution'),
+    url(r'^api/search/cn_dnsname/(?P<term>.+)/$', api.search_cn_dnsname, name='search_cn_dnsname'),
     url(r'^api/search/cn_dnsname/(?P<term>.+)/(?P<offset>[0-9]+)$', api.search_cn_dnsname, name='search_cn_dnsname'),
+    url(r'^api/search/ca/(?P<term>.+)/$', api.search_ca, name='search_ca'),
     url(r'^api/search/ca/(?P<term>.+)/(?P<offset>[0-9]+)$', api.search_ca, name='search_ca'),
     url(r'^api/search/getlastcertificates/(?P<term>.+)/(?P<limit>[0-9]*)$', api.get_last_certificates_for_dnsname, name='get_last_certificates_for_dnsname'),
-    url(r'^api/search/certificateknown/(?P<fingerprint>.+)$',
-        api.search_certificate_by_fingerprint,
-        name='search_cert_by_fingerprint'),
+    url(r'^api/search/certificateknown/(?P<fingerprint>.+)$', api.search_certificate_by_fingerprint, name='search_cert_by_fingerprint'),
     url(r'^imprint$', views.imprint, name='imprint'),
-
 ]

@@ -33,10 +33,10 @@
       </tbody>
       </table>
             
-      <nav class="text-center">
+      <nav class="text-center" style="margin-bottom: 0.5em;">
             <div class="form-inline">
             {% if list_of_certs.has_previous %}
-            <a href="{{ list_of_certs.previous_page_number }}" aria-label="Previous" class="btn btn-secondary">
+            <a href="{% url 'observer:certall' page=list_of_certs.previous_page_number %}" aria-label="Previous" class="btn btn-secondary">
                 <span aria-hidden="true">&laquo;</span>
             </a>
             {% else %}
@@ -44,13 +44,15 @@
             {% endif %}
             
             <button id="callpage" class="btn btn-primary">Goto Page</button>
+            <div class="form-group">
             <div class="input-group">
             <input type="number" class="form-control" id="pagenumber" placeholder="Enter page number" value="{{list_of_certs.number}}"/>
             <div class="input-group-addon">of {{list_of_certs.paginator.num_pages }}</div>
             </div>
+            </div>
             
             {% if list_of_certs.has_next %}
-            <a href="{{ list_of_certs.next_page_number }}" aria-label="Next" class="btn btn-secondary">
+            <a href="{% url 'observer:certall' page=list_of_certs.next_page_number %}" aria-label="Next" class="btn btn-secondary">
                 <span aria-hidden="true">&raquo;</span>
             </a>
             {% else %}

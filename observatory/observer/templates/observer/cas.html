@@ -39,10 +39,10 @@
       </tbody>
       </table>
             
-      <nav class="text-center">
+      <nav class="text-center" style="margin-bottom: 0.5em;">
             <div class="form-inline">
             {% if list_of_ca.has_previous %}
-            <a href="{{ list_of_ca.previous_page_number }}" aria-label="Previous" class="btn btn-secondary">
+            <a href="{% url 'observer:caall' page=list_of_ca.previous_page_number %}" aria-label="Previous" class="btn btn-secondary">
                 <span aria-hidden="true">&laquo;</span>
             </a>
             {% else %}
@@ -50,19 +50,20 @@
             {% endif %}
             
             <button id="callpage" class="btn btn-primary">Goto Page</button>
+            <div class="form-group">
             <div class="input-group">
             <input type="number" class="form-control" id="pagenumber" placeholder="Enter page number" value="{{list_of_ca.number}}"/>
             <div class="input-group-addon">of {{list_of_ca.paginator.num_pages }}</div>
             </div>
+            </div>
             
             {% if list_of_ca.has_next %}
-            <a href="{{ list_of_ca.next_page_number }}" aria-label="Next" class="btn btn-secondary">
+            <a href="{% url 'observer:caall' page=list_of_ca.next_page_number %}" aria-label="Next" class="btn btn-secondary">
                 <span aria-hidden="true">&raquo;</span>
             </a>
             {% else %}
                 <span aria-hidden="true" class="btn btn-secondary disabled">&raquo;</span>
             {% endif %}
-            <br>
             </div>
       </nav>
       

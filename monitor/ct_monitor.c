@@ -1,6 +1,6 @@
 /* ct_monitor - Certificate Transparency Log Monitor
  * Written by Rob Stradling
- * Copyright (C) 2015 COMODO CA Limited
+ * Copyright (C) 2015-2016 COMODO CA Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -194,6 +194,8 @@ static int compareSHA256Hashes(
 
 
 int main(
+	int argc,
+	char** argv
 )
 {
 	PGconn* t_PGconn = NULL;
@@ -221,7 +223,7 @@ int main(
 	json_object* j_extraData = NULL;
 	array_list* t_entriesArr = NULL;
 	uint32_t t_entryID;
-	uint32_t t_confirmedEntryID;
+	uint32_t t_confirmedEntryID = -1;
 	uint64_t t_timestamp;
 	int64_t t_sthTimestamp;
 	int t_treeSize;
@@ -231,7 +233,7 @@ int main(
 	char* t_pointer1;
 	char* t_b64Data;
 	char* t_data = NULL;
-	uint32_t t_totalLength;
+	int32_t t_totalLength;
 
 	X509* t_x509 = NULL;
 	uint32_t t_certSize;
@@ -261,7 +263,7 @@ int main(
 		t_query[q] = malloc(128 * 1024);
 
 	/* Connect to the database */
-	t_PGconn = PQconnectdb(
+    t_PGconn = PQconnectdb(
 		"user=crtsh dbname=certwatch host=ctdatabase"
 			" connect_timeout=5 client_encoding=auto"
 			" application_name=ct_monitor"
@@ -274,12 +276,26 @@ int main(
 	printError("Connected OK", NULL);
 
 	/* Get the latest CT Entry ID that we've added to the DB already */
-	t_PGresult_select = PQexec(
-		t_PGconn,
+	sprintf(
+		t_query[0],
 		"SELECT ctl.ID, ctl.URL, ctl.LATEST_ENTRY_ID, ctl.NAME"
 			" FROM ct_log ctl"
 			" WHERE ctl.IS_ACTIVE"
+	);
+	if (argc > 1)	/* Only process one log */
+		sprintf(
+			t_query[0] + strlen(t_query[0]),
+				" AND ctl.ID = %s",
+			argv[1]
+		);
+	else		/* Process all logs */
+		strcat(
+			t_query[0],
 			" ORDER BY ctl.ID"
+		);
+
+	t_PGresult_select = PQexec(
+		t_PGconn, t_query[0]
 	);
 	if (PQresultStatus(t_PGresult_select) != PGRES_TUPLES_OK) {
 		/* The SQL query failed */
@@ -428,6 +444,24 @@ int main(
 				goto label_exit;
 			}
 
+			/* Update the "Last Contacted" timestamp */
+			sprintf(
+				t_query[0],
+				"UPDATE ct_log"
+					" SET LATEST_UPDATE=statement_timestamp()"
+					" WHERE ID=%s",
+				PQgetvalue(t_PGresult_select, i, 0)
+			);
+			t_PGresult = PQexec(t_PGconn, t_query[0]);
+			if (PQresultStatus(t_PGresult) != PGRES_COMMAND_OK) {
+				/* The SQL query failed */
+				printError(
+					"UPDATE Query failed",
+					PQerrorMessage(t_PGconn)
+				);
+			}
+			PQclear(t_PGresult);
+
 			/* Parse the JSON response */
 			j_getEntries = json_tokener_parse(t_responseBuffer.data);
 			if (!json_object_object_get_ex(j_getEntries, "entries",
@@ -484,23 +518,30 @@ int main(
 					memcpy(((char*)&t_certSize) + 1, t_data + 12, 3);
 					t_certSize = be32toh(t_certSize);
 
+					printf("%d: ", (t_entryID + j));
+
 					t_pointer = t_data + 15;
 					t_x509 = d2i_X509(
 						NULL, (const unsigned char**)&t_pointer,
 						t_certSize
 					);
-					if (!t_x509) {
-						printError("Failed to decode EE cert", t_b64Data);
-						goto label_exit;
+					if (t_x509) {
+						t_subjectName = X509_NAME_oneline(
+							X509_get_subject_name(t_x509), NULL, 0
+						);
+						if (t_subjectName) {
+							printf("%s\n", t_subjectName);
+							OPENSSL_free(t_subjectName);
+						}
+						X509_free(t_x509);
+						if (t_certSize != (t_pointer - (t_data + 15))) {
+							printError("Additional data after EE cert", t_b64Data);
+							t_certSize = t_pointer - (t_data + 15);
+						}
 					}
+					else
+						printError("Failed to decode EE cert", t_b64Data);
 
-					t_subjectName = X509_NAME_oneline(
-						X509_get_subject_name(t_x509), NULL, 0
-					);
-					printf("%d: %s\n", (t_entryID + j), t_subjectName);
-					X509_free(t_x509);
-					if (t_subjectName)
-						OPENSSL_free(t_subjectName);
 
 					/* Construct the "INSERT" query */
 					sprintf(t_query[0],
@@ -556,6 +597,10 @@ int main(
 						printError("Failed to decode Precertificate", t_b64Data);
 						goto label_exit;
 					}
+					if (t_certSize != (t_pointer - t_pointer1)) {
+						printError("Additional data after Precertificate", t_b64Data);
+						t_certSize = t_pointer - t_pointer1;
+					}
 
 					t_subjectName = X509_NAME_oneline(
 						X509_get_subject_name(t_x509), NULL, 0
@@ -588,11 +633,12 @@ int main(
 				t_pointer1 += 3;
 
 				/* Parse each CA Certificate */
-				while (t_pointer1 < (t_data + t_totalLength)) {
+				while (t_totalLength > 0) {
 					t_certSize = 0;
 					memcpy(((char*)&t_certSize) + 1, t_pointer1, 3);
 					t_certSize = be32toh(t_certSize);
 
+					t_totalLength -= 3;
 					t_pointer1 += 3;
 					t_pointer = t_pointer1;
 
@@ -603,6 +649,10 @@ int main(
 					if (!t_x509) {
 						printError("Failed to decode CA cert", t_b64Data);
 						goto label_exit;
+					}
+					if (t_certSize != (t_pointer - t_pointer1)) {
+						printError("Additional data after CA cert", t_b64Data);
+						t_certSize = t_pointer - t_pointer1;
 					}
 
 					t_subjectName = X509_NAME_oneline(
@@ -640,6 +690,7 @@ int main(
 
 					printf("\n");
 
+					t_totalLength -= (t_pointer - t_pointer1);
 					t_pointer1 = t_pointer;
 				}
 
@@ -686,35 +737,6 @@ int main(
 			t_responseBuffer.data = NULL;
 			t_responseBuffer.size = 0;
 
-            if (t_confirmedEntryID == -1)
-                t_entryID--;
-            else
-                t_entryID = t_confirmedEntryID;
-
-            sprintf(
-                t_query[0],
-                "UPDATE ct_log"
-                    " SET LATEST_ENTRY_ID=%d,"
-                    " LATEST_UPDATE=statement_timestamp(),"
-                    " LATEST_STH_TIMESTAMP=TIMESTAMP WITH TIME ZONE 'epoch'"
-                        " + interval'%" LENGTH64 "d seconds'"
-                        " + interval'%" LENGTH64 "d milliseconds'"
-                    " WHERE ID=%s",
-                t_entryID,
-                t_sthTimestamp / 1000,
-                t_sthTimestamp % 1000,
-                PQgetvalue(t_PGresult_select, i, 0)
-            );
-            t_PGresult = PQexec(t_PGconn, t_query[0]);
-            if (PQresultStatus(t_PGresult) != PGRES_COMMAND_OK) {
-                /* The SQL query failed */
-                printError(
-                    "UPDATE Query failed",
-                    PQerrorMessage(t_PGconn)
-                );
-            }
-            PQclear(t_PGresult);
-
 			if (g_terminateNow)
 				goto label_exit;
 		}
@@ -728,16 +750,16 @@ int main(
 		else
 			t_entryID = t_confirmedEntryID;
 
+		/* Update the "Latest STH" timestamp, now that we've processed
+		  all of the entries covered by this STH */
 		sprintf(
 			t_query[0],
 			"UPDATE ct_log"
-				" SET LATEST_ENTRY_ID=%d,"
-				" LATEST_UPDATE=statement_timestamp(),"
+				" SET LATEST_UPDATE=statement_timestamp(),"
 				" LATEST_STH_TIMESTAMP=TIMESTAMP WITH TIME ZONE 'epoch'"
 					" + interval'%" LENGTH64 "d seconds'"
 					" + interval'%" LENGTH64 "d milliseconds'"
 				" WHERE ID=%s",
-			t_entryID,
 			t_sthTimestamp / 1000,
 			t_sthTimestamp % 1000,
 			PQgetvalue(t_PGresult_select, i, 0)
@@ -761,10 +783,8 @@ label_exit:
 			sprintf(
 				t_query[0],
 				"UPDATE ct_log"
-					" SET LATEST_ENTRY_ID=%d,"
-					" LATEST_UPDATE=statement_timestamp()"
+					" SET LATEST_UPDATE=statement_timestamp()"
 					" WHERE ID=%s",
-				t_confirmedEntryID,
 				PQgetvalue(t_PGresult_select, i, 0)
 			);
 			t_PGresult = PQexec(t_PGconn, t_query[0]);

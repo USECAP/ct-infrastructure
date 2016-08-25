@@ -4,41 +4,70 @@
 
 {% block content %}
     <div class="row">
-        <form action="/notification/subscribe" method="post">
-            {% csrf_token %}
-            <div class="jumbotron" style="height:250px;">
-                <div class="col-md-12"><h3>Subscribe</h3><hr/></div>
-                <div class="col-md-1" style="font-size:24px;">Mail</div>
-                <div class="col-md-3"><input type="email" name="email" class="form-control"/></div>
-                <div class="col-md-1" style="font-size:24px;">Name </div>
-                <div class="col-md-3"><input type="text" name="dnsname" class="form-control" value="{{ dnsname }}" /></div>
-                <div class="col-md-3 col-md-offset-1"><button class="btn btn-primary btn-block">subscribe</button></div>
-                <div class="col-md-1" style="font-size:24px;">Type</div>
-                <div class="col-md-6" style="padding-top:7px;">
-
-                    <label class="radio-inline">
-                      <input type="radio" id="notifyfor1" name="notifyfor" value="1"> CommonName
-                    </label>
-                    <label class="radio-inline">
-                      <input type="radio" id="notifyfor2" name="notifyfor" value="2"> dNSName
-                    </label>
-                    <label class="radio-inline">
-                      <input type="radio" id="notifyfor" name="notifyfor" value="0" checked="checked"> Both
-                    </label>
-                </div>
-            </div>
-        </form>
-        <form action="/notification/unsubscribe" method="post">
-            <div class="jumbotron" style="height:200px;">
+        <div class=" col-md-6 col-xs-12">
+            <form action="/notification/subscribe" method="post">
                 {% csrf_token %}
-                <div class="col-md-12"><h3>Unsubscribe</h3><hr/></div>
-                <div class="col-md-1 " style="font-size:24px;">Mail</div>
-                <div class="col-md-3"><input type="email" name="email" class="form-control"/></div>
-                <div class="col-md-1" style="font-size:24px;">Name </div>
-                <div class="col-md-3"><input type="text" name="dnsname" class="form-control" value="{{ dnsname }}" /></div>
-                <div class="col-md-2 col-md-offset-1"><button class="btn btn-primary btn-block">unsubscribe</button></div>
-            </div>
-        </form>
+                <div class="card">
+                    <div class="card-header">
+                        Register for email-notificiation when new certificates are found
+                    </div>
+                    <div class="card-block">
+                    {{ subscribeform.non_field_errors }}
+                    {{ subscribeform.email.errors }}
+                       <div class="form-group row">
+                            <label for="{{subscribeform.email.id_for_label}}" class="col-xs-3 col-form-label">{{subscribeform.email.label}}</label>
+                            <div class="col-xs-9">
+                                <input class="form-control" type="email" value="{% if subscribeform.email.value %}{{subscribeform.email.value}}{% endif %}" id="{{subscribeform.email.id_for_label}}" name="{{subscribeform.email.html_name}}" placeholder="you@example.com">
+                            </div>
+                        </div>
+                        
+                    {{ subscribeform.name.errors }}
+                        <div class="form-group row">
+                            <label for="{{subscribeform.name.id_for_label}}" class="col-xs-3 col-form-label">{{subscribeform.name.label}}</label>
+                            <div class="col-xs-9">
+                                <input class="form-control" type="text" value="{% if subscribeform.name.value %}{{subscribeform.name.value}}{% endif %}" name="{{subscribeform.name.html_name}}"
+                                       id="{{subscribeform.name.id_for_label}}" placeholder="www.example.com">
+                            </div>
+
+                        </div>
+                        
+                        <button class="btn btn-primary btn-block ">subscribe</button>
+                        <input type="hidden" id="notifyfor" name="notifyfor" value="0" checked="checked">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class=" col-md-6 col-xs-12">
+            <form action="/notification/unsubscribe" method="post">
+                {% csrf_token %}
+                <div class="card">
+                    <div class="card-header">
+                        Cancel notifcations for new certificates
+                    </div>
+                    <div class="card-block">
+                    {{ unsubscribeform.non_field_errors }}
+                    {{ unsubscribeform.email.errors }}
+                       <div class="form-group row">
+                            <label for="{{unsubscribeform.email.id_for_label}}" class="col-xs-3 col-form-label">{{unsubscribeform.email.label}}</label>
+                            <div class="col-xs-9">
+                                <input class="form-control" type="email" value="{% if unsubscribeform.email.value %}{{unsubscribeform.email.value}}{% endif %}" id="{{unsubscribeform.email.id_for_label}}" name="{{unsubscribeform.email.html_name}}" placeholder="you@example.com">
+                            </div>
+                        </div>
+                        
+                    {{ unsubscribeform.name.errors }}
+                        <div class="form-group row">
+                            <label for="{{unsubscribeform.name.id_for_label}}" class="col-xs-3 col-form-label">{{unsubscribeform.name.label}}</label>
+                            <div class="col-xs-9">
+                                <input class="form-control" type="text" value="{% if unsubscribeform.name.value %}{{unsubscribeform.name.value}}{% endif %}" name="{{unsubscribeform.name.html_name}}"
+                                       id="{{unsubscribeform.name.id_for_label}}" placeholder="www.example.com">
+                            </div>
+
+                        </div>
+                        <button class="btn btn-primary btn-block ">unsubscribe</button>
+                    </div>
+                </div>
+            </form>
+        </div>
     </div>
 
 {% endblock %}

@@ -13,10 +13,10 @@
       {% endfor %}
       </ul>
       
-      <nav class="text-center">
+      <nav class="text-center" style="margin-bottom: 0.5em;">
             <div class="form-inline">
             {% if list_of_entries.has_previous %}
-            <a href="{{ list_of_entries.previous_page_number }}" aria-label="Previous" class="btn btn-secondary">
+            <a href="{% url 'observer:certs_by_log' log_id=log.id page=list_of_entries.previous_page_number %}" aria-label="Previous" class="btn btn-secondary">
                 <span aria-hidden="true">&laquo;</span>
             </a>
             {% else %}
@@ -24,13 +24,15 @@
             {% endif %}
             
             <button id="callpage" class="btn btn-primary">Goto Page</button>
+            <div class="form-group">
             <div class="input-group">
             <input type="number" class="form-control" id="pagenumber" placeholder="Enter page number" value="{{list_of_entries.number}}"/>
             <div class="input-group-addon">of {{list_of_entries.paginator.num_pages }}</div>
             </div>
+            </div>
             
             {% if list_of_entries.has_next %}
-            <a href="{{ list_of_entries.next_page_number }}" aria-label="Next" class="btn btn-secondary">
+            <a href="{% url 'observer:certs_by_log' log_id=log.id page=list_of_entries.next_page_number %}" aria-label="Next" class="btn btn-secondary">
                 <span aria-hidden="true">&raquo;</span>
             </a>
             {% else %}

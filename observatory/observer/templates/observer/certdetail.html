@@ -59,8 +59,8 @@ path.link {
                 <p>
                     {{prop.name_value}}
                     {% if prop.name_type == "dNSName" %}
-                    <a href="../dnsname/{{prop.name_value}}" title="Search certificates with dNSName '{{prop.name_value}}'"><i class="fa fa-search"></i></a>
-                    <a href="/notification/change/{{prop.name_value}}" title="Subscribe for changes concerning certificates issued for dNSName '{{prop.name_value}}'"><i class="fa fa-envelope"></i></a>
+                    <a href="{% url 'observer:list_dnsname_certs' dnsname=prop.name_value %}" title="Search certificates with dNSName '{{prop.name_value}}'"><i class="fa fa-search"></i></a>
+                    <a href="{% url 'notification:index' dnsname=prop.name_value %}" title="Subscribe for changes concerning certificates issued for dNSName '{{prop.name_value}}'"><i class="fa fa-envelope"></i></a>
                     {% endif %}
                 </p>
             </div>
@@ -69,10 +69,10 @@ path.link {
     <button id="toggle_full_identity" class="btn btn-primary-outline btn-sm">Toggle full list</button>
     </div>
     <ul class="list-group list-group-flush">
-        <li class="list-group-item">This certificate has been issued by <a href="/ca/{{certificate.issuer_ca_id}}">{{certificate.organization_name}}</a>.</li>
-        <li class="list-group-item"><a href="/cert/cn/{{certificate.subject_common_name}}">List all certificates with CN={{certificate.subject_common_name}}</a>.</li>
+        <li class="list-group-item">This certificate has been issued by <a href="{% url 'observer:cadetail' ca_id=certificate.issuer_ca_id %}">{{certificate.organization_name}}</a>.</li>
+        <li class="list-group-item"><a href="{% url 'observer:list_cn_certs' cn=certificate.subject_common_name %}">List all certificates with CN={{certificate.subject_common_name}}</a>.</li>
         {% if ca_certificate != None %}
-        <li class="list-group-item">This certificate is a <a href="/ca/{{ca_certificate.ca_id}}">CA certificate</a>.</li>
+        <li class="list-group-item">This certificate is a <a href="{% url 'observer:cadetail' ca_id=ca_certificate.ca_id %}">CA certificate</a>.</li>
         {% endif %}
     </ul>
   </div>

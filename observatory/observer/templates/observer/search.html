@@ -26,8 +26,8 @@
     <hr/>
     <h4>Certificates (by commonName or dNSName)</h4>
     <ul>
-        <li><a href="/cert/dnsname/{{term}}">List all certificates with that exact dnsName</a></li>
-        <li><a href="/cert/cn/{{term}}">List all certificates with that exact common name</a>
+        <li><a href="{% url 'observer:list_dnsname_certs' dnsname=term %}">List all certificates with that exact dnsName</a></li>
+        <li><a href="{% url 'observer:list_cn_certs' cn=term %}">List all certificates with that exact common name</a>
     </ul>
         <table class="table table-striped table-sm">
         <thead>
@@ -75,7 +75,7 @@ function cascadeshow(classname){
 }
 
 function loadResultsCnDnsname(offset){
-    $.getJSON("/api/search/cn_dnsname/{{ term }}/"+offset, function(data){
+    $.getJSON("{% url 'observer:search_cn_dnsname' term=term %}"+offset, function(data){
         var items = 0;
         $.each(data.values, function(i, result){
             $("<tr style='display: none;' class='new_tr_cn_dnsname'><td><a href='/cert/"+result.cert_id+"'>"+result.cert_cn+"</a></td><td><a href='/ca/"+result.ca_id+"'>"+result.ca_cn+"</a></td><td>"+result.cert_not_before+"</td><td>"+result.cert_status+"</td><td>"+result.cert_not_after+"</td></tr>").appendTo('#cn_dnsname_results');//.show(1000);
@@ -95,7 +95,7 @@ function loadResultsCnDnsname(offset){
 }
 
 function loadResultsCa(offset){
-    $.getJSON("/api/search/ca/{{ term }}/"+offset, function(data){
+    $.getJSON("{% url 'observer:search_ca' term=term %}"+offset, function(data){
         var items = 0;
         $.each(data.values, function(i, result){
             $('<tr style="display: none;" class="new_tr_ca"><td><img src="/flag/'+result.c+'" title="'+result.c+'"/></td><td><a href="/ca/'+result.ca_id+'">'+result.cn+'</a></td><td>'+result.l+'</td><td>'+result.o+'</td><td>'+result.ou+'</td><td>'+result.st+'</td>').appendTo('#ca_results');

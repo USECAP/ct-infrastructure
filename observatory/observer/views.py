@@ -10,6 +10,7 @@ import datetime
 import os
 from ctobservatory.settings import BASE_DIR
 from .models import *
+from notification.forms import SubscribeUnsubscribeForm
 
 ITEMS_PER_PAGE = 50
 
@@ -60,6 +61,15 @@ def index(request):
     active_certs = 0
     total_certs = 0
     total_cas = 0
+    
+    messages = []
+    if('subok' in request.GET):
+        messages.append({'class':'alert-info','text':'<strong>Subscription request</strong> - We sent you a confirmation link via email. Click it, and you should be all set.'})
+    if('unsubok' in request.GET):
+        messages.append({'class':'alert-info','text':'<strong>Unsubscription request</strong> - We sent you a confirmation link via email. Click it, and you should be all set.'})
+    
+    subscribeform = SubscribeUnsubscribeForm()
+    
     with connection.cursor() as c:
         c.execute("SELECT NAME_TYPE, NAME_VALUE FROM metadata")
         rows = c.fetchall()
@@ -81,6 +91,8 @@ def index(request):
             'smallest_log' : metadata['number_of_certs_in_smallest_log'],
             'total_incidents': InvalidCertificate.objects.count(), #TODO: Check what's inside here
             'uptime_days': (timezone.now().date()-datetime.date(2015,10,14)).days, #TODO
+            'messages' : messages,
+            'subscribeform' : subscribeform
         }
     )
 
