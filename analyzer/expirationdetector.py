@@ -30,9 +30,9 @@ class ExpirationDetector(threading.Thread):
             cursor.execute("UPDATE certificate SET EXPIRED=TRUE WHERE ((x509_notAfter(CERTIFICATE) < NOW() ) AND EXPIRED=FALSE) AND id > %s AND id < %s", (i, i+step))
             self.newly_expired_counter += cursor.rowcount
             self.db.commit()
-            logging.debug("Handled {0}/{1} certificates ({2} %), found {3} newly expired".format(i+step, count, float(i+step)/float(count), self.newly_expired_counter))
+            logging.debug("Handled {0}/{1} certificates ({2:.2f} %), found {3} newly expired".format(i+step, count, float(i+step)/float(count)*100, self.newly_expired_counter))
 
-        return self.print_log()
+        logging.info(self.print_log())
 
     def print_log(self):
         return "{{'type':'expired','data':{{'new':{} }} }},".format(self.newly_expired_counter)

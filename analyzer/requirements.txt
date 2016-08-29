@@ -2,3 +2,4 @@ psycopg2
 pyopenssl
 elasticsearch
 py-dateutil
+python-ldap

@@ -62,7 +62,7 @@ class Metadata(threading.Thread):
 
         self.db.commit()
 
-        return self.print_log()
+        logging.info(self.print_log())
 
     def print_log(self):
         cursor = self.db.cursor()

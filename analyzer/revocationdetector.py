@@ -5,6 +5,8 @@ from OpenSSL import crypto
 import logging
 import Queue
 import threading
+import time
+import ldapurl, ldap
 
 
 class RevocationDetector(threading.Thread):
@@ -24,30 +26,41 @@ class RevocationDetector(threading.Thread):
         self.db.close()
         
     def refresh_crls(self):
+        running_download_threads = 1
         output_queue = Queue.Queue()
-        semaphore = threading.Semaphore(5) # number of concurrent threads
+        log_queue = Queue.Queue()
+        semaphore = threading.Semaphore(20) # number of concurrent download threads
         for crl_url in self.get_crl_urls_out_of_certificate_extensions():
             logging.debug("waiting for relase on semaphore")
             semaphore.acquire(blocking=True)
             logging.debug("retrieving and parsing {0}".format(crl_url))
-            t = CrlDownloadThread(crl_url, output_queue, semaphore)
+            t = CrlDownloadThread(crl_url, output_queue, semaphore, log_queue)
             t.start()
-        while(threading.active_count() > 1 or not output_queue.empty()):
+        while(running_download_threads > 0 or not output_queue.empty()):
             logging.debug("fetching crl from queue, {0} active threads".format(threading.active_count()))
-            if(threading.active_count() < 3):
-                for thread in threading.enumerate():
-                    if isinstance(thread, CrlDownloadThread): 
-                        logging.debug("Running thread working on {0}".format(thread.getCrl()))
+                
             try:
-                crlraw = output_queue.get(block=True, timeout=10)
+                crl, crlraw = output_queue.get(block=True, timeout=10)
                 logging.debug("parsing crl")
                 self.parse_crl(crlraw)
             except Queue.Empty:
-                logging.debug("Queue was empty")
+                logging.debug("Queue was empty, {0} active threads".format(threading.active_count()))
+                running_download_threads = 0
+                for thread in threading.enumerate():
+                    if isinstance(thread, CrlDownloadThread): 
+                        running_download_threads += 1
+                        logging.debug("Running thread working on {0}".format(thread.getCrl()))
+                logging.debug("------")
             except Exception as e:
-                logging.warn("Exception: {0}".format(str(e)))
-        logging.debug("RevocationDetector done")
-        return self.print_log()
+                logging.warn("Exceptionx: {0}".format(str(e)))
+                log_queue.put((crl, "Exception when parsing: {0}".format(str(e))))
+        logging.info("RevocationDetector done")
+        with open("log.tsv", "w") as f:
+            while(not log_queue.empty()):
+                crl, val = log_queue.get(block=True)
+                f.write("{}\t{}\n".format(crl, val))
+            
+        logging.info(self.print_log())
 
     #def download_and_parse_crl(self, url):
         #try:
@@ -117,22 +130,69 @@ class RevocationDetector(threading.Thread):
         return "{{'type':'revokedcerts','data':{{'found':{},'knew':{},'updated':{} }} }},".format(self.revoke_counter,self.found_in_database_counter,self.updated_counter)
 
 class CrlDownloadThread(threading.Thread):
-    def __init__(self, crl, output_queue, semaphore):
+    def __init__(self, crl, output_queue, semaphore, log_queue):
         threading.Thread.__init__(self)
         self.crl = crl
         self.output_queue = output_queue
         self.semaphore = semaphore
+        self.log_queue = log_queue
     
     def getCrl(self):
         return self.crl
     
     def run(self):
+        start = time.time()
         logging.debug("starting thread to download {0}".format(self.crl))
         try:
-            crlraw = urllib2.urlopen(self.crl).read()
-            self.output_queue.put(crlraw)
-            logging.debug("downloading {0} finished".format(self.crl))
+            crlraw = None
+            end = 0 # should be ok as a starting value, since it's 2016
+            # LDAP
+            if( ldapurl.isLDAPUrl( self.crl ) ):
+                url_parts = ldapurl.LDAPUrl( self.crl )
+                connectionstring = "{0}://{1}".format(url_parts.urlscheme, url_parts.hostport)
+                
+                try:
+                    l = ldap.initialize(connectionstring)
+                    try:
+                        l.bind_s('','') #anonymous bind
+                        scope = url_parts.scope if url_parts.scope != None else 0
+                        if url_parts.filterstr == None:
+                            res = l.search_s(url_parts.dn, scope, attrlist=url_parts.attrs)
+                        else:
+                            res = l.search_s(url_parts.dn, scope, url_parts.filterstr, attrlist=url_parts.attrs)
+                        
+                        for item in res:
+                            for key in item[1]:
+                                for crlraw in item[1][key]:
+                                    self.output_queue.put((self.crl, crlraw))
+                                    end = time.time()
+                                    logging.debug("downloading {0} finished, took {1} seconds".format(self.crl, (end - start)))
+                                    self.log_queue.put((self.crl, (end-start)))
+                    except ldap.LDAPError, e:
+                            if type(e.message) == dict:
+                                for (k, v) in e.message.iteritems():
+                                    logging.warn("%s: %s" % (k, v) )
+                            else:
+                                logging.warn(e)
+                            end = time.time()
+                            self.log_queue.put((self.crl, "LDAPError: {1} (after {0} seconds)".format((end-start), e)))
+                finally:
+                    try:
+                        l.unbind()
+                    except Error:
+                        pass
+            # HTTP(S)
+            else:
+                crlraw = urllib2.urlopen(self.crl).read()
+                self.output_queue.put((self.crl, crlraw))
+                end = time.time()
+                logging.debug("downloading {0} finished, took {1} seconds".format(self.crl, (end - start)))
+                self.log_queue.put((self.crl, (end-start)))
+            if(end - start > 30):
+                logging.warn("{0} was hella slow, took {1} seconds".format(self.crl, (end - start)))
         except Exception as e:
+            end = time.time()
             logging.warn("Exception when downloading {0}: {1}".format(self.crl, str(e)))
+            self.log_queue.put((self.crl, "EXCEPTION {1} (after {0} seconds)".format((end-start), e)))
         finally:
             self.semaphore.release()
