@@ -32,14 +32,18 @@ path.link {
 {% block content %}
   <div class="card">
     <div class="card-block">
-        <h4>{{certificate.subject_common_name}}
-        <img src="/flag/{{certificate.subject_country_name.lower}}" title="{{certificate.subject_country_name}}"/></h4>
+        <h4>
+        {{certificate.subject_common_name}}
+        <img src="/flag/{{certificate.subject_country_name.lower}}" title="{{certificate.subject_country_name}}"/>
+        <small><a href="{% url 'observer:certdetail' cert_sha256=digest_sha256 %}" title="Permalink"><i class="fa fa-anchor" aria-hidden="true"></i>
+</a></small>
+        </h4>
 
         <p>General information directly from the certificate:</p>
 
             <div class="row">
             {% for key, value in certificate.get_certificate_data %}
-                <div class="col-md-4 col-sm-6 col-xs-12">
+                <div class="col-md-4 col-sm-6 col-xs-12 property">
                     <span><strong>{{key}}</strong></span>
                     <p>{{value}}</p>
                 </div>

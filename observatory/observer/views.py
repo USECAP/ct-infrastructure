@@ -284,15 +284,20 @@ def cadetail(request,ca_id):
     return render(request, 'observer/cadetail.html', { 'ca' : ca})
 
 
-def certdetail(request,cert_id):
-    cert = get_object_or_404(Certificate, pk=cert_id)
+def certdetail(request,cert_id=None,cert_sha256=None):
+    if cert_sha256:
+        cert_sha256_bin = cert_sha256.decode('hex')
+        cert = get_object_or_404(Certificate, certificate__sha256=cert_sha256_bin)
+    if cert_id:
+        cert = get_object_or_404(Certificate, pk=cert_id)
     cacert = CaCertificate.objects.filter(certificate_id=cert_id).first()
+    digest_sha256 = cert.get_digest_sha256().replace(':','').lower()
 
     #TODO
     #Certificate.objects.raw("select (select count(*) from certificate WHERE x509_keySize(certificate) = %s)*100/cast(COUNT(*) as float) as percentage, 0 as id FROM certificate;", [cert.get_x509_data().get_pubkey().bits()])
 
     #return render(request, 'observer/certdetail.html', { 'certificate' : cert, 'ca_certificate' : cacert, 'keysize_distribution': round(keysize_distribution[0].percentage,2)})
-    return render(request, 'observer/certdetail.html', { 'certificate' : cert, 'ca_certificate' : cacert, 'keysize_distribution': 'TODO'})
+    return render(request, 'observer/certdetail.html', { 'certificate' : cert, 'ca_certificate' : cacert, 'keysize_distribution': 'TODO', 'digest_sha256':digest_sha256})
 
 def logdetail(request,log_id):
     log = get_object_or_404(CtLog, pk=log_id)

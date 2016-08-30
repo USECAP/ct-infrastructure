@@ -23,6 +23,16 @@ class NotAfter(models.Transform):
 models.BinaryField.register_lookup(NotAfter)
 
 
+class Sha256Digest(models.Transform):
+    lookup_name = 'sha256'
+
+    def as_sql(self, compiler, connection):
+        lhs, lhs_params = compiler.compile(self.lhs)
+        return "digest(%s, 'sha256')" % lhs, lhs_params
+
+models.Field.register_lookup(Sha256Digest)
+
+
 class CertificateManager(models.Manager):
 
 

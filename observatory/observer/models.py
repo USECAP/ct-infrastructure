@@ -67,7 +67,7 @@ class Certificate(models.Model):
     certificate = models.BinaryField()
     issuer_ca = models.ForeignKey(Ca)
     objects = CertificateManager()
-    expired=models.BooleanField(default=False)
+    expired = models.BooleanField(default=False)
     class Meta:
         managed = False
         db_table = 'certificate'
@@ -84,6 +84,7 @@ class Certificate(models.Model):
         data.append(('has_expired', self.has_expired(cert)))
         data.append(('digest_md5', cert.digest('md5'.encode('ascii','ignore'))))
         data.append(('digest_sha1', cert.digest('sha1'.encode('ascii','ignore'))))
+        data.append(('digest_sha256', cert.digest('sha256'.encode('ascii','ignore'))))
         return data
 
     def has_expired(self, cert=None):
@@ -175,6 +176,10 @@ class Certificate(models.Model):
     def get_issuer_data(self):
         cert = self.get_x509_data()
         return cert.get_issuer().get_components()
+
+    def get_digest_sha256(self):
+        cert = self.get_x509_data()
+        return cert.digest('sha256'.encode('ascii','ignore'))
 
     def get_x509_data(self):
         return crypto.load_certificate(crypto.FILETYPE_ASN1, str(self.certificate))

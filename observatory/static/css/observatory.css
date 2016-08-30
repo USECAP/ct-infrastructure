@@ -26,3 +26,6 @@ html, body {
 #content {
     padding-bottom: 35px;   /* Height of the footer element */
 }
+.property{
+    word-wrap: break-word;
+}

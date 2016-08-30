@@ -22,6 +22,7 @@ urlpatterns = [
     url(r'^ca/(?P<ca_id>[0-9]+)/certificates$', views.certs_by_ca, name='certs_by_ca'),
     url(r'^ca/(?P<ca_id>[0-9]+)/certificates/(?P<page>[0-9]+)$', views.certs_by_ca, name='certs_by_ca'),
     url(r'^cert/(?P<cert_id>[0-9]+)/$', views.certdetail, name='certdetail'),
+    url(r'^cert/sha256/(?P<cert_sha256>[a-fA-F0-9]{64})/$', views.certdetail, name='certdetail'),
     url(r'^log/(?P<log_id>[0-9]+)/certs/$', views.certs_by_log, name='certs_by_log'),
     url(r'^log/(?P<log_id>[0-9]+)/certs/(?P<page>[0-9]+)$', views.certs_by_log, name='certs_by_log'),
     url(r'^log/(?P<log_id>[0-9]+)/$', views.logdetail, name='logdetail'),
