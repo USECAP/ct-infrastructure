@@ -10,6 +10,7 @@ class Metadata(threading.Thread):
         self.dbuser = dbuser
         self.dbhost = dbhost
         self.db = None
+        self.logger = logging.getLogger(__name__)
         
     def run(self):
         self.db = psycopg2.connect(dbname=self.dbname, user=self.dbuser, host=self.dbhost)
@@ -19,50 +20,50 @@ class Metadata(threading.Thread):
     def update_metadata(self):
         cursor = self.db.cursor()
 
-        logging.debug("counting all certificates")
+        self.logger.debug("counting all certificates")
         cursor.execute(
             #"UPDATE metadata SET NAME_VALUE=(SELECT reltuples FROM pg_class WHERE relname = 'certificate') WHERE NAME_TYPE='number_of_certs'")  # All Certs
             "UPDATE metadata SET NAME_VALUE=(SELECT count(*) FROM certificate) WHERE NAME_TYPE='number_of_certs'")  # All Certs
 	
-	logging.debug("counting all CAs")
+	self.logger.debug("counting all CAs")
         cursor.execute(
             "UPDATE metadata SET NAME_VALUE=(SELECT COUNT(*) FROM ca) WHERE NAME_TYPE='number_of_cas'")  # All CA
 	
-	logging.debug("counting expired certificates")
+	self.logger.debug("counting expired certificates")
         cursor.execute(
             "UPDATE metadata SET NAME_VALUE=(SELECT COUNT(*) FROM certificate where expired) WHERE NAME_TYPE='number_of_expired_certs'")  # EXPIRED
 	
-	logging.debug("counting revoked certificates")
+	self.logger.debug("counting revoked certificates")
         cursor.execute(
             "UPDATE metadata SET NAME_VALUE=(SELECT COUNT(*) FROM revoked_certificate) WHERE NAME_TYPE='number_of_revoked_certs'")  # REVOKED
 	
-	logging.debug("counting active certificates")
+	self.logger.debug("counting active certificates")
         cursor.execute(
             "UPDATE metadata SET NAME_VALUE=((SELECT NAME_VALUE FROM metadata WHERE NAME_TYPE='number_of_certs') - (SELECT NAME_VALUE FROM metadata WHERE NAME_TYPE='number_of_expired_certs') - (SELECT COUNT(*) FROM revoked_certificate rc JOIN certificate c ON rc.certificate_id = c.id WHERE NOT c.expired )) WHERE NAME_TYPE='number_of_active_certs'")  # ACTIVE
 	
-	logging.debug("'counting' misissued certificates")
+	self.logger.debug("'counting' misissued certificates")
         cursor.execute(
             "UPDATE metadata SET NAME_VALUE=0 WHERE NAME_TYPE='number_of_misissued_certs'")  # Misissued
 	
-	logging.debug("'counting' correctly behaving CAs")
+	self.logger.debug("'counting' correctly behaving CAs")
         cursor.execute(
             "UPDATE metadata SET NAME_VALUE=0 WHERE NAME_TYPE='number_of_correctly_behaving_cas'")  # Correct CA
 	
-	logging.debug("'counting' number of interesting CAs")
+	self.logger.debug("'counting' number of interesting CAs")
         cursor.execute(
             "UPDATE metadata SET NAME_VALUE=0 WHERE NAME_TYPE='number_of_interesting_cas'")  # Suspicious CA
 	
-	logging.debug("determining number_of_certs_in_biggest_log")
+	self.logger.debug("determining number_of_certs_in_biggest_log")
         cursor.execute(
             "UPDATE metadata SET NAME_VALUE=(select max(latest_entry_id) from ct_log) WHERE NAME_TYPE='number_of_certs_in_biggest_log'")  # Max log
 	
-	logging.debug("determining number_of_certs_in_smallest_log")
+	self.logger.debug("determining number_of_certs_in_smallest_log")
         cursor.execute(
             "UPDATE metadata SET NAME_VALUE=(select min(latest_entry_id) from ct_log) WHERE NAME_TYPE='number_of_certs_in_smallest_log'")  # Min log
 
         self.db.commit()
 
-        logging.info(self.print_log())
+        self.logger.info(self.print_log())
 
     def print_log(self):
         cursor = self.db.cursor()

@@ -23,6 +23,7 @@ class IssueFinder(threading.Thread):
         self.dbuser = dbuser
         self.dbhost = dbhost
         self.db = None
+        self.logger = logging.getLogger(__name__)
     
     def run(self):
         self.db = psycopg2.connect(dbname=self.dbname, user=self.dbuser, host=self.dbhost)
@@ -30,67 +31,67 @@ class IssueFinder(threading.Thread):
         self.db.close()
 
     def get_all_cn(self):
-        logging.debug("calling get_all_cn")
+        self.logger.debug("calling get_all_cn")
 
         return self._get_result_list(
             "SELECT DISTINCT NAME_VALUE FROM certificate_identity WHERE NAME_TYPE='commonName'")
 
     def get_all_dnsname(self):
-        logging.debug("calling get_all_dnsname")
+        self.logger.debug("calling get_all_dnsname")
 
         return self._get_result_list(
             "SELECT DISTINCT NAME_VALUE FROM certificate_identity WHERE NAME_TYPE='dNSName'")
 
     def get_history_for_cn(self, cn):
-        logging.debug("calling get_history_for_cn")
+        self.logger.debug("calling get_history_for_cn")
 
         return self._get_result_list(
             "SELECT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE))=reverse(lower(%s)) ORDER BY x509_notBefore(CERTIFICATE) ASC",
             (cn,))
 
     def get_history_for_dnsname(self, dnsname):
-        logging.debug("calling get_history_for_dnsname")
+        self.logger.debug("calling get_history_for_dnsname")
 
         return self._get_result_list(
             "SELECT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE))=reverse(lower(%s)) ORDER BY x509_notBefore(CERTIFICATE) ASC",
             (dnsname,))
 
     def _get_result_list(self, query, parameters=None):
-        logging.debug("calling _get_result_list")
+        self.logger.debug("calling _get_result_list")
 
         result = []
         with self.db.cursor() as cursor:
-            logging.debug("Setting cursor.arraysize to 2000")
+            self.logger.debug("Setting cursor.arraysize to 2000")
             cursor.arraysize = 2000
 
-            logging.debug("Querying database")
+            self.logger.debug("Querying database")
             if (parameters == None):
                 cursor.execute(query)
             else:
                 cursor.execute(query, parameters)
 
-            logging.debug("Fetching results")
+            self.logger.debug("Fetching results")
             while True:
                 rows = cursor.fetchmany()  # fetch 'arraysize' many results
-                # logging.debug("Fetched {0} entries".format(len(rows)))
+                # self.logger.debug("Fetched {0} entries".format(len(rows)))
                 if (rows):
                     result += rows
                 else:
-                    logging.debug("Exiting loop")
+                    self.logger.debug("Exiting loop")
                     break
         return result
 
     def check_first_certificates(self, ordered_list_of_certificates):
         """ctobs.issues.first_cert_dnsname"""
         """ctobs.issues.first_cert_cn"""
-        logging.debug("calling check_first_certificates")
+        self.logger.debug("calling check_first_certificates")
 
         result = []
 
         first_timestamp_str = crypto.load_certificate(crypto.FILETYPE_ASN1, str(
                 ordered_list_of_certificates[0][1])).get_notBefore()
         first_timestamp = parser.parse(first_timestamp_str)
-        logging.debug("First timestamp is {0}".format(first_timestamp))
+        self.logger.debug("First timestamp is {0}".format(first_timestamp))
 
         for ID, certificate_bin, ca_id in ordered_list_of_certificates:
             certificate = crypto.load_certificate(crypto.FILETYPE_ASN1,
@@ -108,7 +109,7 @@ class IssueFinder(threading.Thread):
 
     def check_ca_switch(self, ordered_list_of_certificates):
         """ctobs.issues.ca_switch"""
-        logging.debug("calling check_ca_switch")
+        self.logger.debug("calling check_ca_switch")
 
         result = []
 
@@ -116,17 +117,17 @@ class IssueFinder(threading.Thread):
         for ID, certificate_bin, ca_id in ordered_list_of_certificates:
 
             if (ca_id != last_ca):
-                logging.debug(
+                self.logger.debug(
                     "CA switched from {0} to {1} at ID {2}".format(last_ca,
                                                                    ca_id, ID))
                 result.append(ID)
             last_ca = ca_id
-            logging.debug("Last ca is {0}".format(last_ca))
+            self.logger.debug("Last ca is {0}".format(last_ca))
         return result
 
     def check_weaker_crypto_algorithm(self, ordered_list_of_certificates):
         """ctobs.issues.weaker_crypto_algorithm"""
-        logging.debug("calling check_weaker_crypto_algorithm")
+        self.logger.debug("calling check_weaker_crypto_algorithm")
 
         ordering = {}
         ordering['sha1WithRSAEncryption'] = 100
@@ -152,19 +153,19 @@ class IssueFinder(threading.Thread):
             if (current_algorithm in ordering):
                 current_order = ordering[current_algorithm]
             else:
-                logging.warning(
+                self.logger.warning(
                     "unknown algorithm: '{0}'".format(current_algorithm))
 
             if (current_order < last_order):
                 result.append(ID)
             last_order = current_order
-            logging.debug(
+            self.logger.debug(
                 "Last order is {0} ({1})".format(last_order, current_algorithm))
         return result
 
     def check_weaker_crypto_keysize(self, ordered_list_of_certificates):
         """ctobs.issues.weaker_crypto_keysize"""
-        logging.debug("calling check_weaker_crypto_keysize")
+        self.logger.debug("calling check_weaker_crypto_keysize")
 
         ordering = {}
         ordering['sha1WithRSAEncryption'] = 100
@@ -183,7 +184,7 @@ class IssueFinder(threading.Thread):
         last_order = 0
         last_keysize = 0
         for ID, certificate_bin, ca_id in ordered_list_of_certificates:
-            logging.debug("loading certificate")
+            self.logger.debug("loading certificate")
             certificate = crypto.load_certificate(crypto.FILETYPE_ASN1,
                                                   str(certificate_bin))
             current_algorithm = certificate.get_signature_algorithm()
@@ -193,7 +194,7 @@ class IssueFinder(threading.Thread):
             if (current_algorithm in ordering):
                 current_order = ordering[current_algorithm]
             else:
-                logging.warning(
+                self.logger.warning(
                     "unknown algorithm: '{0}'".format(current_algorithm))
 
             if (current_order == last_order):
@@ -201,7 +202,7 @@ class IssueFinder(threading.Thread):
                     result.append(ID)
             last_order = current_order
             last_keysize = current_keysize
-            logging.debug("Last order is {0} ({1}), last keysize is {2}".format(
+            self.logger.debug("Last order is {0} ({1}), last keysize is {2}".format(
                 last_order, current_algorithm, last_keysize))
         return result
 
@@ -211,12 +212,12 @@ class IssueFinder(threading.Thread):
         # early = before the middle of the validity period of a previous set of certificates. Kind of willy-nilly, but hey.
 
         minimum_diff_between_certificates = timedelta(minutes=30)
-        logging.debug("calling check_early_renewal")
+        self.logger.debug("calling check_early_renewal")
 
         result = []
 
         if (len(ordered_list_of_certificates) < 1):
-            logging.debug("received an empty list")
+            self.logger.debug("received an empty list")
             return result
 
         first_certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(
@@ -227,7 +228,7 @@ class IssueFinder(threading.Thread):
         flag_as_early = False
 
         for ID, certificate_bin, ca_id in ordered_list_of_certificates:
-            logging.debug("loading certificate")
+            self.logger.debug("loading certificate")
             certificate = crypto.load_certificate(crypto.FILETYPE_ASN1,
                                                   str(certificate_bin))
             notbefore = parser.parse(certificate.get_notBefore())
@@ -256,12 +257,12 @@ class IssueFinder(threading.Thread):
     def check_short_validity(self, ordered_list_of_certificates):
         """ctobs.issues.short_validity"""
 
-        logging.debug("calling check_short_validity")
+        self.logger.debug("calling check_short_validity")
 
         result = []
 
         if (len(ordered_list_of_certificates) < 1):
-            logging.debug("received an empty list")
+            self.logger.debug("received an empty list")
             return result
 
         first_certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(
@@ -274,7 +275,7 @@ class IssueFinder(threading.Thread):
         durations = []
 
         for ID, certificate_bin, ca_id in ordered_list_of_certificates:
-            logging.debug("loading certificate")
+            self.logger.debug("loading certificate")
             certificate = crypto.load_certificate(crypto.FILETYPE_ASN1,
                                                   str(certificate_bin))
             notbefore = parser.parse(certificate.get_notBefore())
@@ -300,7 +301,7 @@ class IssueFinder(threading.Thread):
                     for x in values[1:4]:
                         avg += x
                     avg //= 3
-                    logging.debug(
+                    self.logger.debug(
                         "id: {2} duration: {0} avg: {1}".format(duration, avg,
                                                                 ID))
                     if (duration < (avg // 2)):
@@ -316,7 +317,7 @@ class IssueFinder(threading.Thread):
                         avg += x
                     avg //= 3
 
-                    logging.debug(
+                    self.logger.debug(
                         "id: {2} duration: {0} avg: {1}".format(duration, avg,
                                                                 ID))
                     if (duration < (avg // 2)):
@@ -330,12 +331,12 @@ class IssueFinder(threading.Thread):
     def check_long_validity(self, ordered_list_of_certificates):
         """ctobs.issues.long_validity"""
 
-        logging.debug("calling check_long_validity")
+        self.logger.debug("calling check_long_validity")
 
         result = []
 
         if (len(ordered_list_of_certificates) < 1):
-            logging.debug("received an empty list")
+            self.logger.debug("received an empty list")
             return result
 
         first_certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(
@@ -347,7 +348,7 @@ class IssueFinder(threading.Thread):
         durations = []
 
         for ID, certificate_bin, ca_id in ordered_list_of_certificates:
-            logging.debug("loading certificate")
+            self.logger.debug("loading certificate")
             certificate = crypto.load_certificate(crypto.FILETYPE_ASN1,
                                                   str(certificate_bin))
             notbefore = parser.parse(certificate.get_notBefore())
@@ -419,14 +420,14 @@ class IssueFinder(threading.Thread):
 
         cursor = self.db.cursor()
 
-        logging.debug("Fetching issue ids from database")
+        self.logger.debug("Fetching issue ids from database")
         cursor.execute("SELECT ID, NAME FROM ISSUES")
         mapping = {}
         for ID, name in cursor.fetchall():
             mapping[name] = ID
 
         for key in results:
-            logging.debug("Handling '{0}'".format(key))
+            self.logger.debug("Handling '{0}'".format(key))
             if (key not in mapping):
                 logging.error(
                     "'{0}' has not registered as an issue in the database".format(
@@ -434,7 +435,7 @@ class IssueFinder(threading.Thread):
             else:
                 issue = mapping[key]
                 for certificate in results[key]:
-                    logging.debug(
+                    self.logger.debug(
                         "Inserting {0}-{1}-{2}".format(certificate, issue,
                                                        commonName))
                     cursor.execute(
@@ -445,7 +446,7 @@ class IssueFinder(threading.Thread):
                             'field'      : field, 
                             'extra'      : commonName
                             })
-                    logging.debug(cursor.statusmessage)
+                    self.logger.debug(cursor.statusmessage)
                 self.db.commit()
 
     def testing(self):
@@ -456,7 +457,7 @@ class IssueFinder(threading.Thread):
 
         for i in range(len(all_cn)):
             if (i % 10000 == 0):
-                logging.info(
+                self.logger.info(
                     "Processing cn {0} of {1} ({2})".format(i, len(all_cn),
                                                             datetime.now()))
             self.analyzeCN(all_cn[i])

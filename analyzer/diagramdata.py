@@ -7,11 +7,12 @@ import ssl
 import threading
 
 class Diagramdata(threading.Thread):
-	def __init__(self, baseurl, target_directory,debug):
+	def __init__(self, baseurl, target_directory, disable_tls_security):
 		threading.Thread.__init__(self)
 		self.baseurl = baseurl
 		self.target_directory = target_directory
-		self.debug = debug
+		self.disable_tls_security = disable_tls_security
+		self.logger = logging.getLogger(__name__)
 	
 	def run(self):
             self.update_diagrams()
@@ -20,33 +21,33 @@ class Diagramdata(threading.Thread):
 		request_url = urlparse.urljoin(self.baseurl, url)
 		target_filename = os.path.join(self.target_directory, filename)
 		
-		logging.debug("Retrieving {url}, saving as {path}".format(url=request_url, path=target_filename))
+		self.logger.debug("Retrieving {url}, saving as {path}".format(url=request_url, path=target_filename))
 		
-		if(self.debug):
+		if(self.disable_tls_security):
 			c = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
 			urllib.urlretrieve(request_url, target_filename, context=c)
 		else:
 			urllib.urlretrieve(request_url, target_filename)
 			
-		logging.debug("File {path} has been saved".format(path=target_filename))
+		self.logger.debug("File {path} has been saved".format(path=target_filename))
 		
 		
 	def update_diagrams(self):
-		logging.debug("Updating getloginfo...")
+		self.logger.debug("Updating getloginfo...")
 		self.update_data("/api/getloginfo", 'getloginfo')
 		
-		logging.debug("Updating getlogdist...")
+		self.logger.debug("Updating getlogdist...")
 		self.update_data("/api/getlogdist", 'getlogdist')
 		
-		logging.debug("Updating getcadistribution...")
+		self.logger.debug("Updating getcadistribution...")
 		self.update_data("/api/getcadistribution", 'getcadistribution')
 		
-		logging.debug("Updating getactivekeysizedistribution...")
+		self.logger.debug("Updating getactivekeysizedistribution...")
 		self.update_data("/api/getactivekeysizedistribution", 'getactivekeysizedistribution')
 		
-		logging.debug("Updating getsignaturealgorithmdistribution...")
+		self.logger.debug("Updating getsignaturealgorithmdistribution...")
 		self.update_data("/api/getsignaturealgorithmdistribution", 'getsignaturealgorithmdistribution')
 		
-		logging.debug("Done (Diagramdata.update_diagrams).")
+		self.logger.debug("Done (Diagramdata.update_diagrams).")
 		
-		return "Successfully updated diagrams."
+		self.logger.info( "Successfully updated diagrams." )

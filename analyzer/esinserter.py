@@ -13,6 +13,7 @@ class ESInserter(threading.Thread):
         self.dbname = dbname
         self.dbuser = dbuser
         self.dbhost = dbhost
+        self.logger = logging.getLogger(__name__)
     
     def run(self):
         db = psycopg2.connect(dbname=self.dbname, user=self.dbuser, host=self.dbhost)
@@ -28,10 +29,10 @@ class ESInserter(threading.Thread):
         maxId = cursor.fetchall()[0][0]
         cursor.execute("select value from certificate_analysis where type='es_last_cert_id';")
         last_id = cursor.fetchall()[0][0]
-        print('max_id',maxId, ' lastid: ',last_id)
+        self.logger.info(('max_id',maxId, ' lastid: ',last_id))
 
         while last_id < maxId :
-            logging.debug("Fetching up to 1000 entries (maxId = {}, es_last_cert_id = {})".format(maxId, last_id))
+            self.logger.debug("Fetching up to 1000 entries (maxId = {}, es_last_cert_id = {})".format(maxId, last_id))
             
             cursor.execute("""SELECT id, x509_commonName(certificate) AS cn, x509_keyAlgorithm(certificate) AS algo, x509_keySize(certificate) AS size, x509_notAfter(certificate) AS notafter, x509_notBefore(certificate) AS notbefore, x509_issuerName(certificate) AS issuer, count(*) AS dnsnames 
             FROM (SELECT id, certificate, x509_altNames(certificate) 
@@ -65,7 +66,7 @@ class ESInserter(threading.Thread):
 	    
             certs_to_update = cursor.fetchall()
             
-            logging.debug("Fetched {} entries".format(len(certs_to_update)))
+            self.logger.debug("Fetched {} entries".format(len(certs_to_update)))
 
             if not certs_to_update:
                 # x509_altNames(certificate) probably returned an empty set
@@ -81,11 +82,10 @@ class ESInserter(threading.Thread):
                 else:
                     self.insert_failed += 1
 
-            logging.debug("Updating es_last_cert_id to {}".format(last_id))
+            self.logger.debug("Updating es_last_cert_id to {}".format(last_id))
             cursor.execute("UPDATE certificate_analysis SET value={} WHERE type='es_last_cert_id'".format(last_id))
             db.commit()
-        print(self.print_log())
-        return self.print_log()
+        self.logger.info(self.print_log())
 
     def print_log(self):
         return "{{'type':'es','data':{{'total':{}, 'success':{}, 'failed':{} }} }},".format(self.insert_successful+self.insert_failed, self.insert_successful, self.insert_failed)
