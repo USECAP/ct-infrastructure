@@ -301,7 +301,7 @@ def get_all_cert_information(request):
 @cache_page(60*60*24)
 def get_log_appearance_distribution(request):
     with connection.cursor() as c:
-        c.execute("SELECT certs_in_logs.NUMBER_OF_LOGS, COUNT(*) AS CERTS_IN_X_LOGS FROM (SELECT CERTIFICATE_ID, COUNT(*) AS NUMBER_OF_LOGS FROM ct_log_entry GROUP BY CERTIFICATE_ID) AS certs_in_logs GROUP BY NUMBER_OF_LOGS ORDER BY CERTS_IN_X_LOGS;")
+        c.execute("SELECT certs_in_logs.NUMBER_OF_LOGS, COUNT(*) AS CERTS_IN_X_LOGS FROM (SELECT CERTIFICATE_ID, COUNT(DISTINCT ct_log_id) AS NUMBER_OF_LOGS FROM ct_log_entry GROUP BY CERTIFICATE_ID) AS certs_in_logs GROUP BY NUMBER_OF_LOGS ORDER BY CERTS_IN_X_LOGS;")
 
         result = []
         for entry in c.fetchall():
