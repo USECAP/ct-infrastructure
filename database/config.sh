@@ -242,6 +242,9 @@ if [ "$1" = 'postgres' ]; then
 
                         CREATE INDEX c_subject_sha1
                             ON certificate (digest(x509_name(CERTIFICATE), 'sha1'));
+                            
+                        CREATE INDEX c_common_name
+                            ON certificate(x509_commonName(certificate));
 
         				CREATE TABLE invalid_certificate (
         				ID 							serial,
