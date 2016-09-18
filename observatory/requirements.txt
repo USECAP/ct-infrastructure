@@ -1,3 +1,4 @@
-django == 1.9
+django
 psycopg2
 pyopenssl
+py-dateutil
