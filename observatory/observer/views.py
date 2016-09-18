@@ -11,8 +11,16 @@ import os
 from ctobservatory.settings import BASE_DIR
 from .models import *
 from notification.forms import SubscribeUnsubscribeForm
+#from .issuefinder import *
+import issuefinder
+from .managers import NotBefore
+from django.template.defaulttags import register
 
-ITEMS_PER_PAGE = 50
+ITEMS_PER_PAGE = 504
+
+@register.filter
+def get_item(dictionary, key):
+    return dictionary.get(key)
 
 class FastCountQuerySet():
     def __init__(self, queryset, tablename):
@@ -247,13 +255,18 @@ def list_cn_certs(request, cn):
     field_id = 'common name'
     expression = cn
 
-    list_of_certs = Certificate.objects.raw('SELECT ID, CERTIFICATE, ISSUER_CA_ID  FROM certificate WHERE x509_commonName(CERTIFICATE)=%s ORDER BY x509_notBefore(CERTIFICATE) DESC', [cn])
+    #list_of_certs = Certificate.objects.raw('SELECT ID, CERTIFICATE, ISSUER_CA_ID  FROM certificate WHERE x509_commonName(CERTIFICATE)=%s ORDER BY x509_notBefore(CERTIFICATE) ASC', [cn])
+    list_of_certs = Certificate.objects.filter(certificate__common_name=cn).annotate(not_before=NotBefore('certificate')).order_by('not_before')
+    
+    issues = issuefinder.get_all_issues(list_of_certs)
+    #issues = issuefinder.get_first_certificates(list_of_certs)
 
     return render(request, 'observer/dnsname.html',
         {
             'field_id': field_id,
             'expression': expression,
-            'list_of_certs': list_of_certs
+            'list_of_certs': list_of_certs.reverse(),
+            'issues':issues
         }
     )
 
@@ -262,13 +275,16 @@ def list_dnsname_certs(request, dnsname):
     field_id = 'dnsname'
     expression = dnsname
 
-    list_of_certs = Certificate.objects.raw("SELECT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE))=reverse(lower(%s)) ORDER BY x509_notBefore(CERTIFICATE) DESC", [dnsname])
-
+    list_of_certs = Certificate.objects.raw("SELECT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE))=reverse(lower(%s)) ORDER BY x509_notBefore(CERTIFICATE) ASC", [dnsname])
+    
+    issues = issuefinder.get_all_issues(list(list_of_certs))
+    
     return render(request, 'observer/dnsname.html',
         {
             'field_id': field_id,
             'expression': expression,
-            'list_of_certs': list_of_certs
+            'list_of_certs': list_of_certs,
+            'issues':issues
         }
     )
 
