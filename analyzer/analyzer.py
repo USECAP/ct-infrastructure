@@ -151,22 +151,25 @@ while True:
         
         logging.debug("Waiting for all running threads to terminate")
         
-        print("JOINING RXMthread")
+        logging.debug("JOINING RXMthread")
         RXMthread.join()
         
         if args.e:
-            print("JOINING ESIthread")
+            logging.debug("joining ESIthread")
             ESIthread.join()
+            logging.debug("joined ESIthread")
             
         if args.g:
-            print("JOINING DDthread")
+            logging.debug("joining DDthread")
             DDthread.join()
+            logging.debug("joined DDthread")
             
-        print("JOINING INthread")
+        logging.debug("joining INthread")
         INthread.join()
+        logging.debug("joined INthread")
 
     except Exception, e:
-        print("EXCEPTION PANIC")
+        logging.debug("EXCEPTION PANIC")
         logging.exception(e)
     
     print("Sleeping for {0} seconds".format(interval))
