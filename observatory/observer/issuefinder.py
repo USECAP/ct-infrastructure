@@ -3,6 +3,16 @@ from dateutil import parser
 from datetime import datetime
 from datetime import timedelta
 
+def _get_dns_names(certificate):
+	retval = set()
+	for i in range(certificate.get_extension_count()):
+		e = certificate.get_extension(i)
+		if("subjectAltName" == e.get_short_name()):
+			dns_name_list = str(e).split(", ")
+			dns_name_list = [x[4:] for x in dns_name_list]
+			dns_name_set = set(dns_name_list)
+			return dns_name_set
+	return retval
 
 def get_first_certificates(ordered_list_of_certificates, result={}):
 	"""ctobs.issues.first_cert_dnsname"""
@@ -132,7 +142,7 @@ def get_weaker_crypto_keysize(ordered_list_of_certificates, result={}):
 def get_early_renewal(ordered_list_of_certificates, result={}):
 	"""ctobs.issues.early_renewal"""
 
-	# early = before the middle of the validity period of a previous set of certificates. Kind of willy-nilly, but hey.
+	# early = before the middle of the validity period of a previous set of certificates, and without changes to the CN, the set of DNSNames, the signature algorithm or the keysize. Kind of willy-nilly, but hey.
 
 	minimum_diff_between_certificates = timedelta(minutes=30)
 
@@ -144,6 +154,10 @@ def get_early_renewal(ordered_list_of_certificates, result={}):
 
 	last_start = parser.parse(first_certificate.get_notBefore())
 	last_end = parser.parse(first_certificate.get_notAfter())
+	last_cn = first_certificate.get_subject().commonName
+	last_dns_names = _get_dns_names(first_certificate)
+	last_algorithm = first_certificate.get_signature_algorithm()
+	last_keysize = first_certificate.get_pubkey().bits()
 	flag_as_early = False
 
 	for certificate in ordered_list_of_certificates:
@@ -153,6 +167,10 @@ def get_early_renewal(ordered_list_of_certificates, result={}):
 		certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(certificate_bin))
 		notbefore = parser.parse(certificate.get_notBefore())
 		notafter = parser.parse(certificate.get_notAfter())
+		cn = certificate.get_subject().commonName
+		dns_names = _get_dns_names(certificate)
+		algorithm = certificate.get_signature_algorithm()
+		keysize = certificate.get_pubkey().bits()
 
 		if ((notbefore - last_start) > minimum_diff_between_certificates):
 			# new set
@@ -161,8 +179,29 @@ def get_early_renewal(ordered_list_of_certificates, result={}):
 			if (notbefore < center):
 				# early renewal
 				flag_as_early = True
+				
+				# do not flag as early if cn changed
+				if(last_cn != cn):
+					flag_as_early = False
+				
+				# do not flag as early if set of dnsnames changed
+				if(last_dns_names != dns_names):
+					flag_as_early = False
+				
+				# do not flag as early if algorithm changed
+				if(last_algorithm != algorithm):
+					flag_as_early = False
+				
+				# do not flag as early if keysize changed
+				if(last_keysize != keysize):
+					flag_as_early = False
+				
 			last_start = notbefore
 			last_end = notafter
+			last_cn = cn
+			last_dns_names = dns_names
+			last_algorithm = algorithm
+			last_keysize = keysize
 
 		else:
 			# old set
