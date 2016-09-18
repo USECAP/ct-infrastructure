@@ -22,6 +22,16 @@ class NotAfter(models.Transform):
 
 models.BinaryField.register_lookup(NotAfter)
 
+class CommonName(models.Transform):
+    lookup_name = 'common_name'
+    function = 'x509_commonName'
+
+    @property
+    def output_field(self):
+        return models.TextField()
+
+models.BinaryField.register_lookup(CommonName)
+
 
 class Sha256Digest(models.Transform):
     lookup_name = 'sha256'
