@@ -20,7 +20,6 @@ from notifier import Notifier
 
 parser = argparse.ArgumentParser(prog='ct-analyzer')
 
-parser.add_argument('-l', help='log stuff', action='store_true')
 parser.add_argument('-e', help='enable elasticsearch import', action='store_true')
 parser.add_argument('-x', help='update expired certs', action='store_true')
 parser.add_argument('-r', help='update revoked certs', action='store_true')
@@ -28,7 +27,6 @@ parser.add_argument('-m', help='update metadata certs', action='store_true')
 parser.add_argument('-n', help='notify people that registered for updates', action='store_true')
 parser.add_argument('-d', help='activate debug log output', action='store_true')
 parser.add_argument('-g', help='update diagram data', action='store_true')
-parser.add_argument('-i', help='identify issues', action='store_true')
 parser.add_argument('--t', help='time interval between refresh in minutes')
 parser.add_argument('--pg', help='postgres database ip (default localhost)')
 parser.add_argument('--es', help='elasticsearch database ip (default localhost)')
@@ -49,9 +47,7 @@ logger = logging.getLogger(__name__)
 # Main
 # |-> elasticsearch
 # |-> diagram data
-# |-> | (INwrapper)
-#     |-> issues  |
-#                 |-> notify
+# |-> notify
 # |-> | (RXMwrapper)
 #     |-> revoked |
 #     |-> expired |
@@ -90,32 +86,6 @@ class RXMwrapper(threading.Thread):
             MDthread = Metadata(self.dbname, self.dbuser, self.dbhost)
             MDthread.start()
             MDthread.join()
-            
-class INwrapper(threading.Thread):
-    def __init__(self, dbname, dbuser, dbhost, do_issues, do_notify):
-        threading.Thread.__init__(self)
-        self.dbname = dbname
-        self.dbuser = dbuser
-        self.dbhost = dbhost
-        self.do_issues = do_issues
-        self.do_notify = do_notify
-        
-    def run(self):
-        IFthread = None
-        Nthread = None
-        if(self.do_issues):
-            IFthread = IssueFinder(self.dbname, self.dbuser, self.dbhost)
-            IFthread.start()
-            IFthread.join()
-         
-        if(self.do_notify):
-            Nthread = Notifier(self.dbname, self.dbuser, self.dbhost)
-            Nthread.start()
-            Nthread.join()
-            
-        
-         
-
 
 
 while True:
@@ -142,11 +112,12 @@ while True:
             ESIthread.start()
             
         if args.g:
-            DDthread = Diagramdata('https://'+host_web,'/data',disable_tls_security=args.disable_tls_security)
+            DDthread = Diagramdata('https://'+host_web, '/data', disable_tls_security=args.disable_tls_security)
             DDthread.start()
-            
-        INthread = INwrapper('certwatch', 'postgres', host_db, args.i, args.n)
-        INthread.start() # if none of i and n are true, nothing happens.
+        
+        if args.n:
+            Nthread = Notifier('certwatch', 'postgres', host_db)
+            Nthread.start()
         
         
         logging.debug("Waiting for all running threads to terminate")
@@ -164,9 +135,10 @@ while True:
             DDthread.join()
             logging.debug("joined DDthread")
             
-        logging.debug("joining INthread")
-        INthread.join()
-        logging.debug("joined INthread")
+        if args.n:
+            logging.debug("joining Nthread")
+            Nthread.join()
+            logging.debug("joined Nthread")
 
     except Exception, e:
         logging.debug("EXCEPTION PANIC")
