@@ -261,7 +261,7 @@ def list_cn_certs(request, cn):
     issues = issuefinder.get_all_issues(list_of_certs)
     #issues = issuefinder.get_first_certificates(list_of_certs)
 
-    return render(request, 'observer/dnsname.html',
+    return render(request, 'observer/history.html',
         {
             'field_id': field_id,
             'expression': expression,
@@ -279,7 +279,7 @@ def list_dnsname_certs(request, dnsname):
     
     issues = issuefinder.get_all_issues(list(list_of_certs))
     
-    return render(request, 'observer/dnsname.html',
+    return render(request, 'observer/history.html',
         {
             'field_id': field_id,
             'expression': expression,
