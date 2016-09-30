@@ -186,14 +186,14 @@ if [ "$1" = 'postgres' ]; then
         				CREATE INDEX ca_name_reverse
         				ON ca (reverse(lower(NAME)) text_pattern_ops);
 
-        				CREATE INDEX ca_brand_reverse
-        				ON ca (reverse(lower(BRAND)) text_pattern_ops);
+        				/* CREATE INDEX ca_brand_reverse
+        				ON ca (reverse(lower(BRAND)) text_pattern_ops); */
 
-                        CREATE INDEX ca_linting_applies
-                            ON ca (LINTING_APPLIES, ID);
+					/* CREATE INDEX ca_linting_applies
+					ON ca (LINTING_APPLIES, ID); */
 
-                        CREATE INDEX ca_spki_sha256
-                            ON ca (digest(PUBLIC_KEY, 'sha256'));
+					CREATE INDEX ca_spki_sha256
+					ON ca (digest(PUBLIC_KEY, 'sha256'));
 
 
         				CREATE TABLE certificate (
@@ -201,8 +201,8 @@ if [ "$1" = 'postgres' ]; then
         				CERTIFICATE				bytea		NOT NULL,
         				ISSUER_CA_ID			integer		NOT NULL,
         				EXPIRED                 boolean     DEFAULT False,
-                        CABLINT_CACHED_AT		timestamp,
-                        X509LINT_CACHED_AT		timestamp,
+					CABLINT_CACHED_AT		timestamp,
+					X509LINT_CACHED_AT		timestamp,
         				CONSTRAINT c_pk
         					PRIMARY KEY (ID),
         				CONSTRAINT c_ica_fk
@@ -219,8 +219,8 @@ if [ "$1" = 'postgres' ]; then
                         CREATE INDEX c_notafter_ica
                             ON certificate (x509_notAfter(CERTIFICATE), ISSUER_CA_ID);
 
-                        CREATE INDEX c_serial_ica
-                            ON certificate (x509_serialNumber(CERTIFICATE), ISSUER_CA_ID);
+                        /* CREATE INDEX c_serial_ica
+                            ON certificate (x509_serialNumber(CERTIFICATE), ISSUER_CA_ID); */
 
                         CREATE INDEX c_sha1
                             ON certificate (digest(CERTIFICATE, 'sha1'));
@@ -231,17 +231,17 @@ if [ "$1" = 'postgres' ]; then
                         CREATE INDEX c_ski
                             ON certificate (x509_subjectKeyIdentifier(CERTIFICATE));
 
-                        CREATE INDEX c_pubkey_md5
-                            ON certificate (x509_publicKeyMD5(CERTIFICATE));
+                        /* CREATE INDEX c_pubkey_md5
+                            ON certificate (x509_publicKeyMD5(CERTIFICATE)); */
 
-                        CREATE INDEX c_spki_sha1
-                            ON certificate (digest(x509_publicKey(CERTIFICATE), 'sha1'));
+                        /* CREATE INDEX c_spki_sha1
+                            ON certificate (digest(x509_publicKey(CERTIFICATE), 'sha1')); */
 
-                        CREATE INDEX c_spki_sha256
-                            ON certificate (digest(x509_publicKey(CERTIFICATE), 'sha256'));
+                        /* CREATE INDEX c_spki_sha256
+                            ON certificate (digest(x509_publicKey(CERTIFICATE), 'sha256')); */
 
-                        CREATE INDEX c_subject_sha1
-                            ON certificate (digest(x509_name(CERTIFICATE), 'sha1'));
+                        /* CREATE INDEX c_subject_sha1
+                            ON certificate (digest(x509_name(CERTIFICATE), 'sha1')); */
                             
                         CREATE INDEX c_common_name
                             ON certificate(x509_commonName(certificate));
@@ -414,17 +414,17 @@ if [ "$1" = 'postgres' ]; then
                                 REFERENCES ca(ID)
                         );
 
-                        CREATE INDEX lci_c_ci
-                            ON lint_cert_issue (CERTIFICATE_ID, LINT_ISSUE_ID);
+                        /* CREATE INDEX lci_c_ci
+                            ON lint_cert_issue (CERTIFICATE_ID, LINT_ISSUE_ID); */
 
-                        CREATE INDEX lci_ca_ci_nb_c
-                            ON lint_cert_issue (ISSUER_CA_ID, LINT_ISSUE_ID, NOT_BEFORE, CERTIFICATE_ID);
+                        /* CREATE INDEX lci_ca_ci_nb_c
+                            ON lint_cert_issue (ISSUER_CA_ID, LINT_ISSUE_ID, NOT_BEFORE, CERTIFICATE_ID); */
 
-                        CREATE INDEX lci_ci_nb
-                            ON lint_cert_issue (LINT_ISSUE_ID, NOT_BEFORE);
+                        /* CREATE INDEX lci_ci_nb
+                            ON lint_cert_issue (LINT_ISSUE_ID, NOT_BEFORE); */
 
-                        CREATE INDEX lci_nb_ca_ci
-                            ON lint_cert_issue (NOT_BEFORE, ISSUER_CA_ID, LINT_ISSUE_ID);
+                        /* CREATE INDEX lci_nb_ca_ci
+                            ON lint_cert_issue (NOT_BEFORE, ISSUER_CA_ID, LINT_ISSUE_ID); */
 
 
                         CREATE TABLE trust_context (
@@ -620,11 +620,11 @@ if [ "$1" = 'postgres' ]; then
                                 REFERENCES trust_purpose(ID)
                         );
 
-                        CREATE INDEX ctp_tp_tc
-                            ON ca_trust_purpose (TRUST_PURPOSE_ID, TRUST_CONTEXT_ID);
+                        /* CREATE INDEX ctp_tp_tc
+                            ON ca_trust_purpose (TRUST_PURPOSE_ID, TRUST_CONTEXT_ID); */
 
-                        CREATE INDEX ctp_ca_tc_tp
-                            ON ca_trust_purpose (CA_ID, TRUST_CONTEXT_ID, TRUST_PURPOSE_ID);
+                        /* CREATE INDEX ctp_ca_tc_tp
+                            ON ca_trust_purpose (CA_ID, TRUST_CONTEXT_ID, TRUST_PURPOSE_ID); */
 
 
                         CREATE TYPE disclosure_status_type AS ENUM (
