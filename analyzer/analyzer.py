@@ -15,7 +15,6 @@ from revocationdetector import RevocationDetector
 from expirationdetector import ExpirationDetector
 from esinserter import ESInserter
 from diagramdata import Diagramdata
-from issuefinder import IssueFinder
 from notifier import Notifier
 
 parser = argparse.ArgumentParser(prog='ct-analyzer')
