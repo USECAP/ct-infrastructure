@@ -27,6 +27,7 @@ parser.add_argument('-m', help='update metadata certs', action='store_true')
 parser.add_argument('-n', help='notify people that registered for updates', action='store_true')
 parser.add_argument('-d', help='activate debug log output', action='store_true')
 parser.add_argument('-g', help='update diagram data', action='store_true')
+parser.add_argument('--force-replace', help='fetch the diagram data completely from the database instead of updating the existing values', action='store_true')
 parser.add_argument('--t', help='time interval between refresh in minutes')
 parser.add_argument('--pg', help='postgres database ip (default localhost)')
 parser.add_argument('--es', help='elasticsearch database ip (default localhost)')
@@ -112,7 +113,7 @@ while True:
             ESIthread.start()
             
         if args.g:
-            DDthread = Diagramdata('https://'+host_web, '/data', disable_tls_security=args.disable_tls_security)
+            DDthread = Diagramdata('https://'+host_web, '/data', 'certwatch', 'postgres', host_db, disable_tls_security=args.disable_tls_security, force_replace=args.force_replace)
             DDthread.start()
         
         if args.n:

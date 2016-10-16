@@ -224,7 +224,7 @@ $(function(){
             chart.x2Axis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
             chart.yAxis.tickFormat(d3.format('0,'));
             d3.select('#signaturealgorithmdiagram svg')
-            .datum(data)
+            .datum(data.data)
             .transition().duration(1000)
             .call(chart)
             .each('start', function() {
@@ -258,7 +258,7 @@ $(function(){
             chart.valueFormat(d3.format('d'));
 
             d3.select('#keysizediagram svg')
-                .datum(data)
+                .datum(data.data)
                 .call(chart);
 
             nv.utils.windowResize(chart.update);
