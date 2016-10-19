@@ -161,7 +161,7 @@ if [ "$1" = 'postgres' ]; then
 
         		CREATE EXTENSION pgcrypto;
 		EOSQL
-
+                echo 'Test123'
         		psql -U crtsh -d certwatch <<-EOSQL
         			CREATE TABLE ca (
         				ID						serial,
@@ -200,6 +200,7 @@ if [ "$1" = 'postgres' ]; then
         				ID						serial,
         				CERTIFICATE				bytea		NOT NULL,
         				ISSUER_CA_ID			integer		NOT NULL,
+        				SHA256                  text,
         				EXPIRED                 boolean     DEFAULT False,
 					CABLINT_CACHED_AT		timestamp,
 					X509LINT_CACHED_AT		timestamp,

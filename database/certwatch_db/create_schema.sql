@@ -39,6 +39,7 @@ CREATE TABLE certificate (
 	ID						serial,
 	CERTIFICATE				bytea		NOT NULL,
 	ISSUER_CA_ID			integer		NOT NULL,
+	SHA256 text,
 	CONSTRAINT c_pk
 		PRIMARY KEY (ID),
 	CONSTRAINT c_ica_fk
