@@ -146,137 +146,248 @@ def get_cert_distribution_per_year(request):
                 durations.append({'duration': entry[0], 'count':entry[1]})
             result.append({'year':i, 'active': active_certs, 'keySizes': key_sizes, 'durations': durations})
 
-        print result
-        return HttpResponse(json.dumps(result))
+        return HttpResponse(json.dumps({'max_id':-1, 'data':result, 'aggregated':True}))
 
 
 @cache_page(60*60*24)
-def get_active_keysize_distribution(request, ca_id=None):
+def get_active_keysize_distribution(request, ca_id=None, id_from=None):
+    max_id = None
+    
     with connection.cursor() as c:
-        if(ca_id == None):
-            command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC;"
-            c.execute(command)
-        else:
-            ca_id = int(ca_id)
-            command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE issuer_ca_id=%s AND x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC;"
-            c.execute(command, [ca_id])
         
-        result = []
-        other = 0
-        row_nr = 0
-        for row in c.fetchall():
-            if(row_nr < 5):
-                entry = {}
-                entry['key'] = "{0}-{1}".format(row[0], row[1])
-                entry['values'] = [{"value":row[2]}]
-                result.append(entry)
+        c.execute("SELECT MAX(id) FROM certificate;")
+        row = c.fetchone()
+        max_id = int(row[0])
+        
+        aggregate = (id_from == None or int(id_from) < 1)
+        result = None
+        
+        if(aggregate):
+        
+            if(ca_id == None):
+                command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE id <= %s AND x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC;"
+                c.execute(command, [max_id])
             else:
-                other += int(row[2])
-            row_nr += 1
-        if(other > 0):
-            result.append({"key":"other", "values":[{"value":other}]})
+                ca_id = int(ca_id)
+                command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE id <= %s AND issuer_ca_id=%s AND x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC;"
+                c.execute(command, [max_id, ca_id])
             
-        return HttpResponse(json.dumps(result))
+            result = []
+            other = 0
+            row_nr = 0
+            for row in c.fetchall():
+                if(row_nr < 5):
+                    entry = {}
+                    entry['key'] = "{0}-{1}".format(row[0], row[1])
+                    entry['values'] = [{"value":row[2]}]
+                    result.append(entry)
+                else:
+                    other += int(row[2])
+                row_nr += 1
+            if(other > 0):
+                result.append({"key":"other", "values":[{"value":other}]})
+        
+        else:
+            if(ca_id == None):
+                command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE id > %s AND id <= %s AND x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC;"
+                c.execute(command, [int(id_from), max_id])
+            else:
+                ca_id = int(ca_id)
+                command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE id > %s AND id <= %s AND issuer_ca_id=%s AND x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC;"
+                c.execute(command, [int(id_from), max_id, ca_id])
+            
+            result = {}
+            other = 0
+            row_nr = 0
+            for row in c.fetchall():
+                    key = "{0}-{1}".format(row[0], row[1])
+                    value = row[2]
+                    result[key] = value
+            
+        return HttpResponse(json.dumps({'max_id':max_id, 'data':result, 'aggregated':aggregate}))
 
 @cache_page(60*60*24)
-def get_signature_algorithm_distribution(request, ca_id=None):
+def get_signature_algorithm_distribution(request, ca_id=None, id_from=None):
+    max_id = None
     
     months = []
     algorithms = ['SHA-1-RSA','SHA-256-RSA','SHA-256-ECDSA']
     
     with connection.cursor() as c:
-        if(ca_id == None):
-            command = "SELECT date_trunc('month', x509_notBefore(certificate)) AS month, x509_signatureHashAlgorithm(certificate) AS signaturehashalgorithm, x509_signatureKeyAlgorithm(certificate) AS signaturekeyalgorithm, count(*) AS count FROM certificate GROUP BY month, signaturehashalgorithm, signaturekeyalgorithm ORDER BY month ASC;"
-            c.execute(command)
-        else:
-            ca_id = int(ca_id)
-            command = "SELECT date_trunc('month', x509_notBefore(certificate)) AS month, x509_signatureHashAlgorithm(certificate) AS signaturehashalgorithm, x509_signatureKeyAlgorithm(certificate) AS signaturekeyalgorithm, count(*) AS count FROM certificate WHERE issuer_ca_id = %s GROUP BY month, signaturehashalgorithm, signaturekeyalgorithm ORDER BY month ASC;"
-            c.execute(command, [ca_id])
         
-        table = {}
-        for row in c.fetchall():
-            month = row[0].strftime("%Y-%m")
-            if month not in table:
-                table[month] = []
-            table[month].append({"signaturealgorithm" : "{0}-{1}".format(row[1], row[2]), "count" : row[3]})
+        c.execute("SELECT MAX(id) FROM certificate;")
+        row = c.fetchone()
+        max_id = int(row[0])
+        
+        aggregate = (id_from == None or int(id_from) < 1)
+        result = None
+        
+        if(aggregate):
 
-        result = []
-        
-        # create entries for selected algorithms
-        for algo in algorithms:
+            if(ca_id == None):
+                command = "SELECT date_trunc('month', x509_notBefore(certificate)) AS month, x509_signatureHashAlgorithm(certificate) AS signaturehashalgorithm, x509_signatureKeyAlgorithm(certificate) AS signaturekeyalgorithm, count(*) AS count FROM certificate WHERE id <= %s GROUP BY month, signaturehashalgorithm, signaturekeyalgorithm ORDER BY month ASC;"
+                c.execute(command, [max_id])
+            else:
+                ca_id = int(ca_id)
+                command = "SELECT date_trunc('month', x509_notBefore(certificate)) AS month, x509_signatureHashAlgorithm(certificate) AS signaturehashalgorithm, x509_signatureKeyAlgorithm(certificate) AS signaturekeyalgorithm, count(*) AS count FROM certificate WHERE id <= %s AND issuer_ca_id = %s GROUP BY month, signaturehashalgorithm, signaturekeyalgorithm ORDER BY month ASC;"
+                c.execute(command, [max_id, ca_id])
+            
+            table = {}
+            for row in c.fetchall():
+                month = row[0].strftime("%Y-%m")
+                if month not in table:
+                    table[month] = []
+                table[month].append({"signaturealgorithm" : "{0}-{1}".format(row[1], row[2]), "count" : row[3]})
+
+            result = []
+            
+            # create entries for selected algorithms
+            for algo in algorithms:
+                values = []
+                for month in sorted(table):
+                    value = 0
+                    for localalgorithm in table[month]:
+                        if(localalgorithm["signaturealgorithm"] == algo):
+                            value = localalgorithm["count"]
+                    values.append([month, value])
+                result.append({"key" : algo, "values" : values})
+                
+            # create entries for 'other'
             values = []
             for month in sorted(table):
                 value = 0
                 for localalgorithm in table[month]:
-                    if(localalgorithm["signaturealgorithm"] == algo):
-                        value = localalgorithm["count"]
+                    if(localalgorithm["signaturealgorithm"] not in algorithms):
+                        value += localalgorithm["count"]
                 values.append([month, value])
-            result.append({"key" : algo, "values" : values})
+            result.append({"key" : 'other', "values" : values})
             
-        # create entries for 'other'
-        values = []
-        for month in sorted(table):
-            value = 0
-            for localalgorithm in table[month]:
-                if(localalgorithm["signaturealgorithm"] not in algorithms):
-                    value += localalgorithm["count"]
-            values.append([month, value])
-        result.append({"key" : 'other', "values" : values})
+        else:
             
-        return HttpResponse(json.dumps(result))
+            if(ca_id == None):
+                command = "SELECT date_trunc('month', x509_notBefore(certificate)) AS month, x509_signatureHashAlgorithm(certificate) AS signaturehashalgorithm, x509_signatureKeyAlgorithm(certificate) AS signaturekeyalgorithm, count(*) AS count FROM certificate WHERE id > %s AND id <= %s GROUP BY month, signaturehashalgorithm, signaturekeyalgorithm ORDER BY month ASC;"
+                c.execute(command, [int(id_from), max_id])
+            else:
+                ca_id = int(ca_id)
+                command = "SELECT date_trunc('month', x509_notBefore(certificate)) AS month, x509_signatureHashAlgorithm(certificate) AS signaturehashalgorithm, x509_signatureKeyAlgorithm(certificate) AS signaturekeyalgorithm, count(*) AS count FROM certificate WHERE id > %s AND id <= %s AND issuer_ca_id = %s GROUP BY month, signaturehashalgorithm, signaturekeyalgorithm ORDER BY month ASC;"
+                c.execute(command, [int(id_from), max_id, ca_id])
+            
+            result = {}
+            for row in c.fetchall():
+                month = row[0].strftime("%Y-%m")
+                algo = "{0}-{1}".format(row[1], row[2])
+                
+                if algo not in result:
+                    result[algo] = {}
+                    
+                if month not in result[algo]:
+                    result[algo][month] = 0
+                
+                result[algo][month] += row[3]
+                
+            
+        return HttpResponse(json.dumps({'max_id':max_id, 'data':result, 'aggregated':aggregate}))
 
 @cache_page(60*60*24)
-def get_ca_distribution(request):
+def get_ca_distribution(request, id_from=None):
 
     months = []
     cas = []
+    max_id = None
     
     with connection.cursor() as c:
-        command = "SELECT date_trunc('month', x509_notBefore(crt.certificate)) AS month, crt.ISSUER_CA_ID, ca.NAME, count(crt.ISSUER_CA_ID) AS count FROM certificate crt JOIN ca ON crt.ISSUER_CA_ID = ca.id GROUP BY month, crt.ISSUER_CA_ID, ca.name ORDER BY month DESC;"
-        c.execute(command)
         
-        table = {}
-        for row in c.fetchall():
-            month = row[0].strftime("%Y-%m")
-            if month not in table:
-                table[month] = {}
-            ca = normalize_ca_name(row[2].encode('utf-8'))
-            if(ca not in table[month]):
-                table[month][ca] = 0
-            table[month][ca] += row[3]
+        c.execute("SELECT MAX(id) FROM certificate;")
+        row = c.fetchone()
+        max_id = int(row[0])
+        aggregate = (id_from == None or int(id_from) < 1)
+        result = None
         
-        for month in table:
-            # sort cas in descending order
-            for ca in table[month]:
-                if(table[month][ca] > 50000):
-                    if(ca not in cas):
-                        cas.append(ca)
+        if(aggregate):
+            # return raw data formatted for the diagram
+            # do statistics between 0 and max_id;
+            # aggregate cas with less than 50000 under 'other'
+
+            command = "SELECT date_trunc('month', x509_notBefore(crt.certificate)) AS month, crt.ISSUER_CA_ID, ca.NAME, count(crt.ISSUER_CA_ID) AS count FROM certificate crt JOIN ca ON crt.ISSUER_CA_ID = ca.id WHERE crt.id <= %s GROUP BY month, crt.ISSUER_CA_ID, ca.name ORDER BY month DESC";
+            c.execute(command, [max_id])
         
-        result = []
+            table = {}
+            for row in c.fetchall():
+                month = row[0].strftime("%Y-%m")
+                if month not in table:
+                    table[month] = {}
+                ca = normalize_ca_name(row[2].encode('utf-8'))
+                if(ca not in table[month]):
+                    table[month][ca] = 0
+                table[month][ca] += row[3]
         
-        for ca in cas:
+            for month in table:
+                # sort cas in descending order
+                for ca in table[month]:
+                    if(table[month][ca] > 50000):
+                        if(ca not in cas):
+                            cas.append(ca)
+        
+            result = []
+        
+            for ca in cas:
+                values = []
+                for month in sorted(table):
+                    value = 0
+                    for localca in table[month]:
+                        if(localca == ca):
+                            value = table[month][localca]
+                    values.append([month, value])
+                
+                result.append({"key" : ca, "values" : values})
+        
+            # now add up the other CAs
             values = []
             for month in sorted(table):
                 value = 0
                 for localca in table[month]:
-                    if(localca == ca):
-                        value = table[month][localca]
+                    if(localca not in cas):
+                        value += table[month][localca]
                 values.append([month, value])
-                
-            result.append({"key" : ca, "values" : values})
+            
+            result.append({"key" : 'other', "values" : values})
+            
+        else:
+            # return a dict with data updates
+            # do statistics between id_from and max_id;
+            # do not aggregate 'others' at the end
+
+            command = "SELECT date_trunc('month', x509_notBefore(crt.certificate)) AS month, crt.ISSUER_CA_ID, ca.NAME, count(crt.ISSUER_CA_ID) AS count FROM certificate crt JOIN ca ON crt.ISSUER_CA_ID = ca.id WHERE crt.id > %s AND crt.id <= %s GROUP BY month, crt.ISSUER_CA_ID, ca.name ORDER BY month DESC;"
+            c.execute(command, [int(id_from), max_id])
+            
+            table = {}
+            for row in c.fetchall():
+                month = row[0].strftime("%Y-%m")
+                if month not in table:
+                    table[month] = {}
+                ca = normalize_ca_name(row[2].encode('utf-8'))
+                if(ca not in table[month]):
+                    table[month][ca] = 0
+                table[month][ca] += row[3]
+                cas.append(ca)
         
-        # now add up the other CAs
-        values = []
-        for month in sorted(table):
-            value = 0
-            for localca in table[month]:
-                if(localca not in cas):
-                    value += table[month][localca]
-            values.append([month, value])
+            result = {}
+        
+            for ca in cas:
+                values = {}
+                for month in sorted(table):
+                    value = 0
+                    for localca in table[month]:
+                        if(localca == ca):
+                            value = table[month][localca]
+                    if(value > 0):
+                        values[month] = value
+                
+                result[ca] = values
+
             
-        result.append({"key" : 'other', "values" : values})
             
-        return HttpResponse(json.dumps(result))
+        return HttpResponse(json.dumps({'max_id':max_id, 'data':result, 'aggregated':aggregate}))
 
 def normalize_ca_name(ca_name):
     m = re.search('O=(.*?)(,|$)', ca_name)
@@ -306,7 +417,7 @@ def get_log_appearance_distribution(request):
         result = []
         for entry in c.fetchall():
             result.append({"logs": str(entry[0]), "certificates": entry[1]})
-        return HttpResponse(json.dumps(result))
+        return HttpResponse(json.dumps({'max_id':-1, 'data':result, 'aggregated':True}))
 
 @cache_page(60*60*24)
 def get_log_information(request):
@@ -316,7 +427,7 @@ def get_log_information(request):
     for entry in CtLog.objects.annotate(entries=Count('ctlogentry')).order_by('-entries'):
         result.append({"id": entry.id, "key": entry.name, "values": [{"label": "Certificates","value":entry.entries}], "color": colors[i]})
         i += 1
-    return HttpResponse(json.dumps({"unique_certificates": Certificate.objects.count(), "data": result}))
+    return HttpResponse(json.dumps({'max_id':-1, "unique_certificates": Certificate.objects.count(), "data": result, 'aggregated':True}))
 
 def search_ca(request, term, offset=0):
     limit = 50
