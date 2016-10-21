@@ -59,4 +59,16 @@ ctanalyzer:
         - ctdatabase:ctdatabase
         - elasticsearch:elasticsearch
         - ctobservatory:ctobservatory
-    command: python2 /analyzer/analyzer.py --pg=ctdatabase --es=elasticsearch --web=www.ct-observatory.org --t=60 -m -x -e -g
+    command: python2 /analyzer/analyzer.py --pg=ctdatabase --es=elasticsearch --web=www.ct-observatory.org --t=60 -m -x -g
+    
+ctmonitorp:
+    dockerfile: monitorInPython/Dockerfile
+    build: .
+    volumes:
+        - /mnt/data/ct-infrastructure/ct-monitor/misc:/data
+    environment:
+        - POSTGRESHOST=ctdatabase
+    links:
+        - ctdatabase:ctdatabase
+#    command: python3 /monitor/monitorInPython.py --dbhost=ctdatabase
+    command: /monitor/idle.sh

@@ -3,6 +3,9 @@ import requests
 import base64
 import OpenSSL
 import sys
+import logging
+import argparse
+import re
 
 
 
@@ -16,7 +19,9 @@ def connectToDatabase(name="certwatch", user="postgres", host="localhost"):
 
 
 def monitor(database):
+    logging.debug("Retrieving new log entries")
     newLogEntries = database.retrieveNewLogEntries()
+    logging.debug("Populating new log entries")
     database.populateNewLogEntries(newLogEntries)
 
 
@@ -53,6 +58,7 @@ class _LocalDatabase:
         activeLogServers = self.getActiveLogServers()
 
         for activeLogServer in activeLogServers:
+            logging.debug("Querying {}...".format(activeLogServer.url))
             newLogEntries += self.requestNewEntriesFromServer(activeLogServer)
 
         return newLogEntries
@@ -157,8 +163,8 @@ class _LocalDatabase:
 
 
 
-
     def certificateAlreadyExists(self, certificate):
+        # currently that would be about 33693074 hashes, or 1GB of hash data.
         hashesOfExistingCertificates = \
             self.retrieveHashesOfExistingCertificates()
 
@@ -201,8 +207,6 @@ class _LocalDatabase:
 
         #else:
         return hashesOfExistingCertificates
-
-
 
 
 
@@ -287,6 +291,23 @@ class _Certificate:
         self.notBefore = self.certificate.get_notBefore()
         self.sha256 = self.certificate.digest('sha256'.encode('ascii',
                                                               'ignore'))
+        self.dnsNames = self.extractDnsNames()
+        
+    def extractDnsNames(self):
+        # first we find the subjectAltName extension
+        for i in range(self.certificate.get_extension_count()):
+            extension = self.certificate.get_extension(i)
+            short_name = extension.get_short_name()
+            if(short_name == "subjectAltName"):
+                # then we extract the dnsnames from the string representation
+                # why? Because it's the easiest way to do it.
+                dnsnames = []
+                for line in str(extension).split(","):
+                    m = re.search('DNS:(.+)$',line)
+                    if m: 
+                        name = m.group(1)
+                        dnsnames.append(name)
+                return dnsnames
 
 
 
@@ -369,5 +390,22 @@ class _ExtraData:
 
 
 if __name__ == "__main__":
-    database = connectToDatabase()
+    parser = argparse.ArgumentParser(prog='ct-monitor in python')
+
+    parser.add_argument('-d', help='debug output', action='store_true')
+    parser.add_argument('--dbhost', help='postgres ip or hostname (default localhost)', default='localhost')
+    parser.add_argument('--dbuser', help='postgres user (default postgres)', default='postgres')
+    parser.add_argument('--dbname', help='postgres database name (default certwatch)', default='certwatch')
+    parser.add_argument('--log', help='name of the file the log shall be written to')
+    args = parser.parse_args()
+    
+    logging_filename = args.log if args.log else None
+    logging_level = logging.DEBUG if args.d else logging.INFO
+    logging.basicConfig(level=logging_level, filename=logging_filename)
+    
+    logging.info("Connecting to database (name={name}, user={user}, host={host})".format(name=args.dbname, user=args.dbuser, host=args.dbhost))
+    database = connectToDatabase(name=args.dbname, user=args.dbuser, host=args.dbhost)
+    
+    logging.info("Starting monitor...")
     monitor(database)
+    logging.info("Finished monitor.")
