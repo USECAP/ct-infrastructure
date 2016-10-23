@@ -6,7 +6,9 @@ import sys
 import logging
 import argparse
 import re
-
+import cryptography
+import binascii
+from dateutil import parser
 
 
 
@@ -47,7 +49,7 @@ class _LocalDatabase:
             return dataBase
 
         except:
-            print "Error connecting to local database"
+            print("Error connecting to local database")
             exit()
 
 
@@ -72,7 +74,7 @@ class _LocalDatabase:
             activeLogServerEntries = self.cursor.fetchall()
 
         except:
-            print "Could not execute Active Log Server Entries Query. ", sys.exc_info()[0]
+            print("Could not execute Active Log Server Entries Query. ", sys.exc_info()[0])
             exit()
 
         else:
@@ -120,7 +122,7 @@ class _LocalDatabase:
             sthRequest = requests.get(logServer.url + "/ct/v1/get-sth")
 
         except:
-            print "Error requesting STH from log server: ", sys.exc_info()[0]
+            print("Error requesting STH from log server: ", sys.exc_info()[0])
 
         else:
             return _SignedTreeHead(sthRequest.json())
@@ -133,7 +135,7 @@ class _LocalDatabase:
             requestedEntries = requests.get(requestURL)
 
         except:
-            print "Error getting Entries"
+            print("Error getting Entries")
             exit()
 
         else:
@@ -152,14 +154,64 @@ class _LocalDatabase:
 
     def populateNewLogEntries(self, newLogEntries):
         for entry in newLogEntries:
+            # create CA entries
+            ca_certificates = entry.retrieveCaCertificates()
+            ca_id = self.populateCaCertificates(ca_certificates)
+            # insert certificate
             certificate = entry.retrieveCertificate()
-            self.populateCertificate(certificate)
+            self.populateCertificate(certificate, ca_id)
+        self.connectionToDataBase.commit()
 
 
 
-    def populateCertificate(self, certificate):
+    def populateCertificate(self, certificate, ca_id):
         if not self.certificateAlreadyExists(certificate):
-            self.insertCertificate(certificate)
+            return self.insertCertificate(certificate, ca_id)
+        
+        return None
+    
+    
+    def populateCaCertificates(self, ca_certificates):
+        
+        if(ca_certificates == None or len(ca_certificates) < 1):
+            return None
+        
+        logging.debug("populating {} CA certificates".format(len(ca_certificates)))
+        
+        certificate = ca_certificates[0]
+        
+        name = certificate.certificate.get_subject().commonName
+        if name == None:
+            name = "None"
+        public_key = certificate.certificate.get_pubkey().to_cryptography_key().public_bytes(cryptography.hazmat.primitives.serialization.Encoding.DER, cryptography.hazmat.primitives.serialization.PublicFormat.SubjectPublicKeyInfo)
+        
+        
+        logging.debug("inserting new CA '{}' into CA table".format(name))
+        
+        sqlQuery = "INSERT INTO ca(NAME, PUBLIC_KEY) VALUES (%s, %s) \
+                    ON CONFLICT(NAME,PUBLIC_KEY) DO UPDATE SET NAME=ca.NAME RETURNING ID"
+        sqlData = (name, psycopg2.Binary(public_key))
+        self.cursor.execute(sqlQuery, sqlData)
+        new_ca_id = self.cursor.fetchone()[0]
+        
+        logging.debug("inserted new CA with ID={}".format(new_ca_id))
+        
+        
+        ca_id = -1
+        if(len(ca_certificates) > 1): 
+            ca_id = self.populateCaCertificates(ca_certificates[1:])
+        else: # be your own root
+            ca_id = new_ca_id
+            
+        cert_id = self.populateCertificate(certificate, ca_id)
+        
+        if(cert_id != None):
+            sqlQuery = "INSERT INTO ca_certificate (CERTIFICATE_ID, CA_ID) VALUES (%s, %s)"
+            sqlData = (cert_id, ca_id)
+            self.cursor.execute(sqlQuery, sqlData)
+            
+        return new_ca_id
+        
 
 
 
@@ -186,7 +238,7 @@ class _LocalDatabase:
             hashesOfExistingCertificates = self.cursor.fetchall()
 
         except:
-            print "Could not retrieve Hashes from DB"
+            print("Could not retrieve Hashes from DB")
 
         else:
             return hashesOfExistingCertificates
@@ -194,19 +246,26 @@ class _LocalDatabase:
 
 
 
-    def insertCertificate(self, certificate):
+    def insertCertificate(self, certificate, ca_id):
+        if(ca_id == None):
+            logging.error("Can't insert certificate: No CA given.")
+            return None
+        logging.debug("Inserting certificate ({})".format(certificate.sha256))
         #try:
-        sqlQuery = "INSERT INTO certificate (CERTIFICATE, ISSUER_CA_ID, SHA256) \
-                        VALUES (%s, %s, %s)"
-        sqlData = (psycopg2.Binary(certificate.certificateBinary), "1", certificate.sha256, )
+        sqlQuery = "INSERT INTO certificate (CERTIFICATE, ISSUER_CA_ID, SHA256, NOT_BEFORE, NOT_AFTER) \
+                        VALUES (%s, %s, %s, %s, %s) \
+                        ON CONFLICT (SHA256) DO UPDATE SET SHA256=certificate.SHA256 \
+                        RETURNING ID"
+        sqlData = (psycopg2.Binary(certificate.certificateBinary), ca_id, certificate.sha256, certificate.notBefore, certificate.notAfter)
         self.cursor.execute(sqlQuery, sqlData)
-        hashesOfExistingCertificates = self.cursor.fetchall()
+        cert_id = self.cursor.fetchone()[0]
 
+        logging.debug("Inserted certificate with ID={}".format(cert_id))
        # except:
-        print "Could not Insert into DB: ", sys.exc_info()[0]
+        #print("Could not Insert into DB: ", sys.exc_info()[0])
 
         #else:
-        return hashesOfExistingCertificates
+        return cert_id
 
 
 
@@ -247,7 +306,13 @@ class _Entry:
             return self.extraData.certificateChain[0]
 
         else:
-            print "Error retrieving certificate from log entry"
+            print("Error retrieving certificate from log entry")
+    
+    def retrieveCaCertificates(self):
+        if(len(self.extraData.certificateChain) == 1):
+            self.extraData.certificateChain[0]
+        else:
+            return self.extraData.certificateChain[1:]
 
 
 
@@ -256,8 +321,10 @@ class _Entry:
 class _LeafInput:
     def __init__(self, leafInput):
         self.leafInput = base64.b64decode(leafInput)
-        self.version = int(self.leafInput[0:1].encode("hex"), 16)
-        self.leafType = int(self.leafInput[1:2].encode("hex"), 16)
+        #self.version = int(self.leafInput[0:1].encode("hex"), 16)
+        self.version = int(binascii.hexlify(self.leafInput[0:1]), 16)
+        #self.leafType = int(self.leafInput[1:2].encode("hex"), 16)
+        self.leafType = int(binascii.hexlify(self.leafInput[1:2]), 16)
         self.timestampedEntry = _TimestampedEntry(self.leafInput)
 
 
@@ -267,14 +334,16 @@ class _LeafInput:
 class _TimestampedEntry():
     def __init__(self, timestampedEntry):
         self.timestampedEntry = timestampedEntry
-        self.timestamp = int(self.timestampedEntry[2:10].encode("hex"), 16)
-        self.entryType = int(self.timestampedEntry[10:12].encode("hex"), 16)
+        #self.timestamp = int(self.timestampedEntry[2:10].encode("hex"), 16)
+        self.timestamp = int(binascii.hexlify(self.timestampedEntry[2:10]), 16)
+        #self.entryType = int(self.timestampedEntry[10:12].encode("hex"), 16)
+        self.entryType = int(binascii.hexlify(self.timestampedEntry[10:12]), 16)
         self.certificate = None
         self.extensions = None
 
         if self.entryType == 0:
-            certificateSize = int(self.timestampedEntry[12:15].encode("hex"),
-                                    16)
+            #certificateSize = int(self.timestampedEntry[12:15].encode("hex"), 16)
+            certificateSize = int(binascii.hexlify(self.timestampedEntry[12:15]), 16)
             self.certificate = _Certificate(self.timestampedEntry[15:15 + certificateSize])
         else:
             self.certificate = None
@@ -287,10 +356,9 @@ class _Certificate:
     def __init__(self, certificate):
         self.certificateBinary = certificate
         self.certificate = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_ASN1, certificate)
-        self.notAfter = self.certificate.get_notAfter()
-        self.notBefore = self.certificate.get_notBefore()
-        self.sha256 = self.certificate.digest('sha256'.encode('ascii',
-                                                              'ignore'))
+        self.notAfter = parser.parse(self.certificate.get_notAfter())
+        self.notBefore = parser.parse(self.certificate.get_notBefore())
+        self.sha256 = self.certificate.digest('sha256')
         self.dnsNames = self.extractDnsNames()
         
     def extractDnsNames(self):
@@ -335,16 +403,20 @@ class _ExtraData:
 
 
     def retrieveX509Certificates(self):
-        self.totalSize = int(self.extraData[0:3].encode("hex"), 16)
+        #self.totalSize = int(self.extraData[0:3].encode("hex"), 16)
+        self.totalSize = int(binascii.hexlify(self.extraData[0:3]), 16)
         combinedCertificateSize = 0
         currentCertificateSize = 0
 
         while (self.totalSize > combinedCertificateSize):
+            #currentCertificateSize = int(
+                                         #self.extraData[3 +
+                                         #combinedCertificateSize:6 +
+                                         #combinedCertificateSize].encode("hex"),16)
             currentCertificateSize = int(
-                                         self.extraData[3 +
+                                         binascii.hexlify(self.extraData[3 +
                                          combinedCertificateSize:6 +
-                                         combinedCertificateSize].
-                                            encode("hex"),16)
+                                         combinedCertificateSize]),16)
 
             combinedCertificateSize += 3
 
@@ -361,21 +433,30 @@ class _ExtraData:
     def retrievePreCertificates(self):
         combinedCertificateSize = 0
 
-        sizeOfFirstCert = int(self.extraData[0:3].encode("hex"), 16)
-        sizeOfCertChain = int(self.extraData[3 + sizeOfFirstCert:6 +
-                                             sizeOfFirstCert].encode("hex"),
+        #sizeOfFirstCert = int(self.extraData[0:3].encode("hex"), 16)
+        sizeOfFirstCert = int(binascii.hexlify(self.extraData[0:3]), 16)
+        #sizeOfCertChain = int(self.extraData[3 + sizeOfFirstCert:6 +
+                                             #sizeOfFirstCert].encode("hex"),
+        sizeOfCertChain = int(binascii.hexlify(self.extraData[3 + sizeOfFirstCert:6 +
+                                             sizeOfFirstCert]),
                                                 16)
         startOfCertChain = 3 + sizeOfFirstCert
 
 
         while (sizeOfCertChain > combinedCertificateSize):
+            #currentCertificateSize = int(
+                                         #self.extraData[3 +
+                                         #startOfCertChain +
+                                         #combinedCertificateSize:6 +
+                                         #startOfCertChain +
+                                         #combinedCertificateSize].
+                                            #encode("hex"), 16)
             currentCertificateSize = int(
-                                         self.extraData[3 +
+                                         binascii.hexlify(self.extraData[3 +
                                          startOfCertChain +
                                          combinedCertificateSize:6 +
                                          startOfCertChain +
-                                         combinedCertificateSize].
-                                            encode("hex"), 16)
+                                         combinedCertificateSize]), 16)
 
             combinedCertificateSize += 3
 
@@ -390,14 +471,14 @@ class _ExtraData:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog='ct-monitor in python')
+    argparser = argparse.ArgumentParser(prog='ct-monitor in python')
 
-    parser.add_argument('-d', help='debug output', action='store_true')
-    parser.add_argument('--dbhost', help='postgres ip or hostname (default localhost)', default='localhost')
-    parser.add_argument('--dbuser', help='postgres user (default postgres)', default='postgres')
-    parser.add_argument('--dbname', help='postgres database name (default certwatch)', default='certwatch')
-    parser.add_argument('--log', help='name of the file the log shall be written to')
-    args = parser.parse_args()
+    argparser.add_argument('-d', help='debug output', action='store_true')
+    argparser.add_argument('--dbhost', help='postgres ip or hostname (default localhost)', default='localhost')
+    argparser.add_argument('--dbuser', help='postgres user (default postgres)', default='postgres')
+    argparser.add_argument('--dbname', help='postgres database name (default certwatch)', default='certwatch')
+    argparser.add_argument('--log', help='name of the file the log shall be written to')
+    args = argparser.parse_args()
     
     logging_filename = args.log if args.log else None
     logging_level = logging.DEBUG if args.d else logging.INFO

@@ -23,6 +23,17 @@ ctdatabase:
     ports:
         - 5432:5432
     command: postgres
+    
+ctdatabase2:
+    restart: always
+    dockerfile: database2/Dockerfile
+    build: .
+    entrypoint: /config.sh
+    volumes:
+        - /mnt/data/ct-infrastructure/ct-monitor/data2:/var/lib/postgresql/data
+    ports:
+        - 5433:5432
+    command: postgres
 
 ctmonitor:
     restart: always
@@ -69,6 +80,6 @@ ctmonitorp:
     environment:
         - POSTGRESHOST=ctdatabase
     links:
-        - ctdatabase:ctdatabase
+        - ctdatabase2:ctdatabase
 #    command: python3 /monitor/monitorInPython.py --dbhost=ctdatabase
     command: /monitor/idle.sh
