@@ -1,4 +1,8 @@
-elasticsearch:
+version: "2"
+
+services:
+
+  elasticsearch:
     image: elasticsearch:latest
     volumes:
         - /mnt/data/ct-infrastructure/elasticsearch/data:/usr/share/elasticsearch/data
@@ -6,24 +10,25 @@ elasticsearch:
         - 9200:9200
         - 9300:9300
 
-kibana:
+  kibana:
     image: kibana:latest
     links:
         - elasticsearch:elasticsearch
     ports:
         - 5601:5601
 
-ctdatabase:
+  ctdatabase:
     restart: always
-    dockerfile: database/Dockerfile
-    build: .
+    build:
+      context: .
+      dockerfile: database/Dockerfile
     entrypoint: /config.sh
     volumes:
         - /mnt/data/ct-infrastructure/ct-monitor/data:/var/lib/postgresql/data
     ports:
         - 5432:5432
     command: postgres
-    
+
 ctdatabase2:
     restart: always
     dockerfile: database2/Dockerfile
@@ -35,18 +40,20 @@ ctdatabase2:
         - 5433:5432
     command: postgres
 
-ctmonitor:
+  ctmonitor:
     restart: always
-    dockerfile: monitor/Dockerfile
-    build: .
+    build:
+      context: .
+      dockerfile: monitor/Dockerfile
     links:
         - ctdatabase:ctdatabase
     command: ./ct-monitor 1
 
-ctobservatory:
+  ctobservatory:
     restart: always
-    dockerfile: observatory/Dockerfile
-    build: .
+    build:
+      context: .
+      dockerfile: observatory/Dockerfile
     volumes:
         - /mnt/data/ct-infrastructure/ct-monitor/misc:/static/data
     environment:
@@ -59,9 +66,10 @@ ctobservatory:
         - 80:80
         - 443:443
 
-ctanalyzer:
-    dockerfile: analyzer/Dockerfile
-    build: .
+  ctanalyzer:
+    build:
+      context: .
+      dockerfile: analyzer/Dockerfile
     volumes:
         - /mnt/data/ct-infrastructure/ct-monitor/misc:/data
     environment:
@@ -71,10 +79,11 @@ ctanalyzer:
         - elasticsearch:elasticsearch
         - ctobservatory:ctobservatory
     command: python2 /analyzer/analyzer.py --pg=ctdatabase --es=elasticsearch --web=www.ct-observatory.org --t=60 -m -x -g
-    
-ctmonitorp:
-    dockerfile: monitorInPython/Dockerfile
-    build: .
+
+  ctmonitorp:
+    build:
+      context: .
+      dockerfile: monitorInPython/Dockerfile
     volumes:
         - /mnt/data/ct-infrastructure/ct-monitor/misc:/data
     environment:
