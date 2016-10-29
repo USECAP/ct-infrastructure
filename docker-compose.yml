@@ -1,4 +1,4 @@
-version: "2"
+version: '2'
 
 services:
 
@@ -29,10 +29,11 @@ services:
         - 5432:5432
     command: postgres
 
-ctdatabase2:
+  ctdatabase2:
     restart: always
-    dockerfile: database2/Dockerfile
-    build: .
+    build: 
+      context: .
+      dockerfile: database2/Dockerfile
     entrypoint: /config.sh
     volumes:
         - /mnt/data/ct-infrastructure/ct-monitor/data2:/var/lib/postgresql/data
