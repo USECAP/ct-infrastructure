@@ -3,7 +3,13 @@
 
 CREATE TABLE ca (
 	ID				serial,
-	NAME				text	NOT NULL,
+	COUNTRY_NAME			text,
+	STATE_OR_PROVINCE_NAME		text,
+	LOCALITY_NAME			text,
+	ORGANIZATION_NAME		text,
+	ORGANIZATIONAL_UNIT_NAME	text,
+	COMMON_NAME			text,
+	EMAIL_ADDRESS			text,
 	PUBLIC_KEY		        bytea	NOT NULL,
 	
 	CONSTRAINT ca_pk
@@ -11,20 +17,21 @@ CREATE TABLE ca (
 );
 
 CREATE UNIQUE INDEX ca_uniq
-	ON ca (NAME text_pattern_ops, PUBLIC_KEY);
+	ON ca (COMMON_NAME text_pattern_ops, PUBLIC_KEY);
 
 CREATE INDEX ca_name
-	ON ca (lower(NAME) text_pattern_ops);
+	ON ca (lower(COMMON_NAME) text_pattern_ops);
 
 CREATE INDEX ca_name_reverse
-	ON ca (reverse(lower(NAME)) text_pattern_ops);
+	ON ca (reverse(lower(COMMON_NAME)) text_pattern_ops);
 
 
 CREATE TABLE certificate (
 	ID				serial,
 	CERTIFICATE			bytea		NOT NULL,
 	ISSUER_CA_ID			integer		NOT NULL,
-	SHA256                  	text,
+	SERIAL				bytea		NOT NULL,
+	SHA256                  	text		NOT NULL,
 	NOT_BEFORE			timestamp,
 	NOT_AFTER			timestamp,
 	
@@ -104,12 +111,9 @@ CREATE TABLE ct_log (
 	LATEST_ENTRY_ID			integer,
 	LATEST_UPDATE			timestamp,
 	OPERATOR			text,
-	INCLUDED_IN_CHROME		integer,
 	IS_ACTIVE			boolean,
 	LATEST_STH_TIMESTAMP	    	timestamp,
 	MMD_IN_SECONDS			integer,
-	CHROME_ISSUE_NUMBER		integer,
-	NON_INCLUSION_STATUS	   	text,
 	
 	CONSTRAINT ctl_pk
 		PRIMARY KEY (ID),
@@ -129,7 +133,9 @@ CREATE TABLE ct_log_entry (
 	CONSTRAINT ctle_c_fk
 		FOREIGN KEY (CERTIFICATE_ID) REFERENCES certificate(ID),
 	CONSTRAINT ctle_ctl_fk
-		FOREIGN KEY (CT_LOG_ID) REFERENCES ct_log(ID)
+		FOREIGN KEY (CT_LOG_ID) REFERENCES ct_log(ID),
+        CONSTRAINT ctle_unq
+                UNIQUE (CERTIFICATE_ID, CT_LOG_ID, ENTRY_ID)
 );
 
 CREATE INDEX ctle_le
@@ -209,9 +215,9 @@ INSERT INTO ct_log (url, name, public_key, operator, mmd_in_seconds, is_active) 
 INSERT INTO ct_log (url, name, public_key, operator, mmd_in_seconds, is_active) VALUES
     ('https://ct1.digicert-ct.com/log','DigiCert Log Server','MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAkbFvhu7gkAW6MHSrBlpE1n4+HCFRkC5OLAjgqhkTH+/uzSfSl8ois8ZxAD2NgaTZe1M9akhYlrYkes4JECs6A==','DigiCert',86400,true);
 INSERT INTO ct_log (url, name, public_key, operator, mmd_in_seconds, is_active) VALUES
-    ('https://ct.izenpe.com','Izenpe log','MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJ2Q5DC3cUBj4IQCiDu0s6j51up+TZAkAEcQRF6tczw90rLWXkJMAW7jr9yc92bIKgV8vDXU4lDeZHvYHduDuvg==','Izenpe',86400,true);
+    ('https://ct.izenpe.com','Izenpe log','MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJ2Q5DC3cUBj4IQCiDu0s6j51up+TZAkAEcQRF6tczw90rLWXkJMAW7jr9yc92bIKgV8vDXU4lDeZHvYHduDuvg==','Izenpe',86400,false);
 INSERT INTO ct_log (url, name, public_key, operator, mmd_in_seconds, is_active) VALUES
-    ('https://log.certly.io','Certly.IO log','MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECyPLhWKYYUgEc+tUXfPQB4wtGS2MNvXrjwFCCnyYJifBtd2Sk7Cu+Js9DNhMTh35FftHaHu6ZrclnNBKwmbbSA==','Certly',86400,true);
+    ('https://log.certly.io','Certly.IO log','MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECyPLhWKYYUgEc+tUXfPQB4wtGS2MNvXrjwFCCnyYJifBtd2Sk7Cu+Js9DNhMTh35FftHaHu6ZrclnNBKwmbbSA==','Certly',86400,false);
 INSERT INTO ct_log (url, name, public_key, operator, mmd_in_seconds, is_active) VALUES
     ('https://ct.ws.symantec.com','Symantec log','MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEluqsHEYMG1XcDfy1lCdGV0JwOmkY4r87xNuroPS2bMBTP01CEDPwWJePa75y9CrsHEKqAy8afig1dpkIPSEUhg==','Symantec',86400,true);
 INSERT INTO ct_log (url, name, public_key, operator, mmd_in_seconds, is_active) VALUES

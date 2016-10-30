@@ -6,6 +6,7 @@ MAINTAINER sz
 #    build-essential libpq-dev postgresql-server-dev-9.5 libtool autoconf automake libcurl4-openssl-dev python ssh gnutls-dev
 
 COPY ./database2/config.sh /config.sh
+COPY ./database2/reset.sh /reset.sh
 COPY ./database2/python_monitor_schema.sql /python_monitor_schema.sql
 
 ENV libdir=

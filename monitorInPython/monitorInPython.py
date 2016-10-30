@@ -6,9 +6,10 @@ import sys
 import logging
 import argparse
 import re
-import cryptography
 import binascii
+import datetime
 from dateutil import parser
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 
 
@@ -25,6 +26,7 @@ def monitor(database):
     newLogEntries = database.retrieveNewLogEntries()
     logging.debug("Populating new log entries")
     database.populateNewLogEntries(newLogEntries)
+    database.updateCtLogStats()
 
 
 
@@ -49,7 +51,7 @@ class _LocalDatabase:
             return dataBase
 
         except:
-            print("Error connecting to local database")
+            logging.error("Error connecting to local database")
             exit()
 
 
@@ -70,11 +72,14 @@ class _LocalDatabase:
 
     def getActiveLogServers(self):
         try:
-            self.cursor.execute("""SELECT * FROM ct_log as ctl WHERE ctl.IS_ACTIVE = TRUE""")
+            self.cursor.execute("""SELECT ID, URL, NAME, PUBLIC_KEY, LATEST_ENTRY_ID, 
+            LATEST_UPDATE, OPERATOR, IS_ACTIVE, LATEST_STH_TIMESTAMP, MMD_IN_SECONDS 
+            FROM ct_log as ctl 
+            WHERE ctl.IS_ACTIVE""")
             activeLogServerEntries = self.cursor.fetchall()
 
         except:
-            print("Could not execute Active Log Server Entries Query. ", sys.exc_info()[0])
+            logging.error("Could not execute Active Log Server Entries Query. {}".format(sys.exc_info()[0]))
             exit()
 
         else:
@@ -90,26 +95,28 @@ class _LocalDatabase:
 
     def requestNewEntriesFromServer(self, logServerEntry):
         requestedEntries = []
+        
+        sthOfLogServer = self.requestSTHOfLogServer(logServerEntry)
+        logging.debug("Log tree size: ".format(sthOfLogServer.treeSize if sthOfLogServer is not None else "None"))
 
-        if self.certsAreMissing(logServerEntry):
+        if self.certsAreMissing(logServerEntry, sthOfLogServer): #returns false if sthOfLogServer is None
             requestURL = (logServerEntry.url + "/ct/v1/get-entries?start=" +
-                            str(logServerEntry.size + 1) + "&end=" +
-                            str(logServerEntry.size + 1001))
-            requestedEntries = self.requestEntries(requestURL)
+                            str(logServerEntry.latest_entry_id + 1) + "&end=" +
+                            str(min(logServerEntry.latest_entry_id + 1001, sthOfLogServer.treeSize-1)))
+            metadata = {'ct_log_id':logServerEntry.ct_log_id, 'first_entry_id':logServerEntry.latest_entry_id + 1}
+            requestedEntries = self.requestEntries(requestURL, metadata)
 
         return requestedEntries
 
 
 
 
-    def certsAreMissing(self, logServerEntry):
-        sthOfLogServer = self.requestSTHOfLogServer(logServerEntry)
-
+    def certsAreMissing(self, logServerEntry, sthOfLogServer):
         if sthOfLogServer is None:
             return False
 
-        if (logServerEntry.size == None or
-            logServerEntry.size < sthOfLogServer.treeSize):
+        if (logServerEntry.latest_entry_id == None or
+            logServerEntry.latest_entry_id+1 < sthOfLogServer.treeSize):
             return True
         else:
             return False
@@ -122,7 +129,7 @@ class _LocalDatabase:
             sthRequest = requests.get(logServer.url + "/ct/v1/get-sth")
 
         except:
-            print("Error requesting STH from log server: ", sys.exc_info()[0])
+            logging.error("Error requesting STH from log server: {}".format(sys.exc_info()[0]))
 
         else:
             return _SignedTreeHead(sthRequest.json())
@@ -130,21 +137,28 @@ class _LocalDatabase:
 
 
 
-    def requestEntries(self, requestURL):
+    def requestEntries(self, requestURL, metadata):
         try:
             requestedEntries = requests.get(requestURL)
 
         except:
-            print("Error getting Entries")
+            logging.error("Error getting Entries")
             exit()
 
         else:
             processedEntries = []
 
             requestedEntries = requestedEntries.json()
-
-            for entry in requestedEntries['entries']:
-                processedEntries.append(_Entry(entry))
+            
+            i = 0
+            if not 'entries' in requestedEntries:
+                logging.error("'entries' is not a key in requestedEntries")
+                print(requestedEntries)
+            else:
+                for entry in requestedEntries['entries']:
+                    entrymetadata = {'ct_log_id':metadata['ct_log_id'], 'entry_id':metadata['first_entry_id']+i}
+                    processedEntries.append(_Entry(entry, entrymetadata))
+                    i += 1
 
             return processedEntries
 
@@ -154,22 +168,40 @@ class _LocalDatabase:
 
     def populateNewLogEntries(self, newLogEntries):
         for entry in newLogEntries:
-            # create CA entries
-            ca_certificates = entry.retrieveCaCertificates()
-            ca_id = self.populateCaCertificates(ca_certificates)
-            # insert certificate
-            certificate = entry.retrieveCertificate()
-            self.populateCertificate(certificate, ca_id)
+                self.populateEntry(entry)
+            
         self.connectionToDataBase.commit()
 
 
-
-    def populateCertificate(self, certificate, ca_id):
-        if not self.certificateAlreadyExists(certificate):
-            return self.insertCertificate(certificate, ca_id)
+    def populateEntry(self, entry):
+        # create CA entries
+        ca_certificates = entry.retrieveCaCertificates()
+        ca_id = self.populateCaCertificates(ca_certificates)
+        # insert certificate
         
-        return None
+        self.populateCertificate(entry, ca_id)
+
+
+    def populateCertificate(self, entry, ca_id):
+        certificate = entry.retrieveCertificate()
+        if(ca_id == None): #it's a root certificate
+            ca_id = self.populateCaCertificates([certificate])
+            
+        cert_id = self.insertCertificate(certificate, ca_id)
+        
+        self.createCtLogEntry(cert_id, entry)
+        
+        return cert_id
     
+    
+    def createCtLogEntry(self, cert_id, entry):
+        sqlQuery = "INSERT INTO ct_log_entry(CERTIFICATE_ID, CT_LOG_ID, ENTRY_ID, ENTRY_TIMESTAMP) \
+            VALUES (%s, %s, %s, %s) \
+            ON CONFLICT(CERTIFICATE_ID, CT_LOG_ID, ENTRY_ID) DO NOTHING"
+        sqlData = (cert_id, entry.ct_log_id, entry.entry_id, entry.timestamp)
+            
+        self.cursor.execute(sqlQuery, sqlData)
+        
     
     def populateCaCertificates(self, ca_certificates):
         
@@ -178,70 +210,84 @@ class _LocalDatabase:
         
         logging.debug("populating {} CA certificates".format(len(ca_certificates)))
         
-        certificate = ca_certificates[0]
+        # iterate over ca chain from top to bottom
+        last_ca_id = None
+        for i in range(len(ca_certificates)-1, -1, -1):
         
-        name = certificate.certificate.get_subject().commonName
-        if name == None:
-            name = "None"
-        public_key = certificate.certificate.get_pubkey().to_cryptography_key().public_bytes(cryptography.hazmat.primitives.serialization.Encoding.DER, cryptography.hazmat.primitives.serialization.PublicFormat.SubjectPublicKeyInfo)
-        
-        
-        logging.debug("inserting new CA '{}' into CA table".format(name))
-        
-        sqlQuery = "INSERT INTO ca(NAME, PUBLIC_KEY) VALUES (%s, %s) \
-                    ON CONFLICT(NAME,PUBLIC_KEY) DO UPDATE SET NAME=ca.NAME RETURNING ID"
-        sqlData = (name, psycopg2.Binary(public_key))
-        self.cursor.execute(sqlQuery, sqlData)
-        new_ca_id = self.cursor.fetchone()[0]
-        
-        logging.debug("inserted new CA with ID={}".format(new_ca_id))
-        
-        
-        ca_id = -1
-        if(len(ca_certificates) > 1): 
-            ca_id = self.populateCaCertificates(ca_certificates[1:])
-        else: # be your own root
-            ca_id = new_ca_id
+            certificate = ca_certificates[i]
             
-        cert_id = self.populateCertificate(certificate, ca_id)
-        
-        if(cert_id != None):
-            sqlQuery = "INSERT INTO ca_certificate (CERTIFICATE_ID, CA_ID) VALUES (%s, %s)"
-            sqlData = (cert_id, ca_id)
+            subject = certificate.certificate.get_subject()
+            commonName = subject.commonName
+            
+            if commonName == None:
+                commonName = "None"
+            public_key = certificate.certificate.get_pubkey().to_cryptography_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
+            
+            logging.debug("inserting new CA '{}' into CA table".format(commonName))
+
+            sqlQuery = "INSERT INTO ca(COUNTRY_NAME, \
+            STATE_OR_PROVINCE_NAME, \
+            LOCALITY_NAME, \
+            ORGANIZATION_NAME, \
+            ORGANIZATIONAL_UNIT_NAME, \
+            COMMON_NAME, \
+            EMAIL_ADDRESS, \
+            PUBLIC_KEY) \
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) \
+            ON CONFLICT(COMMON_NAME,PUBLIC_KEY) DO UPDATE SET COMMON_NAME=ca.COMMON_NAME \
+            RETURNING ID"
+            sqlData = (subject.countryName, subject.stateOrProvinceName, subject.localityName, subject.organizationName, subject.organizationalUnitName, commonName, subject.emailAddress, psycopg2.Binary(public_key))
+            
             self.cursor.execute(sqlQuery, sqlData)
+            new_ca_id = self.cursor.fetchone()[0]
+            
+            logging.debug("inserted new CA with ID={}".format(new_ca_id))
+        
+        
+            if(last_ca_id == None): # first list entry: be your own root
+                last_ca_id = new_ca_id
+            
+            cert_id = self.insertCertificate(certificate, last_ca_id)
+        
+            if(cert_id != None):
+                sqlQuery = "INSERT INTO ca_certificate (CERTIFICATE_ID, CA_ID) VALUES (%s, %s)"
+                sqlData = (cert_id, last_ca_id)
+                self.cursor.execute(sqlQuery, sqlData)
+            
+            last_ca_id = new_ca_id
             
         return new_ca_id
         
 
 
+# don't need that
+    #def certificateAlreadyExists(self, certificate):
+        ## currently that would be about 33693074 hashes, or 1GB of hash data.
+        #hashesOfExistingCertificates = \
+            #self.retrieveHashesOfExistingCertificates()
 
-    def certificateAlreadyExists(self, certificate):
-        # currently that would be about 33693074 hashes, or 1GB of hash data.
-        hashesOfExistingCertificates = \
-            self.retrieveHashesOfExistingCertificates()
+        #if hashesOfExistingCertificates is None:
+            #return False
 
-        if hashesOfExistingCertificates is None:
-            return False
+        #for hash in hashesOfExistingCertificates:
+            #if certificate.sha256 == hash:
+                #return True
 
-        for hash in hashesOfExistingCertificates:
-            if certificate.sha256 == hash:
-                return True
-
-        return False
-
-
+        #return False
 
 
-    def retrieveHashesOfExistingCertificates(self):
-        try:
-            self.cursor.execute("SELECT SHA256 FROM certificate")
-            hashesOfExistingCertificates = self.cursor.fetchall()
 
-        except:
-            print("Could not retrieve Hashes from DB")
+# don't need that as well
+    #def retrieveHashesOfExistingCertificates(self):
+        #try:
+            #self.cursor.execute("SELECT SHA256 FROM certificate")
+            #hashesOfExistingCertificates = self.cursor.fetchall()
 
-        else:
-            return hashesOfExistingCertificates
+        #except:
+            #print("Could not retrieve Hashes from DB")
+
+        #else:
+            #return hashesOfExistingCertificates
 
 
 
@@ -252,13 +298,16 @@ class _LocalDatabase:
             return None
         logging.debug("Inserting certificate ({})".format(certificate.sha256))
         #try:
-        sqlQuery = "INSERT INTO certificate (CERTIFICATE, ISSUER_CA_ID, SHA256, NOT_BEFORE, NOT_AFTER) \
-                        VALUES (%s, %s, %s, %s, %s) \
+        serial = certificate.serial.to_bytes((certificate.serial.bit_length() + 15) // 8, 'big', signed=True) or b'\0'
+        sqlQuery = "INSERT INTO certificate (CERTIFICATE, ISSUER_CA_ID, SERIAL, SHA256, NOT_BEFORE, NOT_AFTER) \
+                        VALUES (%s, %s, %s, %s, %s, %s) \
                         ON CONFLICT (SHA256) DO UPDATE SET SHA256=certificate.SHA256 \
                         RETURNING ID"
-        sqlData = (psycopg2.Binary(certificate.certificateBinary), ca_id, certificate.sha256, certificate.notBefore, certificate.notAfter)
+        sqlData = (psycopg2.Binary(certificate.certificateBinary), ca_id, serial, certificate.sha256, certificate.notBefore, certificate.notAfter)
         self.cursor.execute(sqlQuery, sqlData)
         cert_id = self.cursor.fetchone()[0]
+        
+        self.insertCertificateIdentity(certificate, cert_id)
 
         logging.debug("Inserted certificate with ID={}".format(cert_id))
        # except:
@@ -266,6 +315,49 @@ class _LocalDatabase:
 
         #else:
         return cert_id
+        
+        
+    def insertCertificateIdentity(self, certificate, cert_id):
+        sqlQuery = "INSERT INTO certificate_identity (CERTIFICATE_ID, NAME_TYPE, NAME_VALUE) \
+                        VALUES (%s, %s, %s) \
+                        ON CONFLICT (CERTIFICATE_ID, lower(NAME_VALUE) text_pattern_ops, NAME_TYPE) DO NOTHING"
+        sqlData = []
+        
+        subject = certificate.certificate.get_subject()
+
+        if(subject.countryName != None):
+            sqlData.append((cert_id, 'countryName', subject.countryName))
+        if(subject.stateOrProvinceName != None):
+            sqlData.append((cert_id, 'stateOrProvinceName', subject.stateOrProvinceName))
+        if(subject.localityName != None):
+            sqlData.append((cert_id, 'localityName', subject.localityName))
+        if(subject.organizationName != None):
+            sqlData.append((cert_id, 'organizationName', subject.organizationName))
+        if(subject.organizationalUnitName != None):
+            sqlData.append((cert_id, 'organizationalUnitName', subject.organizationalUnitName))
+        if(subject.commonName != None):
+            sqlData.append((cert_id, 'commonName', subject.commonName))
+        if(subject.emailAddress != None):
+            sqlData.append((cert_id, 'emailAddress', subject.emailAddress))
+        for dnsname in certificate.dnsNames:
+            sqlData.append((cert_id, 'dnsName', dnsname))
+
+        self.cursor.executemany(sqlQuery, sqlData)
+        
+        
+        
+        
+        
+    def updateCtLogStats(self):
+        activeLogServers = self.getActiveLogServers()
+        
+        for logServer in activeLogServers:
+            sqlQuery = "UPDATE ct_log SET LATEST_ENTRY_ID=(SELECT MAX(ENTRY_ID) FROM ct_log_entry WHERE CT_LOG_ID=%s) WHERE ID=%s RETURNING LATEST_ENTRY_ID"
+            sqlData = (logServer.ct_log_id, logServer.ct_log_id)
+            self.cursor.execute(sqlQuery, sqlData)
+            latest_entry_id = self.cursor.fetchone()[0]
+            logging.info("LATEST_ENTRY_ID of log {} has been updated to {}".format(logServer.ct_log_id, latest_entry_id))
+        self.connectionToDataBase.commit()
 
 
 
@@ -273,9 +365,12 @@ class _LocalDatabase:
 class _LogServer:
     def __init__(self, dbEntry):
         self.url = dbEntry[1]
-        self.size = 0
+        self.ct_log_id = -1
+        self.latest_entry_id = -1
+        if dbEntry[0] is not None:
+            self.ct_log_id = dbEntry[0]
         if dbEntry[4] is not None:
-            self.size = dbEntry[4]
+            self.latest_entry_id = dbEntry[4]
 
 
 
@@ -292,9 +387,12 @@ class _SignedTreeHead:
 
 
 class _Entry:
-    def __init__(self, entryJSON):
+    def __init__(self, entryJSON, metadata):
+        self.entry_id = metadata['entry_id']
+        self.ct_log_id = metadata['ct_log_id']
         self.leafInput = _LeafInput(entryJSON['leaf_input'])
         self.extraData = _ExtraData(entryJSON['extra_data'], self.leafInput.timestampedEntry.entryType)
+        self.timestamp = self.leafInput.timestampedEntry.timestamp
 
 
 
@@ -306,13 +404,21 @@ class _Entry:
             return self.extraData.certificateChain[0]
 
         else:
-            print("Error retrieving certificate from log entry")
+            logging.error("Error retrieving certificate from log entry")
     
     def retrieveCaCertificates(self):
-        if(len(self.extraData.certificateChain) == 1):
-            self.extraData.certificateChain[0]
-        else:
-            return self.extraData.certificateChain[1:]
+        if self.leafInput.timestampedEntry.entryType == 0:
+            return self.extraData.certificateChain
+
+        if self.leafInput.timestampedEntry.entryType == 1:
+            if len(self.extraData.certificateChain) > 1:
+                return self.extraData.certificateChain[1:]
+            else:
+                logging.warning("Certificate chain is empty")
+                return []
+
+        logging.error("Error retrieving CA certificates from log entry")
+        return []
 
 
 
@@ -335,7 +441,7 @@ class _TimestampedEntry():
     def __init__(self, timestampedEntry):
         self.timestampedEntry = timestampedEntry
         #self.timestamp = int(self.timestampedEntry[2:10].encode("hex"), 16)
-        self.timestamp = int(binascii.hexlify(self.timestampedEntry[2:10]), 16)
+        self.timestamp = datetime.datetime.fromtimestamp(int(binascii.hexlify(self.timestampedEntry[2:10]), 16) / 1000)
         #self.entryType = int(self.timestampedEntry[10:12].encode("hex"), 16)
         self.entryType = int(binascii.hexlify(self.timestampedEntry[10:12]), 16)
         self.certificate = None
@@ -358,7 +464,8 @@ class _Certificate:
         self.certificate = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_ASN1, certificate)
         self.notAfter = parser.parse(self.certificate.get_notAfter())
         self.notBefore = parser.parse(self.certificate.get_notBefore())
-        self.sha256 = self.certificate.digest('sha256')
+        self.serial = self.certificate.get_serial_number()
+        self.sha256 = binascii.unhexlify(self.certificate.digest('sha256').replace(b':',b''))
         self.dnsNames = self.extractDnsNames()
         
     def extractDnsNames(self):
@@ -376,6 +483,7 @@ class _Certificate:
                         name = m.group(1)
                         dnsnames.append(name)
                 return dnsnames
+        return []
 
 
 
