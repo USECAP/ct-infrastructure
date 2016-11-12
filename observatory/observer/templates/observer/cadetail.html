@@ -36,23 +36,22 @@ path.link {
   <p><a href="{% url 'observer:caall' %}">« back to CA list</a></p>
 
   <div class="card">
-    <div class="card-header"><h4><img src="{% url 'observer:flag' flag_id=ca.get_name_C.lower %}" title="{{ca.get_name_C}}"/> {{ca.get_name_CN}}</h4></div>
+    <div class="card-header"><h4><img src="{% url 'observer:flag' flag_id=ca.country_name.lower %}" title="{{ca.get_name_C}}"/> {{ca.common_name}}</h4></div>
     <div class="card-block">
         <dl>
             <dt>Locality</dt>
-            <dd>{{ca.get_name_L}}</dd>
+            <dd>{{ca.locality_name}}</dd>
             <dt>Organization</dt>
-            <dd>{{ca.get_name_O}}</dd>
+            <dd>{{ca.organization_name}}</dd>
             <dt>OrganizationalUnit</dt>
-            <dd>{{ca.get_name_OU}}</dd>
+            <dd>{{ca.organizational_unit_name}}</dd>
             <dt>StateOrProvinceName</dt>
-            <dd>{{ca.get_name_ST}}</dd>
+            <dd>{{ca.state_or_province_name}}</dd>
             <dt>emailAddress</dt>
-            <dd>{{ca.get_name_emailAddress}}</dd>
+            <dd>{{ca.email_address}}</dd>
         </dl>
     </div>
     <ul class="list-group list-group-flush">
-
         <li class="list-group-item">This CA has issued <a href="{% url 'observer:certs_by_ca' ca_id=ca.id %}">{{ca.certificate_set.count}} certificates</a> in TODO logs.</li>
     </ul>
     <div id="treeview" class="card-block">

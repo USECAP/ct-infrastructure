@@ -31,7 +31,7 @@ class Metadata(threading.Thread):
 	
 	self.logger.debug("counting expired certificates")
         cursor.execute(
-            "UPDATE metadata SET NAME_VALUE=(SELECT COUNT(*) FROM certificate where expired) WHERE NAME_TYPE='number_of_expired_certs'")  # EXPIRED
+            "UPDATE metadata SET NAME_VALUE=(SELECT COUNT(*) FROM certificate where NOT_AFTER < NOW()) WHERE NAME_TYPE='number_of_expired_certs'")  # EXPIRED
 	
 	self.logger.debug("counting revoked certificates")
         cursor.execute(
@@ -39,7 +39,7 @@ class Metadata(threading.Thread):
 	
 	self.logger.debug("counting active certificates")
         cursor.execute(
-            "UPDATE metadata SET NAME_VALUE=((SELECT NAME_VALUE FROM metadata WHERE NAME_TYPE='number_of_certs') - (SELECT NAME_VALUE FROM metadata WHERE NAME_TYPE='number_of_expired_certs') - (SELECT COUNT(*) FROM revoked_certificate rc JOIN certificate c ON rc.certificate_id = c.id WHERE NOT c.expired )) WHERE NAME_TYPE='number_of_active_certs'")  # ACTIVE
+            "UPDATE metadata SET NAME_VALUE=((SELECT NAME_VALUE FROM metadata WHERE NAME_TYPE='number_of_certs') - (SELECT NAME_VALUE FROM metadata WHERE NAME_TYPE='number_of_expired_certs') - (SELECT COUNT(*) FROM revoked_certificate rc JOIN certificate c ON rc.certificate_id = c.id WHERE NOT c.NOT_AFTER < NOW() )) WHERE NAME_TYPE='number_of_active_certs'")  # ACTIVE
 	
 	self.logger.debug("'counting' misissued certificates")
         cursor.execute(

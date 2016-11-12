@@ -12,7 +12,6 @@ import threading
 from notifier import Notifier
 from metadata import Metadata
 from revocationdetector import RevocationDetector
-from expirationdetector import ExpirationDetector
 from esinserter import ESInserter
 from diagramdata import Diagramdata
 from notifier import Notifier
@@ -20,7 +19,7 @@ from notifier import Notifier
 parser = argparse.ArgumentParser(prog='ct-analyzer')
 
 parser.add_argument('-e', help='enable elasticsearch import', action='store_true')
-parser.add_argument('-x', help='update expired certs', action='store_true')
+parser.add_argument('-x', help='update expired certs (DUMMY)', action='store_true')
 parser.add_argument('-r', help='update revoked certs', action='store_true')
 parser.add_argument('-m', help='update metadata certs', action='store_true')
 parser.add_argument('-n', help='notify people that registered for updates', action='store_true')
@@ -104,8 +103,8 @@ while True:
     
     try:
 
-        RXMthread = RXMwrapper('certwatch', 'postgres', host_db, args.r, args.x, args.m)
-        RXMthread.start() # if none of r, u and m are true, nothing happens.
+        RXMthread = RXMwrapper('certwatch', 'postgres', host_db, args.r, False, args.m) #expiration detection has been disabled
+        RXMthread.start() # if none of r, x and m are true, nothing happens.
         
         if args.e:
             ESIthread = ESInserter('certwatch', 'postgres', host_db, host_es)

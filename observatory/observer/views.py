@@ -13,10 +13,9 @@ from .models import *
 from notification.forms import SubscribeUnsubscribeForm
 #from .issuefinder import *
 import issuefinder
-from .managers import NotBefore
 from django.template.defaulttags import register
 
-ITEMS_PER_PAGE = 504
+ITEMS_PER_PAGE = 50
 
 @register.filter
 def get_item(dictionary, key):
@@ -97,7 +96,6 @@ def index(request):
             'interesting_cas' : metadata['number_of_interesting_cas'],
             'biggest_log' : metadata['number_of_certs_in_biggest_log'],
             'smallest_log' : metadata['number_of_certs_in_smallest_log'],
-            'total_incidents': InvalidCertificate.objects.count(), #TODO: Check what's inside here
             'uptime_days': (timezone.now().date()-datetime.date(2015,10,14)).days, #TODO
             'messages' : messages,
             'subscribeform' : subscribeform
@@ -127,7 +125,7 @@ def caall(request, page=None):
 
     list_of_ca = []
 
-    paginator = Paginator(Ca.objects.all().order_by('name'), ITEMS_PER_PAGE)
+    paginator = Paginator(Ca.objects.all().order_by('common_name'), ITEMS_PER_PAGE)
     if(page in paginator.page_range):
         list_of_ca = paginator.page(page)
         
@@ -164,7 +162,7 @@ def certactive(request, page=None):
 
     list_of_certs = []
 
-    paginator = Paginator(MetadataCountQuerySet(Certificate.objects.get_active(), 'number_of_active_certs'), ITEMS_PER_PAGE)
+    paginator = Paginator(MetadataCountQuerySet(Certificate.objects.filter(not_before__lte=timezone.now(), not_after__gte=timezone.now()), 'number_of_active_certs'), ITEMS_PER_PAGE)
     if(page in paginator.page_range):
         list_of_certs = paginator.page(page)
 
@@ -183,7 +181,8 @@ def certexpired(request, page=None, order=None):
 
     list_of_certs = []
 
-    paginator = Paginator(MetadataCountQuerySet(Certificate.objects.get_expired(), 'number_of_expired_certs'), ITEMS_PER_PAGE)
+#    paginator = Paginator(MetadataCountQuerySet(Certificate.objects.filter(not_after__lt=timezone.now()), 'number_of_expired_certs'), ITEMS_PER_PAGE)
+    paginator = Paginator(Certificate.objects.filter(not_after__lt=timezone.now()), ITEMS_PER_PAGE)
     if(page in paginator.page_range):
         list_of_certs = paginator.page(page)
 
@@ -200,7 +199,7 @@ def certrevoked(request, page=None):
 
     list_of_certs = []
 
-    paginator = Paginator(Certificate.objects.get_revoked(), ITEMS_PER_PAGE)
+    paginator = Paginator(Certificate.objects.filter(id__in=RevokedCertificate.objects.all().values('certificate')), ITEMS_PER_PAGE)
     if(page in paginator.page_range):
         list_of_certs = paginator.page(page)
 
@@ -240,7 +239,7 @@ def certs_by_ca(request, ca_id, page=None):
 
     list_of_certs = []
 
-    paginator = Paginator(Certificate.objects.filter(issuer_ca_id=ca_id), ITEMS_PER_PAGE)
+    paginator = Paginator(Certificate.objects.filter(issuer_ca=ca_id), ITEMS_PER_PAGE)
     if(page in paginator.page_range):
         list_of_certs = paginator.page(page)
 
@@ -255,17 +254,18 @@ def list_cn_certs(request, cn):
     field_id = 'common name'
     expression = cn
 
-    #list_of_certs = Certificate.objects.raw('SELECT ID, CERTIFICATE, ISSUER_CA_ID  FROM certificate WHERE x509_commonName(CERTIFICATE)=%s ORDER BY x509_notBefore(CERTIFICATE) ASC', [cn])
-    list_of_certs = Certificate.objects.filter(certificate__common_name=cn).annotate(not_before=NotBefore('certificate')).order_by('not_before')
+    list_of_certs = Certificate.objects.raw("SELECT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID, c.SERIAL, c.SHA256, c.NOT_BEFORE, c.NOT_AFTER FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE))=reverse(lower(%s)) ORDER BY c.NOT_BEFORE ASC", [cn])
+    #list_of_certs = Certificate.objects.filter(certificate__common_name=cn).order_by('not_before')
     
-    issues = issuefinder.get_all_issues(list_of_certs)
+    
+    issues = issuefinder.get_all_issues(list(list_of_certs))
     #issues = issuefinder.get_first_certificates(list_of_certs)
 
     return render(request, 'observer/history.html',
         {
             'field_id': field_id,
             'expression': expression,
-            'list_of_certs': list_of_certs.reverse(),
+            'list_of_certs': list_of_certs,
             'issues':issues
         }
     )
@@ -275,7 +275,7 @@ def list_dnsname_certs(request, dnsname):
     field_id = 'dnsname'
     expression = dnsname
 
-    list_of_certs = Certificate.objects.raw("SELECT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE))=reverse(lower(%s)) ORDER BY x509_notBefore(CERTIFICATE) ASC", [dnsname])
+    list_of_certs = Certificate.objects.raw("SELECT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID, c.SERIAL, c.SHA256, c.NOT_BEFORE, c.NOT_AFTER FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE))=reverse(lower(%s)) ORDER BY c.NOT_BEFORE ASC", [dnsname])
     
     issues = issuefinder.get_all_issues(list(list_of_certs))
     

@@ -1,10 +1,13 @@
 from django.http import HttpResponse
 from django.db.models import Count
 from django.db import connection
+from django.utils import timezone
 from django.views.decorators.cache import cache_page
 from django.core.paginator import Paginator
 import json
 import re
+import datetime
+import logging
 
 from .models import *
 
@@ -42,7 +45,7 @@ def get_certificate_chain(request,cert_id):
     visited = []
 
     certificate = Certificate.objects.filter(id=cert_id).first()
-    ca_of_certificate = certificate.issuer_ca_id
+    ca_of_certificate = certificate.issuer_ca
 
     name = certificate.subject_common_name()
     if(name == None):
@@ -50,7 +53,10 @@ def get_certificate_chain(request,cert_id):
     children = {"id":cert_id, "name":name, "children":children}
     visited.append(cert_id)
 
-    ca_certificate = CaCertificate.objects.filter(ca_id=ca_of_certificate).first()
+    ca_certificate = CaCertificate.objects.filter(ca=ca_of_certificate).first()
+    
+    logging.error(ca_of_certificate.id)
+    
     certificate_of_ca = ca_certificate.certificate_id
 
     iteration = 0
@@ -58,7 +64,8 @@ def get_certificate_chain(request,cert_id):
         iteration += 1
 
         certificate = Certificate.objects.filter(id=certificate_of_ca).first()
-        ca_of_certificate = certificate.issuer_ca_id
+        ca_of_certificate = certificate.issuer_ca
+        
 
         name = certificate.subject_common_name()
         if(name == None):
@@ -73,11 +80,11 @@ def get_certificate_chain(request,cert_id):
 
 def get_ca_chain(request, ca_id):
     ca_id = int(ca_id)
-    childrencount = Certificate.objects.filter(issuer_ca_id=ca_id).count()
+    childrencount = Certificate.objects.filter(issuer_ca=ca_id).count()
     children = {"id":"number_of_children", "name":"{0} child certificates".format(childrencount), "children":0}
     visited = []
 
-    Certificate.objects.filter(issuer_ca_id=ca_id).count()
+    Certificate.objects.filter(issuer_ca=ca_id).count()
 
     ca_certificate = CaCertificate.objects.filter(ca_id=ca_id).first()
     certificate_of_ca = ca_certificate.certificate_id
@@ -87,7 +94,8 @@ def get_ca_chain(request, ca_id):
         iteration += 1
 
         certificate = Certificate.objects.filter(id=certificate_of_ca).first()
-        ca_of_certificate = certificate.issuer_ca_id
+        ca_of_certificate = certificate.issuer_ca
+        
 
         name = certificate.subject_common_name()
         if(name == None):
@@ -129,18 +137,18 @@ def get_cert_distribution_per_year(request):
     with connection.cursor() as c:
         result = []
 
-        c.execute("select to_char(min(x509_notBefore(certificate)),'YYYY') as min, to_char(max(x509_notAfter(certificate)),'YYYY') as max from certificate;")
+        c.execute("select to_char(min(NOT_BEFORE),'YYYY') as min, to_char(max(NOT_AFTER),'YYYY') as max from certificate;")
         cresult = c.fetchall()[0]
 
         for i in range(int(cresult[0]),int(cresult[1])+1):
-            c.execute("select x509_keySize(certificate), count(*) from certificate where x509_notAfter(certificate) > '{}-01-01' and x509_notBefore(certificate) < '{}-01-01' group by x509_keySize(certificate) ".format(i,i+1))
+            c.execute("select KEY_SIZE, count(*) from certificate where NOT_AFTER > '{}-01-01' and NOT_BEFORE < '{}-01-01' group by KEY_SIZE".format(i,i+1))
             key_sizes = []
             active_certs = 0
             for entry in c.fetchall():
                 key_sizes.append({'keySize': entry[0], 'count':entry[1]})
                 active_certs += entry[1]
 
-            c.execute("select x509_notAfter(certificate)-x509_notBefore(certificate), count(*) from certificate where x509_notAfter(certificate) > '{}-01-01' and x509_notBefore(certificate) < '{}-01-01' group by x509_notAfter(certificate)-x509_notBefore(certificate) ".format(i,i+1))
+            c.execute("select NOT_AFTER - NOT_BEFORE, count(*) from certificate where NOT_AFTER > '{}-01-01' and NOT_BEFORE < '{}-01-01' group by NOT_AFTER - NOT_BEFORE ".format(i,i+1))
             durations = []
             for entry in c.fetchall():
                 durations.append({'duration': entry[0], 'count':entry[1]})
@@ -165,11 +173,11 @@ def get_active_keysize_distribution(request, ca_id=None, id_from=None):
         if(aggregate):
         
             if(ca_id == None):
-                command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE id <= %s AND x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC;"
+                command = "SELECT KEY_ALGORITHM, KEY_SIZE, count(*) AS count FROM certificate WHERE id <= %s AND NOT_BEFORE <  NOW() and NOT_AFTER > NOW() GROUP BY KEY_SIZE, KEY_ALGORITHM ORDER BY count DESC;"
                 c.execute(command, [max_id])
             else:
                 ca_id = int(ca_id)
-                command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE id <= %s AND issuer_ca_id=%s AND x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC;"
+                command = "SELECT KEY_ALGORITHM, KEY_SIZE, count(*) AS count FROM certificate WHERE id <= %s AND issuer_ca_id=%s AND NOT_BEFORE <  NOW() and NOT_AFTER > NOW() GROUP BY KEY_SIZE, KEY_ALGORITHM ORDER BY count DESC;"
                 c.execute(command, [max_id, ca_id])
             
             result = []
@@ -189,11 +197,11 @@ def get_active_keysize_distribution(request, ca_id=None, id_from=None):
         
         else:
             if(ca_id == None):
-                command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE id > %s AND id <= %s AND x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC;"
+                command = "SELECT KEY_ALGORITHM, KEY_SIZE, count(*) AS count FROM certificate WHERE id > %s AND id <= %s AND NOT_BEFORE <  NOW() and NOT_AFTER > NOW() GROUP BY KEY_SIZE, KEY_ALGORITHM ORDER BY count DESC;"
                 c.execute(command, [int(id_from), max_id])
             else:
                 ca_id = int(ca_id)
-                command = "SELECT x509_keyAlgorithm(certificate) AS keyalgorithm, x509_keySize(certificate) AS keysize, count(*) AS count FROM certificate WHERE id > %s AND id <= %s AND issuer_ca_id=%s AND x509_notBefore(certificate) <  NOW() and x509_notAfter(certificate) > NOW() GROUP BY keysize, keyalgorithm ORDER BY count DESC;"
+                command = "SELECT KEY_ALGORITHM, KEY_SIZE, count(*) AS count FROM certificate WHERE id > %s AND id <= %s AND issuer_ca_id=%s AND NOT_BEFORE <  NOW() and NOT_AFTER > NOW() GROUP BY KEY_SIZE, KEY_ALGORITHM ORDER BY count DESC;"
                 c.execute(command, [int(id_from), max_id, ca_id])
             
             result = {}
@@ -211,7 +219,7 @@ def get_signature_algorithm_distribution(request, ca_id=None, id_from=None):
     max_id = None
     
     months = []
-    algorithms = ['SHA-1-RSA','SHA-256-RSA','SHA-256-ECDSA']
+    algorithms = ["sha1WithRSAEncryption", "sha256WithRSAEncryption", "ecdsa-with-SHA256"]
     
     with connection.cursor() as c:
         
@@ -225,11 +233,11 @@ def get_signature_algorithm_distribution(request, ca_id=None, id_from=None):
         if(aggregate):
 
             if(ca_id == None):
-                command = "SELECT date_trunc('month', x509_notBefore(certificate)) AS month, x509_signatureHashAlgorithm(certificate) AS signaturehashalgorithm, x509_signatureKeyAlgorithm(certificate) AS signaturekeyalgorithm, count(*) AS count FROM certificate WHERE id <= %s GROUP BY month, signaturehashalgorithm, signaturekeyalgorithm ORDER BY month ASC;"
+                command = "SELECT date_trunc('month', NOT_BEFORE) AS month, SIGNATURE_ALGORITHM, count(*) AS count FROM certificate WHERE id <= %s GROUP BY month, SIGNATURE_ALGORITHM ORDER BY month ASC;"
                 c.execute(command, [max_id])
             else:
                 ca_id = int(ca_id)
-                command = "SELECT date_trunc('month', x509_notBefore(certificate)) AS month, x509_signatureHashAlgorithm(certificate) AS signaturehashalgorithm, x509_signatureKeyAlgorithm(certificate) AS signaturekeyalgorithm, count(*) AS count FROM certificate WHERE id <= %s AND issuer_ca_id = %s GROUP BY month, signaturehashalgorithm, signaturekeyalgorithm ORDER BY month ASC;"
+                command = "SELECT date_trunc('month', NOT_BEFORE) AS month, SIGNATURE_ALGORITHM, count(*) AS count FROM certificate WHERE id <= %s AND issuer_ca_id = %s GROUP BY month, SIGNATURE_ALGORITHM ORDER BY month ASC;"
                 c.execute(command, [max_id, ca_id])
             
             table = {}
@@ -237,7 +245,7 @@ def get_signature_algorithm_distribution(request, ca_id=None, id_from=None):
                 month = row[0].strftime("%Y-%m")
                 if month not in table:
                     table[month] = []
-                table[month].append({"signaturealgorithm" : "{0}-{1}".format(row[1], row[2]), "count" : row[3]})
+                table[month].append({"signaturealgorithm" : row[1], "count" : row[2]})
 
             result = []
             
@@ -265,17 +273,17 @@ def get_signature_algorithm_distribution(request, ca_id=None, id_from=None):
         else:
             
             if(ca_id == None):
-                command = "SELECT date_trunc('month', x509_notBefore(certificate)) AS month, x509_signatureHashAlgorithm(certificate) AS signaturehashalgorithm, x509_signatureKeyAlgorithm(certificate) AS signaturekeyalgorithm, count(*) AS count FROM certificate WHERE id > %s AND id <= %s GROUP BY month, signaturehashalgorithm, signaturekeyalgorithm ORDER BY month ASC;"
+                command = "SELECT date_trunc('month', NOT_BEFORE) AS month, SIGNATURE_ALGORITHM, count(*) AS count FROM certificate WHERE id > %s AND id <= %s GROUP BY month, SIGNATURE_ALGORITHM ORDER BY month ASC;"
                 c.execute(command, [int(id_from), max_id])
             else:
                 ca_id = int(ca_id)
-                command = "SELECT date_trunc('month', x509_notBefore(certificate)) AS month, x509_signatureHashAlgorithm(certificate) AS signaturehashalgorithm, x509_signatureKeyAlgorithm(certificate) AS signaturekeyalgorithm, count(*) AS count FROM certificate WHERE id > %s AND id <= %s AND issuer_ca_id = %s GROUP BY month, signaturehashalgorithm, signaturekeyalgorithm ORDER BY month ASC;"
+                command = "SELECT date_trunc('month', NOT_BEFORE) AS month, SIGNATURE_ALGORITHM, count(*) AS count FROM certificate WHERE id > %s AND id <= %s AND issuer_ca_id = %s GROUP BY month, SIGNATURE_ALGORITHM ORDER BY month ASC;"
                 c.execute(command, [int(id_from), max_id, ca_id])
             
             result = {}
             for row in c.fetchall():
                 month = row[0].strftime("%Y-%m")
-                algo = "{0}-{1}".format(row[1], row[2])
+                algo = row[1]
                 
                 if algo not in result:
                     result[algo] = {}
@@ -283,7 +291,7 @@ def get_signature_algorithm_distribution(request, ca_id=None, id_from=None):
                 if month not in result[algo]:
                     result[algo][month] = 0
                 
-                result[algo][month] += row[3]
+                result[algo][month] += row[2]
                 
             
         return HttpResponse(json.dumps({'max_id':max_id, 'data':result, 'aggregated':aggregate}))
@@ -308,7 +316,16 @@ def get_ca_distribution(request, id_from=None):
             # do statistics between 0 and max_id;
             # aggregate cas with less than 50000 under 'other'
 
-            command = "SELECT date_trunc('month', x509_notBefore(crt.certificate)) AS month, crt.ISSUER_CA_ID, ca.NAME, count(crt.ISSUER_CA_ID) AS count FROM certificate crt JOIN ca ON crt.ISSUER_CA_ID = ca.id WHERE crt.id <= %s GROUP BY month, crt.ISSUER_CA_ID, ca.name ORDER BY month DESC";
+            command = """SELECT date_trunc('month', NOT_BEFORE) AS month, 
+                            crt.ISSUER_CA_ID, 
+                            ca.ORGANIZATION_NAME, 
+                            count(crt.ISSUER_CA_ID) AS count 
+                        FROM certificate crt JOIN ca ON crt.ISSUER_CA_ID = ca.id 
+                        WHERE crt.id <= %s 
+                        GROUP BY month, 
+                            crt.ISSUER_CA_ID, 
+                            ca.ORGANIZATION_NAME 
+                        ORDER BY month DESC""";
             c.execute(command, [max_id])
         
             table = {}
@@ -316,7 +333,7 @@ def get_ca_distribution(request, id_from=None):
                 month = row[0].strftime("%Y-%m")
                 if month not in table:
                     table[month] = {}
-                ca = normalize_ca_name(row[2].encode('utf-8'))
+                ca = row[2]
                 if(ca not in table[month]):
                     table[month][ca] = 0
                 table[month][ca] += row[3]
@@ -357,7 +374,7 @@ def get_ca_distribution(request, id_from=None):
             # do statistics between id_from and max_id;
             # do not aggregate 'others' at the end
 
-            command = "SELECT date_trunc('month', x509_notBefore(crt.certificate)) AS month, crt.ISSUER_CA_ID, ca.NAME, count(crt.ISSUER_CA_ID) AS count FROM certificate crt JOIN ca ON crt.ISSUER_CA_ID = ca.id WHERE crt.id > %s AND crt.id <= %s GROUP BY month, crt.ISSUER_CA_ID, ca.name ORDER BY month DESC;"
+            command = "SELECT date_trunc('month', NOT_BEFORE) AS month, crt.ISSUER_CA_ID, ca.ORGANIZATION_NAME, count(crt.ISSUER_CA_ID) AS count FROM certificate crt JOIN ca ON crt.ISSUER_CA_ID = ca.id WHERE crt.id > %s AND crt.id <= %s GROUP BY month, crt.ISSUER_CA_ID, ca.ORGANIZATION_NAME ORDER BY month DESC;"
             c.execute(command, [int(id_from), max_id])
             
             table = {}
@@ -365,7 +382,7 @@ def get_ca_distribution(request, id_from=None):
                 month = row[0].strftime("%Y-%m")
                 if month not in table:
                     table[month] = {}
-                ca = normalize_ca_name(row[2].encode('utf-8'))
+                ca = row[2]
                 if(ca not in table[month]):
                     table[month][ca] = 0
                 table[month][ca] += row[3]
@@ -388,16 +405,6 @@ def get_ca_distribution(request, id_from=None):
             
             
         return HttpResponse(json.dumps({'max_id':max_id, 'data':result, 'aggregated':aggregate}))
-
-def normalize_ca_name(ca_name):
-    m = re.search('O=(.*?)(,|$)', ca_name)
-    if(m != None):
-        ca_name = m.group(1).strip('"')
-    else:
-        m = re.search('O="(.*?)"(,|$)', ca_name)
-        if(m != None):
-            ca_name = m.group(1).strip('"')
-    return ca_name
 
 @cache_page(60*60*24)
 def get_all_cert_information(request):
@@ -436,19 +443,25 @@ def search_ca(request, term, offset=0):
     
     set_from = int(offset)
     set_to = set_from + limit + 1
-    found_ca = Ca.objects.filter(name__icontains=term)[set_from:set_to]
+    queryset = Ca.objects.filter(common_name__icontains=term)
+    queryset |= Ca.objects.filter(state_or_province_name__icontains=term)
+    queryset |= Ca.objects.filter(locality_name__icontains=term)
+    queryset |= Ca.objects.filter(organization_name__icontains=term)
+    queryset |= Ca.objects.filter(organizational_unit_name__icontains=term)
+    queryset |= Ca.objects.filter(email_address__icontains=term)
+    found_ca = queryset.order_by('id')[set_from:set_to]
     
     counter = 0
     for ca in found_ca:
         if(counter < limit):
             result["values"].append({
                 "ca_id":ca.id,
-                "c":ca.get_name_C(),
-                "cn":ca.get_name_CN(),
-                "l":ca.get_name_L(),
-                "o":ca.get_name_O(),
-                "ou":ca.get_name_OU(),
-                "st":ca.get_name_ST()
+                "c":ca.country_name,
+                "cn":ca.common_name,
+                "l":ca.locality_name,
+                "o":organization_name,
+                "ou":ca.organizational_unit_name,
+                "st":ca.state_or_province_name
             })
         else:
             has_more_data = True
@@ -463,7 +476,7 @@ def search_cn_dnsname(request, term, offset=0):
     result = {"limit":limit, "values":[]}
     has_more_data = False
     offset = int(offset)
-    found_cn_dnsname = Certificate.objects.raw("SELECT DISTINCT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID, x509_notBefore(CERTIFICATE) AS notBefore FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE (NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) OR (NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) ORDER BY notBefore DESC LIMIT %s OFFSET %s", [term, term, (limit+1), offset])
+    found_cn_dnsname = Certificate.objects.raw("SELECT DISTINCT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID, c.NOT_BEFORE FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE (NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) OR (NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) ORDER BY c.NOT_BEFORE DESC LIMIT %s OFFSET %s", [term, term, (limit+1), offset])
     
     counter = 0
     for cert in found_cn_dnsname:
@@ -472,10 +485,10 @@ def search_cn_dnsname(request, term, offset=0):
                 "cert_id":cert.id,
                 "cert_cn":cert.subject_common_name(),
                 "ca_id":cert.issuer_ca.id,
-                "ca_cn":cert.issuer_ca.get_name_CN(),
-                "cert_not_before":cert.not_before(),
-                "cert_status":"expired" if cert.has_expired() else "<b>active</b>",
-                "cert_not_after":cert.not_after()
+                "ca_cn":cert.issuer_ca.common_name,
+                "cert_not_before":cert.notbefore(),
+                "cert_status":"expired" if (cert.not_after < datetime.datetime.now()) else "<b>active</b>",
+                "cert_not_after":cert.notafter()
             })
         else:
             has_more_data = True
@@ -500,7 +513,7 @@ def search_certificate_by_fingerprint(request, fingerprint):
 def get_last_certificates_for_dnsname(request, term, limit=5):
     if limit > 20:
         limit = 20
-    found_cn_dnsname = Certificate.objects.raw("SELECT DISTINCT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID, x509_notBefore(CERTIFICATE) AS notBefore FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE (NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) OR (NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) ORDER BY notBefore DESC LIMIT %s", [term, term, limit])
+    found_cn_dnsname = Certificate.objects.raw("SELECT DISTINCT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID, c.NOT_BEFORE FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE (NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) OR (NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) ORDER BY NOT_BEFORE DESC LIMIT %s", [term, term, limit])
     print(term, limit, found_cn_dnsname)
     result = []
     for cert in found_cn_dnsname:
@@ -510,9 +523,9 @@ def get_last_certificates_for_dnsname(request, term, limit=5):
                 "cert_cn":cert.subject_common_name(),
                 "ca_id":cert.issuer_ca.id,
                 "ca_cn":cert.issuer_ca.get_name_CN(),
-                "cert_not_before":cert.not_before(),
+                "cert_not_before":cert.notbefore(),
                 "expired":cert.has_expired(),
-                "cert_not_after":cert.not_after()
+                "cert_not_after":cert.notafter()
             }
         )
     return HttpResponse(json.dumps(result))

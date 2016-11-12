@@ -62,7 +62,7 @@ services:
         - VIRTUAL_HOST=localhost
         - VIRTUAL_PORT=7801
     links:
-        - ctdatabase:ctdatabase
+        - ctdatabase2:ctdatabase
     ports:
         - 80:80
         - 443:443
@@ -76,10 +76,11 @@ services:
     environment:
         - POSTGRESHOST=ctdatabase
     links:
-        - ctdatabase:ctdatabase
+        - ctdatabase2:ctdatabase
         - elasticsearch:elasticsearch
         - ctobservatory:ctobservatory
-    command: python2 /analyzer/analyzer.py --pg=ctdatabase --es=elasticsearch --web=www.ct-observatory.org --t=60 -m -x -g
+#    command: python2 /analyzer/analyzer.py --pg=ctdatabase --es=elasticsearch --web=www.ct-observatory.org --t=60 -m -x -g
+    command: /analyzer/idle.sh
 
   ctmonitorp:
     build:

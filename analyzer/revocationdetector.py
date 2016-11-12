@@ -115,7 +115,7 @@ class RevocationDetector(threading.Thread):
         for certificate in certificates:
             self.revoke_counter += 1
             cursor.execute(
-                "SELECT c.id, (rc is null) as isNotLogged  from certificate c LEFT OUTER JOIN revoked_certificate rc on rc.certificate_id = c.id WHERE x509_serialNumber(c.CERTIFICATE) = %s",
+                "SELECT c.id, (rc is null) as isNotLogged  from certificate c LEFT OUTER JOIN revoked_certificate rc on rc.certificate_id = c.id WHERE c.SERIAL = %s",
                 ("\\x" + certificate.get_serial(),))
             if cursor.rowcount > 0:
                 self.found_in_database_counter += 1

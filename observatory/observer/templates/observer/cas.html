@@ -27,12 +27,12 @@
       {% for ca in list_of_ca %}
           <tr>
             <!--<td>#TODO</td>-->
-            <td><img src="/flag/{{ca.get_name_C}}" title="{{ca.get_name_C}}"/></td>
-            <td><a href="{% url 'observer:cadetail' ca.id %}">{{ ca.get_name_CN }}</a></td>
-            <td>{{ ca.get_name_L }}</td>
-            <td>{{ ca.get_name_O }}</td>
-            <td>{{ ca.get_name_OU }}</td>
-            <td>{{ ca.get_name_ST }}</td>
+            <td><img src="/flag/{{ca.country_name}}" title="{{ca.country_name}}"/></td>
+            <td><a href="{% url 'observer:cadetail' ca.id %}">{{ ca.common_name }}</a></td>
+            <td>{{ ca.locality_name }}</td>
+            <td>{{ ca.organization_name }}</td>
+            <td>{{ ca.organizational_unit_name }}</td>
+            <td>{{ ca.state_or_province_name }}</td>
             <!--<td>#TODO</td>-->
           </tr>
       {% endfor %}

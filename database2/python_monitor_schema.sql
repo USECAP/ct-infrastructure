@@ -34,6 +34,9 @@ CREATE TABLE certificate (
 	SHA256                  	text		NOT NULL,
 	NOT_BEFORE			timestamp,
 	NOT_AFTER			timestamp,
+	KEY_ALGORITHM			text,
+	KEY_SIZE			integer,
+	SIGNATURE_ALGORITHM		text,
 	
 	CONSTRAINT c_pk
 		PRIMARY KEY (ID),
@@ -96,7 +99,9 @@ CREATE TABLE ca_certificate (
 	CONSTRAINT cac_c_fk
 		FOREIGN KEY (CERTIFICATE_ID) REFERENCES certificate(ID),
 	CONSTRAINT cac_ca_fk
-		FOREIGN KEY (CA_ID) REFERENCES ca(ID)
+		FOREIGN KEY (CA_ID) REFERENCES ca(ID),
+	CONSTRAINT cac_unq
+		UNIQUE (CERTIFICATE_ID, CA_ID)
 );
 
 CREATE INDEX cac_ca_cert
@@ -225,4 +230,4 @@ INSERT INTO ct_log (url, name, public_key, operator, mmd_in_seconds, is_active) 
 INSERT INTO ct_log (url, name, public_key, operator, mmd_in_seconds, is_active) VALUES
     ('https://ctlog.api.venafi.com','Venafi log','MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAolpIHxdSlTXLo1s6H1OCdpSj/4DyHDc8wLG9wVmLqy1lk9fz4ATVmm+/1iN2Nk8jmctUKK2MFUtlWXZBSpym97M7frGlSaQXUWyA3CqQUEuIJOmlEjKTBEiQAvpfDjCHjlV2Be4qTM6jamkJbiWtgnYPhJL6ONaGTiSPm7Byy57iaz/hbckldSOIoRhYBiMzeNoA0DiRZ9KmfSeXZ1rB8y8X5urSW+iBzf2SaOfzBvDpcoTuAaWx2DPazoOl28fP1hZ+kHUYvxbcMjttjauCFx+JII0dmuZNIwjfeG/GBb9frpSX219k1O4Wi6OEbHEr8at/XQ0y7gTikOxBn/s5wQIDAQAB','Venafi',86400,true);
 INSERT INTO ct_log (url, name, public_key, operator, mmd_in_seconds, is_active) VALUES
-    ('https://ct.wosign.com','WoSign log','MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE1+wvK3VPN7yjQ7qLZWY8fWrlDCqmwuUm/gx9TnzwOrzi0yLcAdAfbkOcXG6DrZwV9sSNYLUdu6NiaX7rp6oBmw==','WoSign',86400,true);
+    ('https://ct.wosign.com','WoSign log','MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE1+wvK3VPN7yjQ7qLZWY8fWrlDCqmwuUm/gx9TnzwOrzi0yLcAdAfbkOcXG6DrZwV9sSNYLUdu6NiaX7rp6oBmw==','WoSign',86400,false);

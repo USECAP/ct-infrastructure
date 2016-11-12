@@ -10,53 +10,28 @@
 from __future__ import unicode_literals
 from OpenSSL import crypto
 from django.db import models
-from .managers import CertificateManager
 import re
 
+
 class Ca(models.Model):
-    name = models.TextField()
+    country_name = models.TextField(blank=True, null=True)
+    state_or_province_name = models.TextField(blank=True, null=True)
+    locality_name = models.TextField(blank=True, null=True)
+    organization_name = models.TextField(blank=True, null=True)
+    organizational_unit_name = models.TextField(blank=True, null=True)
+    common_name = models.TextField(blank=True, null=True)
+    email_address = models.TextField(blank=True, null=True)
     public_key = models.BinaryField()
-    brand = models.TextField(blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'ca'
-    
-    def get_name_info(self, identifier):
-        info = "-"
-        m = re.search('{0}=(.*?)(,|$)'.format(identifier), self.name)
-        if(m != None):
-            info = m.group(1)
-        else:
-            m = re.search('{0}="(.*?)"(,|$)'.format(identifier), self.name)
-            if(m != None):
-                info = m.group(1)
-        return info
-    
-    def get_name_C(self):
-        return self.get_name_info("C")
-    
-    def get_name_CN(self):
-        return self.get_name_info("CN")
-    
-    def get_name_L(self):
-        return self.get_name_info("L")
-    
-    def get_name_O(self):
-        return self.get_name_info("O")
-    
-    def get_name_OU(self):
-        return self.get_name_info("OU")
-    
-    def get_name_ST(self):
-        return self.get_name_info("ST")
-    
-    def get_name_emailAddress(self):
-        return self.get_name_info("emailAddress")
+        unique_together = (('common_name', 'public_key'),)
+
 
 class CaCertificate(models.Model):
-    certificate = models.ForeignKey('Certificate')
-    ca = models.ForeignKey(Ca, blank=True, null=True)
+    certificate = models.ForeignKey('Certificate', models.DO_NOTHING, blank=True, null=True)
+    ca = models.ForeignKey(Ca, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -65,9 +40,12 @@ class CaCertificate(models.Model):
 
 class Certificate(models.Model):
     certificate = models.BinaryField()
-    issuer_ca = models.ForeignKey(Ca)
-    objects = CertificateManager()
-    expired = models.BooleanField(default=False)
+    issuer_ca = models.ForeignKey(Ca, models.DO_NOTHING)
+    serial = models.BinaryField()
+    sha256 = models.TextField(unique=True)
+    not_before = models.DateTimeField(blank=True, null=True)
+    not_after = models.DateTimeField(blank=True, null=True)
+
     class Meta:
         managed = False
         db_table = 'certificate'
@@ -79,8 +57,8 @@ class Certificate(models.Model):
         data.append(('pubkey_type', self.pubkey_type(cert)))
         data.append(('serial_number', cert.get_serial_number()))
         data.append(('signature_algorithm', self.signature_algorithm(cert)))
-        data.append(('notBefore', self.not_before(cert)))
-        data.append(('notAfter', self.not_after(cert)))
+        data.append(('notBefore', self.notbefore(cert)))
+        data.append(('notAfter', self.notafter(cert)))
         data.append(('has_expired', self.has_expired(cert)))
         data.append(('digest_md5', cert.digest('md5'.encode('ascii','ignore'))))
         data.append(('digest_sha1', cert.digest('sha1'.encode('ascii','ignore'))))
@@ -97,14 +75,14 @@ class Certificate(models.Model):
             cert = self.get_x509_data()
         return cert.get_signature_algorithm()
     
-    def not_before(self, cert=None):
+    def notbefore(self, cert=None):
         if(cert == None):
             cert = self.get_x509_data()
         date = cert.get_notBefore()
         datestring = "{year}-{month}-{day} {hour}:{minute}:{seconds}".format(year=date[:4], month=date[4:6], day=date[6:8], hour=date[8:10], minute=date[10:12], seconds=date[12:14])
         return datestring
     
-    def not_after(self, cert=None):
+    def notafter(self, cert=None):
         if(cert == None):
             cert = self.get_x509_data()
         date = cert.get_notAfter()
@@ -184,15 +162,16 @@ class Certificate(models.Model):
     def get_x509_data(self):
         return crypto.load_certificate(crypto.FILETYPE_ASN1, str(self.certificate))
 
+
 class CertificateIdentity(models.Model):
-    certificate = models.ForeignKey(Certificate)
+    certificate = models.ForeignKey(Certificate, models.DO_NOTHING)
     name_type = models.TextField()  # This field type is a guess.
     name_value = models.TextField()
-    issuer_ca = models.ForeignKey(Ca, blank=True, null=True)
-
+    
     class Meta:
         managed = False
         db_table = 'certificate_identity'
+
 
 class CtLog(models.Model):
     url = models.TextField(unique=True, blank=True, null=True)
@@ -201,11 +180,9 @@ class CtLog(models.Model):
     latest_entry_id = models.IntegerField(blank=True, null=True)
     latest_update = models.DateTimeField(blank=True, null=True)
     operator = models.TextField(blank=True, null=True)
-    included_in_chrome = models.IntegerField(blank=True, null=True)
     is_active = models.NullBooleanField()
     latest_sth_timestamp = models.DateTimeField(blank=True, null=True)
     mmd_in_seconds = models.IntegerField(blank=True, null=True)
-    chrome_issue_number = models.IntegerField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -213,29 +190,31 @@ class CtLog(models.Model):
 
 
 class CtLogEntry(models.Model):
-    certificate = models.ForeignKey(Certificate)
-    ct_log = models.ForeignKey(CtLog)
-    entry_id = models.IntegerField()
+    certificate = models.ForeignKey('Certificate', models.DO_NOTHING, blank=True, null=True)
+    ct_log = models.ForeignKey('CtLog', models.DO_NOTHING, blank=True, null=True)
+    entry_id = models.IntegerField(blank=True, null=True)
     entry_timestamp = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'ct_log_entry'
+        unique_together = (('certificate', 'ct_log', 'entry_id'),)
 
-class InvalidCertificate(models.Model):
-    certificate = models.ForeignKey(Certificate)
-    problems = models.TextField(blank=True, null=True)
-    certificate_as_logged = models.BinaryField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'invalid_certificate'
 
 class RevokedCertificate(models.Model):
-    certificate = models.ForeignKey(Certificate)
+    certificate = models.ForeignKey('Certificate', models.DO_NOTHING, blank=True, null=True)
     date = models.DateTimeField(blank=True, null=True)
     reason = models.TextField(blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'revoked_certificate'
+
+
+class Metadata(models.Model):
+    name_type = models.TextField(unique=True, blank=True, null=True)
+    name_value = models.IntegerField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'metadata'

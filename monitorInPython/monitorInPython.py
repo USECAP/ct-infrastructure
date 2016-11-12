@@ -97,12 +97,12 @@ class _LocalDatabase:
         requestedEntries = []
         
         sthOfLogServer = self.requestSTHOfLogServer(logServerEntry)
-        logging.debug("Log tree size: ".format(sthOfLogServer.treeSize if sthOfLogServer is not None else "None"))
+        logging.debug("Log tree size: {}".format(sthOfLogServer.treeSize if sthOfLogServer is not None else "None"))
 
         if self.certsAreMissing(logServerEntry, sthOfLogServer): #returns false if sthOfLogServer is None
             requestURL = (logServerEntry.url + "/ct/v1/get-entries?start=" +
                             str(logServerEntry.latest_entry_id + 1) + "&end=" +
-                            str(min(logServerEntry.latest_entry_id + 1001, sthOfLogServer.treeSize-1)))
+                            str(min(logServerEntry.latest_entry_id + 1000, sthOfLogServer.treeSize-1)))
             metadata = {'ct_log_id':logServerEntry.ct_log_id, 'first_entry_id':logServerEntry.latest_entry_id + 1}
             requestedEntries = self.requestEntries(requestURL, metadata)
 
@@ -220,7 +220,10 @@ class _LocalDatabase:
             commonName = subject.commonName
             
             if commonName == None:
-                commonName = "None"
+                if subject.organizationName:
+                    commonName = "[{}]".format(subject.organizationName)
+                else:
+                    commonName = "(None)"
             public_key = certificate.certificate.get_pubkey().to_cryptography_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
             
             logging.debug("inserting new CA '{}' into CA table".format(commonName))
@@ -250,9 +253,11 @@ class _LocalDatabase:
             cert_id = self.insertCertificate(certificate, last_ca_id)
         
             if(cert_id != None):
-                sqlQuery = "INSERT INTO ca_certificate (CERTIFICATE_ID, CA_ID) VALUES (%s, %s)"
-                sqlData = (cert_id, last_ca_id)
+                sqlQuery = "INSERT INTO ca_certificate (CERTIFICATE_ID, CA_ID) VALUES (%s, %s) ON CONFLICT(CERTIFICATE_ID, CA_ID) DO NOTHING"
+                sqlData = (cert_id, new_ca_id)
                 self.cursor.execute(sqlQuery, sqlData)
+            else:
+                logging.error("Could not insert entry into ca_certificate without cert_id")
             
             last_ca_id = new_ca_id
             
@@ -299,11 +304,11 @@ class _LocalDatabase:
         logging.debug("Inserting certificate ({})".format(certificate.sha256))
         #try:
         serial = certificate.serial.to_bytes((certificate.serial.bit_length() + 15) // 8, 'big', signed=True) or b'\0'
-        sqlQuery = "INSERT INTO certificate (CERTIFICATE, ISSUER_CA_ID, SERIAL, SHA256, NOT_BEFORE, NOT_AFTER) \
-                        VALUES (%s, %s, %s, %s, %s, %s) \
+        sqlQuery = "INSERT INTO certificate (CERTIFICATE, ISSUER_CA_ID, SERIAL, SHA256, NOT_BEFORE, NOT_AFTER, KEY_ALGORITHM, KEY_SIZE, SIGNATURE_ALGORITHM) \
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) \
                         ON CONFLICT (SHA256) DO UPDATE SET SHA256=certificate.SHA256 \
                         RETURNING ID"
-        sqlData = (psycopg2.Binary(certificate.certificateBinary), ca_id, serial, certificate.sha256, certificate.notBefore, certificate.notAfter)
+        sqlData = (psycopg2.Binary(certificate.certificateBinary), ca_id, serial, certificate.sha256, certificate.notBefore, certificate.notAfter, certificate.keyAlgorithm, certificate.keySize, certificate.signatureAlgorithm)
         self.cursor.execute(sqlQuery, sqlData)
         cert_id = self.cursor.fetchone()[0]
         
@@ -466,6 +471,10 @@ class _Certificate:
         self.notBefore = parser.parse(self.certificate.get_notBefore())
         self.serial = self.certificate.get_serial_number()
         self.sha256 = binascii.unhexlify(self.certificate.digest('sha256').replace(b':',b''))
+        cryptokey = self.certificate.get_pubkey().to_cryptography_key()
+        self.keyAlgorithm = self.getAlgorithmFromKey(cryptokey)
+        self.keySize = cryptokey.key_size if hasattr(cryptokey, 'key_size') else None
+        self.signatureAlgorithm = self.certificate.get_signature_algorithm().decode('utf-8')
         self.dnsNames = self.extractDnsNames()
         
     def extractDnsNames(self):
@@ -484,6 +493,16 @@ class _Certificate:
                         dnsnames.append(name)
                 return dnsnames
         return []
+    
+    def getAlgorithmFromKey(self, key):
+        mappings = {'_RSAPublicKey':'RSA','_EllipticCurvePublicKey':'EC','_DSAPublicKey':'DSA'}
+        if not key:
+            return None
+        class_as_string = str(key.__class__.__name__)
+        if class_as_string in mappings:
+            return mappings[class_as_string]
+        else:
+            return class_as_string
 
 
 

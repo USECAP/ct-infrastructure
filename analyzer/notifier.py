@@ -71,7 +71,7 @@ class Notifier(threading.Thread):
                     new_certificates[name] = []
                 if(notify_for in (0,2)): #CN
                     self.logger.debug("Searching for CN={0}".format(name))
-                    cursor.execute("SELECT id, certificate FROM certificate WHERE id >  %(min_id)s AND id <= %(max_id)s AND x509_commonName(certificate) = %(cn)s", {'cn':name, 'min_id':min_id, 'max_id':max_id})
+                    cursor.execute("SELECT c.id, c.certificate FROM certificate c JOIN certificate_identity ci ON c.ID = ci.CERTIFICATE_ID WHERE c.ID >  %(min_id)s AND c.ID <= %(max_id)s AND ci.NAME_TYPE = 'commonName' AND reverse(lower(ci.NAME_VALUE)) = reverse(lower(%(cn)s))", {'cn':name, 'min_id':min_id, 'max_id':max_id})
                     
                     for cert_id, certificate in cursor:
                         new_certificates[name].append((cert_id, certificate))
@@ -124,7 +124,8 @@ class Notifier(threading.Thread):
             #self.logger.debug((notify,"JAAA"))
         
         self.logger.debug("Setting notifier_last_cert_id={0}".format(max_id))
-        cursor.execute("UPDATE certificate_analysis SET value=%(max_id)s where type='notifier_last_cert_id'", {'max_id':max_id})
+        #cursor.execute("UPDATE certificate_analysis SET value=%(max_id)s where type='notifier_last_cert_id'", {'max_id':max_id})
+        #TODO
 
         self.db.commit()
 
