@@ -459,7 +459,7 @@ def search_ca(request, term, offset=0):
                 "c":ca.country_name,
                 "cn":ca.common_name,
                 "l":ca.locality_name,
-                "o":organization_name,
+                "o":ca.organization_name,
                 "ou":ca.organizational_unit_name,
                 "st":ca.state_or_province_name
             })
