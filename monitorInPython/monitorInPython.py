@@ -8,6 +8,8 @@ import argparse
 import re
 import binascii
 import datetime
+import queue
+import threading
 from dateutil import parser
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
@@ -58,13 +60,26 @@ class _LocalDatabase:
 
 
     def retrieveNewLogEntries(self):
-        newLogEntries = []
+        newLogEntriesQ = queue.Queue()
+        threads = []
         activeLogServers = self.getActiveLogServers()
 
         for activeLogServer in activeLogServers:
             logging.debug("Querying {}...".format(activeLogServer.url))
-            newLogEntries += self.requestNewEntriesFromServer(activeLogServer)
 
+            t = EntryFromLogserverRetrievalThread(self, activeLogServer, newLogEntriesQ)
+            t.start()
+            threads.append(t)
+
+        # wait for all threads to finish (join order does not matter)
+        for t in threads:
+            t.join()
+        
+        # create a huge list from the elements in the queue
+        newLogEntries = []
+        while not newLogEntriesQ.empty():
+            newLogEntries += newLogEntriesQ.get()
+        
         return newLogEntries
 
 
@@ -228,18 +243,21 @@ class _LocalDatabase:
             
             logging.debug("inserting new CA '{}' into CA table".format(commonName))
 
-            sqlQuery = "INSERT INTO ca(COUNTRY_NAME, \
-            STATE_OR_PROVINCE_NAME, \
-            LOCALITY_NAME, \
-            ORGANIZATION_NAME, \
-            ORGANIZATIONAL_UNIT_NAME, \
-            COMMON_NAME, \
-            EMAIL_ADDRESS, \
-            PUBLIC_KEY) \
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) \
-            ON CONFLICT(COMMON_NAME,PUBLIC_KEY) DO UPDATE SET COMMON_NAME=ca.COMMON_NAME \
-            RETURNING ID"
-            sqlData = (subject.countryName, subject.stateOrProvinceName, subject.localityName, subject.organizationName, subject.organizationalUnitName, commonName, subject.emailAddress, psycopg2.Binary(public_key))
+            sqlQuery = """INSERT INTO ca(COUNTRY_NAME, 
+                STATE_OR_PROVINCE_NAME, 
+                LOCALITY_NAME, 
+                ORGANIZATION_NAME, 
+                ORGANIZATIONAL_UNIT_NAME, 
+                COMMON_NAME, 
+                EMAIL_ADDRESS, 
+                PUBLIC_KEY) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) 
+            ON CONFLICT(COMMON_NAME,PUBLIC_KEY) DO UPDATE SET COMMON_NAME=ca.COMMON_NAME 
+            RETURNING ID"""
+            sqlData = (subject.countryName, subject.stateOrProvinceName, 
+                       subject.localityName, subject.organizationName, 
+                       subject.organizationalUnitName, commonName, 
+                       subject.emailAddress, psycopg2.Binary(public_key))
             
             self.cursor.execute(sqlQuery, sqlData)
             new_ca_id = self.cursor.fetchone()[0]
@@ -594,6 +612,20 @@ class _ExtraData:
 
             self.certificateChain.append(currCert)
 
+class EntryFromLogserverRetrievalThread(threading.Thread):
+    def __init__(self, database, logServerEntry, output_queue):
+        threading.Thread.__init__(self)
+        self.database = database
+        self.logServerEntry = logServerEntry
+        self.output_queue = output_queue
+    
+    def getLogServerEntry(self):
+        return self.logServerEntry
+    
+    def run(self):
+        entries = database.requestNewEntriesFromServer(self.logServerEntry)
+        self.output_queue.put(entries)
+                
 
 
 
