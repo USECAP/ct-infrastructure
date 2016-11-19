@@ -29,9 +29,9 @@ class Notifier(threading.Thread):
         
     def initialize(self):
         cursor = self.db.cursor()
-        cursor.execute("SELECT value from certificate_analysis where type='notifier_last_cert_id'")
+        cursor.execute("SELECT NAME_VALUE from metadata where NAME_TYPE='notifier_last_cert_id'")
         if len(cursor.fetchall()) == 0:
-            cursor.execute("INSERT INTO certificate_analysis (type,value) VALUES ('notifier_last_cert_id',(SELECT max(id) from certificate))")
+            cursor.execute("INSERT INTO metadata (NAME_TYPE,NAME_VALUE) VALUES ('notifier_last_cert_id',(SELECT max(id) from certificate))")
 
     def notify(self):
         cursor = self.db.cursor()
@@ -41,12 +41,17 @@ class Notifier(threading.Thread):
 
         #cursor.execute("select CASE when ne.notify_for=0 or (ne.notify_for=1 and ci.name_type='dNSName') or (ne.notify_for=2 and ci.name_type='commonName') then true else false end as notify,  ne.email, ndn.name, ci.name_type, ca.name, x509_notBefore(c.certificate)  from notification_email ne inner join notification_dns_names ndn on ne.notification_dns_names_id = ndn.id inner join certificate_identity ci on ndn.name=ci.name_value and (ci.name_type='commonName' or ci.name_type='dNSName') inner join certificate c on ci.certificate_id = c.id inner join ca on ci.issuer_ca_id = ca.id WHERE ne.validated AND ne.active AND c.id > (SELECT value from certificate_analysis where type='notifier_last_cert_id'); ")
         
-        cursor.execute("SELECT value FROM certificate_analysis WHERE type='notifier_last_cert_id'")
+        min_id = 0
+        max_id = 0        
+        
+        cursor.execute("SELECT NAME_VALUE FROM metadata WHERE NAME_TYPE='notifier_last_cert_id'")
         retval = cursor.fetchone()
-        min_id = retval[0]
+        if(retval):
+            min_id = retval[0]
         cursor.execute("SELECT max(id) FROM certificate")
         retval = cursor.fetchone()
-        max_id = retval[0]
+        if(retval):
+            max_id = retval[0]
         self.logger.debug("Examining certificates with {0} < id <= {1}".format(min_id, max_id))
         
         notifications = {}
@@ -124,7 +129,7 @@ class Notifier(threading.Thread):
             #self.logger.debug((notify,"JAAA"))
         
         self.logger.debug("Setting notifier_last_cert_id={0}".format(max_id))
-        #cursor.execute("UPDATE certificate_analysis SET value=%(max_id)s where type='notifier_last_cert_id'", {'max_id':max_id})
+        cursor.execute("UPDATE metadata SET NAME_VALUE=%(max_id)s where NAME_TYPE='notifier_last_cert_id'", {'max_id':max_id})
         #TODO
 
         self.db.commit()
