@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load humanize %}
 
 {% block title %}Welcome to our CT Observatory{% endblock %}
 
@@ -19,13 +20,13 @@
                         Certificates seen
                     </div>
                     <div class="card-block text-lg-center">
-                        <h4 class="card-title">{{ total_certs }}</h4>
+                        <h4 class="card-title">{{ total_certs | intcomma}}</h4>
                     </div>
                     <div class="card-footer">
                         <div class="col-xs-12"><a href="{% url 'observer:certactive' %}"><span
-                                class="tag tag-pill tag-success btn-block">{{ active_certs }} active</span></a></div>
+                                class="tag tag-pill tag-success btn-block">{{ active_certs | intcomma}} active</span></a></div>
                         <div class="col-xs-12"><a href="{% url 'observer:certexpired' %}"><span
-                                class="tag tag-pill tag-default btn-block">{{ expired_certs }} expired</span></a></div>
+                                class="tag tag-pill tag-default btn-block">{{ expired_certs | intcomma}} expired</span></a></div>
                     </div>
                 </div>
             </div>
@@ -35,11 +36,11 @@
                         Certificate Authorities found
                     </div>
                     <div class="card-block text-lg-center">
-                        <h4 class="card-title">{{ total_ca }}</h4>
+                        <h4 class="card-title">{{ total_ca | intcomma}}</h4>
                     </div>
                     <div class="card-footer">
                         <div class="col-xs-12"><a href="{% url 'observer:caall' %}"><span
-                                class="tag tag-pill tag-success btn-block">{{ behaving_cas }} correctly operating</span></a>
+                                class="tag tag-pill tag-success btn-block">Have a look</span></a>
                         </div>
                         <div class="col-xs-12">&nbsp;</div>
                     </div>
@@ -56,7 +57,7 @@
                     </div>
                     <div class="card-footer">
                         <div class="col-xs-12"><span class="btn-block">Biggest Log: <br/> <a
-                                href="{% url 'observer:log' %}">Google Pilot</a> ({{ biggest_log }} certificates)</span>
+                                href="{% url 'observer:log' %}">Google Pilot</a> ({{ biggest_log | intcomma}} certificates)</span>
                         </div>
                     </div>
                 </div>
