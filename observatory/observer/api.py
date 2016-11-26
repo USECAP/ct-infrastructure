@@ -23,21 +23,21 @@ def getcas(request):
             name=ca.name.replace('"','\''),
             certcount=str(ca.certcount),
             parent=str(CaCertificate.objects.filter(ca_id=ca.id).exclude(certificate__issuer_ca_id=ca.id).values_list('certificate__issuer_ca_id', flat=True)),
-            C=ca.get_name_C(),
-            CN=ca.get_name_CN().replace('"','\''),
-            L=ca.get_name_L().replace('"','\''),
-            O=ca.get_name_O().replace('"','\''),
-            OU=ca.get_name_OU().replace('"','\''),
-            ST=ca.get_name_ST().replace('"','\''))
+            C=ca.country_name,
+            CN=ca.common_name.replace('"','\''),
+            L=ca.locality_name.replace('"','\''),
+            O=ca.organization_name.replace('"','\''),
+            OU=ca.organizational_unit_name.replace('"','\''),
+            ST=ca.state_or_province_name.replace('"','\''))
 
     return HttpResponse(output[:-1]+"]")
 
 def get_ca_info(request,id):
     children = []
     for child_ca_cert in CaCertificate.objects.filter(certificate__issuer_ca_id=id).exclude(ca_id=id) :
-        children.append({"id": child_ca_cert.ca_id,"name":child_ca_cert.ca.get_name_CN(), "children": len(CaCertificate.objects.filter(certificate__issuer_ca_id=child_ca_cert.ca_id).exclude(ca_id=child_ca_cert.ca_id))})
+        children.append({"id": child_ca_cert.ca_id,"name":child_ca_cert.ca.common_name, "children": len(CaCertificate.objects.filter(certificate__issuer_ca_id=child_ca_cert.ca_id).exclude(ca_id=child_ca_cert.ca_id))})
     print(str(children))
-    return HttpResponse(json.dumps({"id":id, "name":Ca.objects.get(id=id).get_name_CN(), "children": list(children)}))
+    return HttpResponse(json.dumps({"id":id, "name":Ca.objects.get(id=id).common_name, "children": list(children)}))
 
 def get_certificate_chain(request,cert_id):
     cert_id = int(cert_id)
@@ -123,12 +123,12 @@ def getcaspage(request, page):
             id=str(ca.id),
             name=ca.name.replace('"','\''),
             certcount=str(ca.certcount), parent=str(CaCertificate.objects.filter(ca_id=ca.id).exclude(certificate__issuer_ca_id=ca.id).values_list('certificate__issuer_ca_id', flat=True)),
-            C=ca.get_name_C(),
-            CN=ca.get_name_CN().replace('"','\''),
-            L=ca.get_name_L().replace('"','\''),
-            O=ca.get_name_O().replace('"','\''),
-            OU=ca.get_name_OU().replace('"','\''),
-            ST=ca.get_name_ST().replace('"','\''))
+            C=ca.country_name,
+            CN=ca.common_name.replace('"','\''),
+            L=ca.locality_name.replace('"','\''),
+            O=ca.organization_name.replace('"','\''),
+            OU=ca.organizational_unit_name.replace('"','\''),
+            ST=ca.state_or_province_name.replace('"','\''))
 
     return HttpResponse(output[:-1]+"]")
 
@@ -522,7 +522,7 @@ def get_last_certificates_for_dnsname(request, term, limit=5):
                 "cert_id":cert.id,
                 "cert_cn":cert.subject_common_name(),
                 "ca_id":cert.issuer_ca.id,
-                "ca_cn":cert.issuer_ca.get_name_CN(),
+                "ca_cn":cert.issuer_ca.common_name,
                 "cert_not_before":cert.notbefore(),
                 "expired":cert.has_expired(),
                 "cert_not_after":cert.notafter()

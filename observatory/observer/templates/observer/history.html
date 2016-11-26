@@ -80,7 +80,7 @@
             <td>{{ cert.not_before }}</td>
             <td>{% if cert.has_expired %} expired {% else %} <b>active</b> {% endif %}</td>
             <td>{{ cert.not_after }}</td>
-            <td><a href="{% url 'observer:cadetail' cert.issuer_ca.id %}">{{ cert.issuer_ca.get_name_CN }}</a></td>
+            <td><a href="{% url 'observer:cadetail' cert.issuer_ca.id %}">{{ cert.issuer_ca.common_name }}</a></td>
             <td>{% if cert.id in issues %}
             {% for issue in issues|get_item:cert.id %}{{issue}}{% if not forloop.last %}<br>{% endif %}{% endfor %}
             {% endif %}</td>
