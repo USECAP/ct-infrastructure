@@ -363,7 +363,7 @@ class _LocalDatabase:
         if(subject.emailAddress != None):
             sqlData.append((cert_id, 'emailAddress', subject.emailAddress))
         for dnsname in certificate.dnsNames:
-            sqlData.append((cert_id, 'dnsName', dnsname))
+            sqlData.append((cert_id, 'dNSName', dnsname))
 
         self.cursor.executemany(sqlQuery, sqlData)
         
@@ -500,16 +500,19 @@ class _Certificate:
         for i in range(self.certificate.get_extension_count()):
             extension = self.certificate.get_extension(i)
             short_name = extension.get_short_name()
-            if(short_name == "subjectAltName"):
+            if(short_name == b"subjectAltName"):
                 # then we extract the dnsnames from the string representation
                 # why? Because it's the easiest way to do it.
                 dnsnames = []
-                for line in str(extension).split(","):
-                    m = re.search('DNS:(.+)$',line)
-                    if m: 
-                        name = m.group(1)
-                        dnsnames.append(name)
-                return dnsnames
+                try:
+                    for line in str(extension).split(","):
+                        m = re.search('DNS:(.+)$',line)
+                        if m: 
+                            name = m.group(1)
+                            dnsnames.append(name)
+                    return dnsnames
+                except UnicodeDecodeError:
+                    return ['__UnicodeDecodeError__']
         return []
     
     def getAlgorithmFromKey(self, key):

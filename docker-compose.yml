@@ -2,53 +2,32 @@ version: '2'
 
 services:
 
-  elasticsearch:
-    image: elasticsearch:latest
-    volumes:
-        - /mnt/data/ct-infrastructure/elasticsearch/data:/usr/share/elasticsearch/data
-    ports:
-        - 9200:9200
-        - 9300:9300
+  #elasticsearch:
+    #image: elasticsearch:latest
+    #volumes:
+        #- /mnt/data/ct-infrastructure/elasticsearch/data:/usr/share/elasticsearch/data
+    #ports:
+        #- 9200:9200
+        #- 9300:9300
 
-  kibana:
-    image: kibana:latest
-    links:
-        - elasticsearch:elasticsearch
-    ports:
-        - 5601:5601
+  #kibana:
+    #image: kibana:latest
+    #links:
+        #- elasticsearch:elasticsearch
+    #ports:
+        #- 5601:5601
 
   ctdatabase:
     restart: always
-    build:
+    build: 
       context: .
       dockerfile: database/Dockerfile
     entrypoint: /config.sh
     volumes:
-        - /mnt/data/ct-infrastructure/ct-monitor/data:/var/lib/postgresql/data
-    ports:
-        - 5432:5432
-    command: postgres
-
-  ctdatabase2:
-    restart: always
-    build: 
-      context: .
-      dockerfile: database2/Dockerfile
-    entrypoint: /config.sh
-    volumes:
-        - /mnt/data/ct-infrastructure/ct-monitor/data2:/var/lib/postgresql/data
+        - /mnt/data/ct-infrastructure/ctdatabase:/var/lib/postgresql/data
     ports:
         - 5433:5432
     command: postgres
-
-  ctmonitor:
-    restart: always
-    build:
-      context: .
-      dockerfile: monitor/Dockerfile
-    links:
-        - ctdatabase:ctdatabase
-    command: ./ct-monitor 1
 
   ctobservatory:
     restart: always
@@ -56,13 +35,13 @@ services:
       context: .
       dockerfile: observatory/Dockerfile
     volumes:
-        - /mnt/data/ct-infrastructure/ct-monitor/misc:/static/data
+        - /mnt/data/ct-infrastructure/misc:/static/data
     environment:
         - POSTGRESHOST=ctdatabase
         - VIRTUAL_HOST=localhost
         - VIRTUAL_PORT=7801
     links:
-        - ctdatabase2:ctdatabase
+        - ctdatabase:ctdatabase
     ports:
         - 80:80
         - 443:443
@@ -72,25 +51,25 @@ services:
       context: .
       dockerfile: analyzer/Dockerfile
     volumes:
-        - /mnt/data/ct-infrastructure/ct-monitor/misc:/data
+        - /mnt/data/ct-infrastructure/misc:/data
     environment:
         - POSTGRESHOST=ctdatabase
     links:
-        - ctdatabase2:ctdatabase
-        - elasticsearch:elasticsearch
+        - ctdatabase:ctdatabase
+        #- elasticsearch:elasticsearch
         - ctobservatory:ctobservatory
 #    command: python2 /analyzer/analyzer.py --pg=ctdatabase --es=elasticsearch --web=www.ct-observatory.org --t=60 -m -x -g
     command: /analyzer/idle.sh
 
-  ctmonitorp:
+  ctmonitor:
     build:
       context: .
-      dockerfile: monitorInPython/Dockerfile
+      dockerfile: monitor/Dockerfile
     volumes:
-        - /mnt/data/ct-infrastructure/ct-monitor/misc:/data
+        - /mnt/data/ct-infrastructure/misc:/data
     environment:
         - POSTGRESHOST=ctdatabase
     links:
-        - ctdatabase2:ctdatabase
+        - ctdatabase:ctdatabase
 #    command: python3 /monitor/monitorInPython.py --dbhost=ctdatabase
     command: /monitor/idle.sh
