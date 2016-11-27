@@ -329,3 +329,6 @@ def flag(request, flag_id):
 
 def imprint(request):
     return render(request, 'observer/imprint.html')
+    
+def issues(request):
+    return render(request, 'observer/issues.html')

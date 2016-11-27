@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Issues{% endblock %}
+
+{% block style %}
+h5 {
+	margin-top: 1em;
+}
+{% endblock %}
+
+{% block content %}
+
+<h2 id="top">Issues</h2>
+
+The timeline view for common names (CN) and certificate subject alt names (dNSName) contains a column called "Remarks". 
+We examine the chronologically ordered list of certificates for the selected common name or dnsname and identify remarkable points in the history, such as the first certificate or a CA switch.
+
+<h5>ctobs.issues.first_cert</h5>
+
+Denotes the first known certificate(s) for the selected CN/dNSName based on the notBefore validity timestamp. If multiple certificates share the same timestamp, all are marked as <i>first_cert</i>.
+
+<h5>ctobs.issues.ca_switch</h5>
+
+A certificate which is signed by a different CA than its predecessor in the ordered list is labeled with <i>ca_switch</i>. If multiple certificates share the same timestamp, only the first in the list is labeled.
+
+<h5>ctobs.issues.weaker_crypto_algorithm</h5>
+
+The label <i>weaker_crypto_algorithm</i> is added if a certificate uses a weaker signature algorithm than its predecessor in the ordered list. Internally, signature algorithms are awarded a score which very roughly represents their cryptographic strength. If the score is lower, the label is added. If no score is defined for a signature algorithm, no comparison is executed, and no label is being added.
+
+For a detailed view on the scores for the known signature algorithms, please refer to the <a href="https://github.com/USECAP/ct-infrastructure/blob/master/observatory/observer/issuefinder.py">source</a>.
+
+
+<h5>ctobs.issues.weaker_crypto_keysize</h5>
+
+The label <i>weaker_crypto_keysize</i> is added if compared to its predecessor in the ordered list, a certificate uses an equally strong signature algorithm but with a smaller key size. Note that this currently may lead to false positives, as elliptic curve key sizes may be a lot smaller than RSA key sizes with the same strength.
+
+For a detailed view on the scores for the known signature algorithms, please refer to the <a href="https://github.com/USECAP/ct-infrastructure/blob/master/observatory/observer/issuefinder.py">source</a>.
+
+<h5>ctobs.issues.early_renewal</h5>
+
+A renewed certificate is labeled with <i>early_renewal</i> when its notBefore date lies before the middle of the validity period of the previously valid certificates, and without changes to the CN, the set of DNSNames, the signature algorithm or the keysize.
+
+<h5>ctobs.issues.short_validity</h5>
+
+A certificate is labeled with <i>short_validity</i> if its validity period is rather short compared to its predecessors in the list.  
+
+Please refer to the <a href="https://github.com/USECAP/ct-infrastructure/blob/master/observatory/observer/issuefinder.py">source</a> for a concrete definition of the "rather short" part. Suggestions for better criteria are welcome as well.
+
+<h5>ctobs.issues.long_validity</h5>
+
+A certificate is labeled with <i>long_validity</i> if its validity period is rather long compared to its predecessors in the list.  
+
+Please refer to the <a href="https://github.com/USECAP/ct-infrastructure/blob/master/observatory/observer/issuefinder.py">source</a> for a concrete definition of the "rather long" part. Suggestions for better criteria are welcome as well.
+
+
+{% endblock %}
+
+{% block scripts %}
+{% endblock %}
