@@ -179,7 +179,7 @@ class Diagramdata(threading.Thread):
 		from_id = 0
 		to_id   = 0
 		if(not self.force_replace):
-			cursor.execute("SELECT value FROM certificate_analysis WHERE type=%s", [self.analysis_key])
+			cursor.execute("SELECT name_value FROM metadata WHERE name_type=%s", [self.analysis_key])
 			retval = cursor.fetchone()
 			if(retval):
 				from_id = retval[0]

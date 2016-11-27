@@ -1,15 +1,13 @@
 from django.http import HttpResponse
 from django.db.models import Count
 from django.db import connection
-from django.utils import timezone
 from django.views.decorators.cache import cache_page
 from django.core.paginator import Paginator
 import json
-import re
 import datetime
 import logging
 
-from .models import *
+from .models import Ca, Certificate, CaCertificate, CtLog
 
 def searchdb(term):
     return HttpResponse(term)
@@ -39,43 +37,50 @@ def get_ca_info(request,id):
     print(str(children))
     return HttpResponse(json.dumps({"id":id, "name":Ca.objects.get(id=id).common_name, "children": list(children)}))
 
-def get_certificate_chain(request,cert_id):
+def get_certificate_chain(request, cert_id):
     cert_id = int(cert_id)
-    children = 0
     visited = []
-
-    certificate = Certificate.objects.filter(id=cert_id).first()
-    ca_of_certificate = certificate.issuer_ca
-
-    name = certificate.subject_common_name()
-    if(name == None):
-        name = "[CN_empty]"
-    children = {"id":cert_id, "name":name, "children":children}
-    visited.append(cert_id)
-
-    ca_certificate = CaCertificate.objects.filter(ca=ca_of_certificate).first()
     
-    logging.error(ca_of_certificate.id)
     
-    certificate_of_ca = ca_certificate.certificate_id
+    children = {"id":cert_id, "name":"", "children":0}
 
-    iteration = 0
-    while (certificate_of_ca not in visited) and (iteration < 1000):
-        iteration += 1
-
-        certificate = Certificate.objects.filter(id=certificate_of_ca).first()
+    try:
+        certificate = Certificate.objects.get(id=cert_id)
         ca_of_certificate = certificate.issuer_ca
-        
-
+    
         name = certificate.subject_common_name()
         if(name == None):
             name = "[CN_empty]"
-        children = {"id":certificate_of_ca, "name":name, "children":[children]}
-        visited.append(certificate_of_ca)
-
-        ca_certificate = CaCertificate.objects.filter(ca_id=ca_of_certificate).first()
+        children['name'] = name
+        visited.append(cert_id)
+    
+        #ca_certificate = CaCertificate.objects.get(ca=ca_of_certificate)
+        ca_certificate = CaCertificate.objects.filter(ca=ca_of_certificate).first()
+        
         certificate_of_ca = ca_certificate.certificate_id
-
+    
+        iteration = 0
+        while (certificate_of_ca not in visited) and (iteration < 1000):
+            iteration += 1
+    
+            certificate = Certificate.objects.get(id=certificate_of_ca)
+            ca_of_certificate = certificate.issuer_ca
+            
+    
+            name = certificate.subject_common_name()
+            if(name == None):
+                name = "[CN_empty]"
+            children = {"id":certificate_of_ca, "name":name, "children":[children]}
+            visited.append(certificate_of_ca)
+    
+            #ca_certificate = CaCertificate.objects.get(ca_id=ca_of_certificate)
+            ca_certificate = CaCertificate.objects.filter(ca_id=ca_of_certificate).first()
+            certificate_of_ca = ca_certificate.certificate_id
+            
+        children['status'] = "OK"
+    except (CaCertificate.DoesNotExist, Certificate.DoesNotExist):
+        children['status'] = "ERROR"
+        
     return HttpResponse(json.dumps(children))
 
 def get_ca_chain(request, ca_id):
@@ -84,27 +89,33 @@ def get_ca_chain(request, ca_id):
     children = {"id":"number_of_children", "name":"{0} child certificates".format(childrencount), "children":0}
     visited = []
 
-    Certificate.objects.filter(issuer_ca=ca_id).count()
-
-    ca_certificate = CaCertificate.objects.filter(ca_id=ca_id).first()
-    certificate_of_ca = ca_certificate.certificate_id
-
-    iteration = 0
-    while (certificate_of_ca not in visited) and (iteration < 1000):
-        iteration += 1
-
-        certificate = Certificate.objects.filter(id=certificate_of_ca).first()
-        ca_of_certificate = certificate.issuer_ca
-        
-
-        name = certificate.subject_common_name()
-        if(name == None):
-            name = "[CN_empty]"
-        children = {"id":certificate_of_ca, "name":name, "children":[children]}
-        visited.append(certificate_of_ca)
-
-        ca_certificate = CaCertificate.objects.filter(ca_id=ca_of_certificate).first()
+    try:
+        #ca_certificate = CaCertificate.objects.get(ca_id=ca_id)
+        ca_certificate = CaCertificate.objects.filter(ca_id=ca_id).first()
         certificate_of_ca = ca_certificate.certificate_id
+    
+        iteration = 0
+        while (certificate_of_ca not in visited) and (iteration < 1000):
+            iteration += 1
+    
+            #certificate = Certificate.objects.get(id=certificate_of_ca)
+            certificate = Certificate.objects.filter(id=certificate_of_ca).first()
+            ca_of_certificate = certificate.issuer_ca
+            
+    
+            name = certificate.subject_common_name()
+            if(name == None):
+                name = "[CN_empty]"
+            children = {"id":certificate_of_ca, "name":name, "children":[children]}
+            visited.append(certificate_of_ca)
+    
+            #ca_certificate = CaCertificate.objects.get(ca_id=ca_of_certificate)
+            ca_certificate = CaCertificate.objects.filter(ca_id=ca_of_certificate).first()
+            certificate_of_ca = ca_certificate.certificate_id
+
+        children['status'] = "OK"    
+    except (CaCertificate.DoesNotExist, Certificate.DoesNotExist):
+        children['status'] = "ERROR"
 
     return HttpResponse(json.dumps(children))
 
@@ -132,7 +143,7 @@ def getcaspage(request, page):
 
     return HttpResponse(output[:-1]+"]")
 
-@cache_page(60*60*24)
+@cache_page(60*50)
 def get_cert_distribution_per_year(request):
     with connection.cursor() as c:
         result = []
@@ -157,7 +168,7 @@ def get_cert_distribution_per_year(request):
         return HttpResponse(json.dumps({'max_id':-1, 'data':result, 'aggregated':True}))
 
 
-@cache_page(60*60*24)
+@cache_page(60*50)
 def get_active_keysize_distribution(request, ca_id=None, id_from=None):
     max_id = None
     
@@ -214,11 +225,10 @@ def get_active_keysize_distribution(request, ca_id=None, id_from=None):
             
         return HttpResponse(json.dumps({'max_id':max_id, 'data':result, 'aggregated':aggregate}))
 
-@cache_page(60*60*24)
+@cache_page(60*50)
 def get_signature_algorithm_distribution(request, ca_id=None, id_from=None):
     max_id = None
     
-    months = []
     algorithms = ["sha1WithRSAEncryption", "sha256WithRSAEncryption", "ecdsa-with-SHA256"]
     
     with connection.cursor() as c:
@@ -296,10 +306,9 @@ def get_signature_algorithm_distribution(request, ca_id=None, id_from=None):
             
         return HttpResponse(json.dumps({'max_id':max_id, 'data':result, 'aggregated':aggregate}))
 
-@cache_page(60*60*24)
+@cache_page(60*50)
 def get_ca_distribution(request, id_from=None):
 
-    months = []
     cas = []
     max_id = None
     
@@ -406,7 +415,7 @@ def get_ca_distribution(request, id_from=None):
             
         return HttpResponse(json.dumps({'max_id':max_id, 'data':result, 'aggregated':aggregate}))
 
-@cache_page(60*60*24)
+@cache_page(60*50)
 def get_all_cert_information(request):
     return HttpResponse(json.dumps(
         {
@@ -416,7 +425,7 @@ def get_all_cert_information(request):
         }
     ))
 
-@cache_page(60*60*24)
+@cache_page(60*50)
 def get_log_appearance_distribution(request):
     with connection.cursor() as c:
         c.execute("SELECT certs_in_logs.NUMBER_OF_LOGS, COUNT(*) AS CERTS_IN_X_LOGS FROM (SELECT CERTIFICATE_ID, COUNT(DISTINCT ct_log_id) AS NUMBER_OF_LOGS FROM ct_log_entry GROUP BY CERTIFICATE_ID) AS certs_in_logs GROUP BY NUMBER_OF_LOGS ORDER BY CERTS_IN_X_LOGS;")
@@ -426,7 +435,7 @@ def get_log_appearance_distribution(request):
             result.append({"logs": str(entry[0]), "certificates": entry[1]})
         return HttpResponse(json.dumps({'max_id':-1, 'data':result, 'aggregated':True}))
 
-@cache_page(60*60*24)
+@cache_page(60*50)
 def get_log_information(request):
     colors = ["#1f77b4","#aec7e8","#ff7f0e","#ffbb78","#2ca02c","#98df8a","#d62728","#ff9896","#9467bd","#c5b0d5","#8c564b","#c49c94","#e377c2","#f7b6d2","#7f7f7f"] # https://github.com/mbostock/d3/wiki/Ordinal-Scales
     i = 0
