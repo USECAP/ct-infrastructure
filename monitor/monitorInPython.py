@@ -492,7 +492,10 @@ class _Certificate:
         cryptokey = self.certificate.get_pubkey().to_cryptography_key()
         self.keyAlgorithm = self.getAlgorithmFromKey(cryptokey)
         self.keySize = cryptokey.key_size if hasattr(cryptokey, 'key_size') else None
-        self.signatureAlgorithm = self.certificate.get_signature_algorithm().decode('utf-8')
+        try:
+            self.signatureAlgorithm = self.certificate.get_signature_algorithm().decode('utf-8')
+        except ValueError:
+            self.signatureAlgorithm = '__UndefinedSignatureAlgorithm__'
         self.dnsNames = self.extractDnsNames()
         
     def extractDnsNames(self):
