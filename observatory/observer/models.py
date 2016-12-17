@@ -73,7 +73,10 @@ class Certificate(models.Model):
     def signature_algorithm(self, cert=None):
         if(cert == None):
             cert = self.get_x509_data()
-        return cert.get_signature_algorithm()
+        try:
+            return cert.get_signature_algorithm()
+        except ValueError:
+            return '__UndefinedSignatureAlgorithm__'
     
     def notbefore(self, cert=None):
         if(cert == None):
