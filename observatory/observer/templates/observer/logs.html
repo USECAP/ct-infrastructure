@@ -7,12 +7,12 @@
       <ul>
       {% for log in list_of_logs %}
           <div class="card card-block">
-		<h4 class="card-title">{{ log.name }}</h4>
+		<h4 class="card-title">{{ log.name }} <small>{% if log.is_active %}<span style="color: green;"><i class="fa fa-check-circle" aria-hidden="true"></i> active</span>{% else %}<span style="color: #d40000;"><i class="fa fa-pause-circle" aria-hidden="true"></i> disabled</span>{% endif %}</small></h4>
 		<p class="card-text">{{log.operator}} – {{ log.url }}</p>
 		<p class="card-text">Maximum merge delay: {{log.mmd_in_seconds}} second{{log.mmd_in_seconds|pluralize}}</p>
 		<p class="card-text">Public Key: {{log.public_key}}</p>
-		<p>Last update: {{log.latest_update}}</p>
 		<p>Latest tree hash timestamp: {{log.latest_sth_timestamp}}</p>
+		<p>Last update: {{log.latest_update}}</p>
 		<p>Latest log size: {{log.latest_log_size}}</p>
 		<a href="{% url 'observer:certs_by_log' log.id %}" class="card-link">View all {{log.latest_entry_id}} certificates in this log</a>
 	</div>
