@@ -172,7 +172,9 @@ INSERT INTO metadata(NAME_TYPE, NAME_VALUE) VALUES
 ('number_of_correctly_behaving_cas',0),
 ('number_of_interesting_cas',0),
 ('number_of_certs_in_biggest_log',0),
-('number_of_certs_in_smallest_log',0);
+('biggest_log_id',0),
+('number_of_certs_in_smallest_log',0),
+('smallest_log_id',0);
 
 
 -- CREATE TABLE certificate_analysis (

@@ -25,41 +25,49 @@ class Metadata(threading.Thread):
             #"UPDATE metadata SET NAME_VALUE=(SELECT reltuples FROM pg_class WHERE relname = 'certificate') WHERE NAME_TYPE='number_of_certs'")  # All Certs
             "UPDATE metadata SET NAME_VALUE=(SELECT count(*) FROM certificate) WHERE NAME_TYPE='number_of_certs'")  # All Certs
 	
-	self.logger.debug("counting all CAs")
+        self.logger.debug("counting all CAs")
         cursor.execute(
-            "UPDATE metadata SET NAME_VALUE=(SELECT COUNT(*) FROM ca) WHERE NAME_TYPE='number_of_cas'")  # All CA
-	
-	self.logger.debug("counting expired certificates")
+                "UPDATE metadata SET NAME_VALUE=(SELECT COUNT(*) FROM ca) WHERE NAME_TYPE='number_of_cas'")  # All CA
+    	
+        self.logger.debug("counting expired certificates")
         cursor.execute(
-            "UPDATE metadata SET NAME_VALUE=(SELECT COUNT(*) FROM certificate where NOT_AFTER < NOW()) WHERE NAME_TYPE='number_of_expired_certs'")  # EXPIRED
-	
-	self.logger.debug("counting revoked certificates")
+                "UPDATE metadata SET NAME_VALUE=(SELECT COUNT(*) FROM certificate where NOT_AFTER < NOW()) WHERE NAME_TYPE='number_of_expired_certs'")  # EXPIRED
+    	
+        self.logger.debug("counting revoked certificates")
         cursor.execute(
-            "UPDATE metadata SET NAME_VALUE=(SELECT COUNT(*) FROM revoked_certificate) WHERE NAME_TYPE='number_of_revoked_certs'")  # REVOKED
-	
-	self.logger.debug("counting active certificates")
+                "UPDATE metadata SET NAME_VALUE=(SELECT COUNT(*) FROM revoked_certificate) WHERE NAME_TYPE='number_of_revoked_certs'")  # REVOKED
+    	
+        self.logger.debug("counting active certificates")
         cursor.execute(
-            "UPDATE metadata SET NAME_VALUE=((SELECT NAME_VALUE FROM metadata WHERE NAME_TYPE='number_of_certs') - (SELECT NAME_VALUE FROM metadata WHERE NAME_TYPE='number_of_expired_certs') - (SELECT COUNT(*) FROM revoked_certificate rc JOIN certificate c ON rc.certificate_id = c.id WHERE NOT c.NOT_AFTER < NOW() )) WHERE NAME_TYPE='number_of_active_certs'")  # ACTIVE
-	
-	self.logger.debug("'counting' misissued certificates")
+                "UPDATE metadata SET NAME_VALUE=((SELECT NAME_VALUE FROM metadata WHERE NAME_TYPE='number_of_certs') - (SELECT NAME_VALUE FROM metadata WHERE NAME_TYPE='number_of_expired_certs') - (SELECT COUNT(*) FROM revoked_certificate rc JOIN certificate c ON rc.certificate_id = c.id WHERE NOT c.NOT_AFTER < NOW() )) WHERE NAME_TYPE='number_of_active_certs'")  # ACTIVE
+    	
+        self.logger.debug("'counting' misissued certificates")
         cursor.execute(
-            "UPDATE metadata SET NAME_VALUE=0 WHERE NAME_TYPE='number_of_misissued_certs'")  # Misissued
-	
-	self.logger.debug("'counting' correctly behaving CAs")
+                "UPDATE metadata SET NAME_VALUE=0 WHERE NAME_TYPE='number_of_misissued_certs'")  # Misissued
+    	
+        self.logger.debug("'counting' correctly behaving CAs")
         cursor.execute(
-            "UPDATE metadata SET NAME_VALUE=0 WHERE NAME_TYPE='number_of_correctly_behaving_cas'")  # Correct CA
-	
-	self.logger.debug("'counting' number of interesting CAs")
+                "UPDATE metadata SET NAME_VALUE=0 WHERE NAME_TYPE='number_of_correctly_behaving_cas'")  # Correct CA
+    	
+        self.logger.debug("'counting' number of interesting CAs")
         cursor.execute(
-            "UPDATE metadata SET NAME_VALUE=0 WHERE NAME_TYPE='number_of_interesting_cas'")  # Suspicious CA
-	
-	self.logger.debug("determining number_of_certs_in_biggest_log")
+                "UPDATE metadata SET NAME_VALUE=0 WHERE NAME_TYPE='number_of_interesting_cas'")  # Suspicious CA
+        
+        self.logger.debug("determining biggest_log_id")
         cursor.execute(
-            "UPDATE metadata SET NAME_VALUE=(select max(latest_entry_id) from ct_log) WHERE NAME_TYPE='number_of_certs_in_biggest_log'")  # Max log
-	
-	self.logger.debug("determining number_of_certs_in_smallest_log")
+                "UPDATE metadata SET NAME_VALUE=(SELECT id FROM ct_log WHERE latest_entry_id=(SELECT MAX(latest_entry_id) from ct_log) LIMIT 1) WHERE NAME_TYPE='biggest_log_id'")  # Max log id
+    	
+        self.logger.debug("determining number_of_certs_in_biggest_log")
         cursor.execute(
-            "UPDATE metadata SET NAME_VALUE=(select min(latest_entry_id) from ct_log) WHERE NAME_TYPE='number_of_certs_in_smallest_log'")  # Min log
+                "UPDATE metadata SET NAME_VALUE=(SELECT latest_entry_id FROM ct_log WHERE id=(SELECT NAME_VALUE FROM metadata WHERE NAME_TYPE='biggest_log_id')) WHERE NAME_TYPE='number_of_certs_in_biggest_log'")  # Max log
+    
+        self.logger.debug("determining smallest_log_id")
+        cursor.execute(
+                "UPDATE metadata SET NAME_VALUE=(SELECT id FROM ct_log WHERE latest_entry_id=(SELECT MIN(latest_entry_id) from ct_log) LIMIT 1) WHERE NAME_TYPE='smallest_log_id'")  # Min log id
+    	
+        self.logger.debug("determining number_of_certs_in_smallest_log")
+        cursor.execute(
+                "UPDATE metadata SET NAME_VALUE=(SELECT latest_entry_id FROM ct_log WHERE id=(SELECT NAME_VALUE FROM metadata WHERE NAME_TYPE='smallest_log_id')) WHERE NAME_TYPE='number_of_certs_in_smallest_log'")  # Min log
 
         self.db.commit()
 

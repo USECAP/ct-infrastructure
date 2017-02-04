@@ -95,6 +95,7 @@ def index(request):
             'behaving_cas' : metadata['number_of_correctly_behaving_cas'],
             'interesting_cas' : metadata['number_of_interesting_cas'],
             'biggest_log' : metadata['number_of_certs_in_biggest_log'],
+            'biggest_log_name' : CtLog.objects.get(id=metadata['biggest_log_id']).name,
             'smallest_log' : metadata['number_of_certs_in_smallest_log'],
             'uptime_days': (timezone.now().date()-datetime.date(2015,10,14)).days, #TODO
             'messages' : messages,
