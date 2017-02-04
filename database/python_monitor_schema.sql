@@ -115,6 +115,7 @@ CREATE TABLE ct_log (
 	PUBLIC_KEY			bytea,
 	LATEST_ENTRY_ID			integer,
 	LATEST_UPDATE			timestamp,
+	LATEST_LOG_SIZE			integer,
 	OPERATOR			text,
 	IS_ACTIVE			boolean,
 	LATEST_STH_TIMESTAMP	    	timestamp,

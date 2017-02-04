@@ -53,7 +53,10 @@ class Certificate(models.Model):
     def get_certificate_data(self):
         data = []
         cert = self.get_x509_data()
-        data.append(('pubkey_bits', cert.get_pubkey().bits()))
+        try:
+            data.append(('pubkey_bits', cert.get_pubkey().bits()))
+        except crypto.Error:
+            data.append(('pubkey_bits', None))
         data.append(('pubkey_type', self.pubkey_type(cert)))
         data.append(('serial_number', cert.get_serial_number()))
         data.append(('signature_algorithm', self.signature_algorithm(cert)))
@@ -111,11 +114,15 @@ class Certificate(models.Model):
     def pubkey_type(self, cert=None):
         if(cert == None):
             cert = self.get_x509_data()
-        pkeytype = cert.get_pubkey().type()
-        if(pkeytype == crypto.TYPE_RSA):
-            return "RSA"
-        if(pkeytype == crypto.TYPE_DSA):
-            return "DSA"
+        pkeytype = ""
+        try:
+            pkeytype = cert.get_pubkey().type()
+            if(pkeytype == crypto.TYPE_RSA):
+                return "RSA"
+            if(pkeytype == crypto.TYPE_DSA):
+                return "DSA"
+        except crypto.Error:
+            pkeytype = "__UndefinedKeyAlgorithm__"
         return pkeytype
 
     def organization_name(self):
@@ -185,6 +192,7 @@ class CtLog(models.Model):
     operator = models.TextField(blank=True, null=True)
     is_active = models.NullBooleanField()
     latest_sth_timestamp = models.DateTimeField(blank=True, null=True)
+    latest_log_size = models.IntegerField(blank=True, null=True)
     mmd_in_seconds = models.IntegerField(blank=True, null=True)
 
     class Meta:

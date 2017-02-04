@@ -112,7 +112,8 @@ class _LocalDatabase:
         requestedEntries = []
         
         sthOfLogServer = self.requestSTHOfLogServer(logServerEntry)
-        logging.debug("Log tree size: {}".format(sthOfLogServer.treeSize if sthOfLogServer is not None else "None"))
+        logging.debug("Log tree size of log {}: {}".format(logServerEntry.ct_log_id, sthOfLogServer.treeSize if sthOfLogServer is not None else "None"))
+        self.writeLogStatsToDatabase(sthOfLogServer, logServerEntry)
 
         if self.certsAreMissing(logServerEntry, sthOfLogServer): #returns false if sthOfLogServer is None
             requestURL = (logServerEntry.url + "/ct/v1/get-entries?start=" +
@@ -123,7 +124,17 @@ class _LocalDatabase:
 
         return requestedEntries
 
-
+    def writeLogStatsToDatabase(self, sthOfLogServer, logServerEntry):
+        if sthOfLogServer == None:
+            return
+            
+        sqlQuery = "UPDATE ct_log SET LATEST_UPDATE=NOW(), LATEST_LOG_SIZE=%s, LATEST_STH_TIMESTAMP=%s WHERE ID=%s"
+        timestamp = datetime.datetime.fromtimestamp(sthOfLogServer.timestamp/1000.0)
+        sqlData = (sthOfLogServer.treeSize, timestamp, logServerEntry.ct_log_id)
+        self.cursor.execute(sqlQuery, sqlData)
+        logging.info("LATEST_LOG_SIZE of log {} has been updated to {}".format(logServerEntry.ct_log_id, sthOfLogServer.treeSize))
+        logging.info("LATEST_STH_TIMESTAMP of log {} has been updated to {}".format(logServerEntry.ct_log_id, timestamp))
+            
 
 
     def certsAreMissing(self, logServerEntry, sthOfLogServer):
@@ -489,13 +500,19 @@ class _Certificate:
         self.notBefore = parser.parse(self.certificate.get_notBefore())
         self.serial = self.certificate.get_serial_number()
         self.sha256 = binascii.unhexlify(self.certificate.digest('sha256').replace(b':',b''))
-        cryptokey = self.certificate.get_pubkey().to_cryptography_key()
-        self.keyAlgorithm = self.getAlgorithmFromKey(cryptokey)
-        self.keySize = cryptokey.key_size if hasattr(cryptokey, 'key_size') else None
+        
+        try:
+            cryptokey = self.certificate.get_pubkey().to_cryptography_key()
+            self.keyAlgorithm = self.getAlgorithmFromKey(cryptokey)
+            self.keySize = cryptokey.key_size if hasattr(cryptokey, 'key_size') else None
+        except OpenSSL.crypto.Error:
+            self.keyAlgorithm = '__UndefinedKeyAlgorithm__'
+            self.keySize = None            
         try:
             self.signatureAlgorithm = self.certificate.get_signature_algorithm().decode('utf-8')
         except ValueError:
             self.signatureAlgorithm = '__UndefinedSignatureAlgorithm__'
+            
         self.dnsNames = self.extractDnsNames()
         
     def extractDnsNames(self):
