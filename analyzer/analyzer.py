@@ -8,6 +8,7 @@ import time
 from datetime import datetime
 import logging
 import threading
+import json
 
 from notifier import Notifier
 from metadata import Metadata
@@ -142,6 +143,27 @@ while True:
     except Exception, e:
         logging.debug("EXCEPTION PANIC")
         logging.exception(e)
+    
+    statusdata = None
+    
+    try:
+        with open('/data/status.json', "r") as f:
+            statusdata = json.load(f)
+    except:
+        logging.error('Could not read status data.')
+        
+        
+    if not statusdata:
+        statusdata = {'monitor':{'lastrun':0},'analyzer':{'lastrun':0}}
+        
+    statusdata['analyzer']['lastrun'] = time.time()
+        
+        
+    try:        
+        with open('/data/status.json', "w") as f:
+            json.dump(statusdata, f)
+    except:
+        logging.error('Could not update status data.')
     
     print("Sleeping for {0} seconds".format(interval))
     logging.info("Sleeping for {0} seconds".format(interval))

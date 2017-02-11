@@ -58,8 +58,8 @@ services:
         - ctdatabase:ctdatabase
         #- elasticsearch:elasticsearch
         - ctobservatory:ctobservatory
-#    command: python2 /analyzer/analyzer.py --pg=ctdatabase --es=elasticsearch --web=www.ct-observatory.org --t=60 -m -x -g
-    command: /analyzer/idle.sh
+    command: python2 /analyzer/analyzer.py --pg=ctdatabase --web=www.ct-observatory.org --t=60 -m -x -g
+#    command: /analyzer/idle.sh
 
   ctmonitor:
     build:
@@ -71,5 +71,5 @@ services:
         - POSTGRESHOST=ctdatabase
     links:
         - ctdatabase:ctdatabase
-#    command: python3 /monitor/monitorInPython.py --dbhost=ctdatabase
-    command: /monitor/idle.sh
+    command: python3 /monitor/monitorInPython.py --dbhost=ctdatabase
+#    command: /monitor/idle.sh

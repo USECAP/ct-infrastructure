@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from django.http import HttpResponsePermanentRedirect
 import datetime
 import os
+import json
 from ctobservatory.settings import BASE_DIR
 from .models import *
 from notification.forms import SubscribeUnsubscribeForm
@@ -333,3 +334,17 @@ def imprint(request):
     
 def issues(request):
     return render(request, 'observer/issues.html')
+    
+def status(request):
+    status = {'analyzer':{'lastrun':0}, 'monitor':{'lastrun':0}, 'msg':'ok'}
+    try:
+        with open('/static/data/status.json', 'r') as f:
+            status = json.load(f)
+            
+        status['analyzer']['lastrun'] = datetime.datetime.fromtimestamp(status['analyzer']['lastrun'])
+        status['monitor']['lastrun'] = datetime.datetime.fromtimestamp(status['monitor']['lastrun'])
+    except Exception as e:
+        status['msg'] = "Could not load status file."+str(e)
+        
+        
+    return render(request, 'observer/status.html', {'status':status})

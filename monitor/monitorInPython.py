@@ -10,6 +10,8 @@ import binascii
 import datetime
 import queue
 import threading
+import json
+import time
 from dateutil import parser
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
@@ -29,8 +31,6 @@ def monitor(database):
     logging.debug("Populating new log entries")
     database.populateNewLogEntries(newLogEntries)
     database.updateCtLogStats()
-
-
 
 
 
@@ -128,7 +128,7 @@ class _LocalDatabase:
         if sthOfLogServer == None:
             return
             
-        sqlQuery = "UPDATE ct_log SET LATEST_UPDATE=NOW(), LATEST_LOG_SIZE=%s, LATEST_STH_TIMESTAMP=%s WHERE ID=%s"
+        sqlQuery = "UPDATE ct_log SET LATEST_LOG_SIZE=%s, LATEST_STH_TIMESTAMP=%s WHERE ID=%s"
         timestamp = datetime.datetime.fromtimestamp(sthOfLogServer.timestamp/1000.0)
         sqlData = (sthOfLogServer.treeSize, timestamp, logServerEntry.ct_log_id)
         self.cursor.execute(sqlQuery, sqlData)
@@ -152,7 +152,7 @@ class _LocalDatabase:
 
     def requestSTHOfLogServer(self, logServer):
         try:
-            sthRequest = requests.get(logServer.url + "/ct/v1/get-sth")
+            sthRequest = requests.get(logServer.url + "/ct/v1/get-sth", timeout=(10,60))
 
         except:
             logging.error("Error requesting STH from log server: {}".format(sys.exc_info()[0]))
@@ -165,7 +165,7 @@ class _LocalDatabase:
 
     def requestEntries(self, requestURL, metadata):
         try:
-            requestedEntries = requests.get(requestURL)
+            requestedEntries = requests.get(requestURL, timeout=(10,120))
 
         except:
             logging.error("Error getting Entries")
@@ -386,7 +386,7 @@ class _LocalDatabase:
         activeLogServers = self.getActiveLogServers()
         
         for logServer in activeLogServers:
-            sqlQuery = "UPDATE ct_log SET LATEST_ENTRY_ID=(SELECT MAX(ENTRY_ID) FROM ct_log_entry WHERE CT_LOG_ID=%s) WHERE ID=%s RETURNING LATEST_ENTRY_ID"
+            sqlQuery = "UPDATE ct_log SET LATEST_UPDATE=NOW(), LATEST_ENTRY_ID=(SELECT MAX(ENTRY_ID) FROM ct_log_entry WHERE CT_LOG_ID=%s) WHERE ID=%s RETURNING LATEST_ENTRY_ID"
             sqlData = (logServer.ct_log_id, logServer.ct_log_id)
             self.cursor.execute(sqlQuery, sqlData)
             latest_entry_id = self.cursor.fetchone()[0]
@@ -648,8 +648,30 @@ class EntryFromLogserverRetrievalThread(threading.Thread):
     def run(self):
         entries = database.requestNewEntriesFromServer(self.logServerEntry)
         self.output_queue.put(entries)
-                
+         
+         
+def updateRunStatus():
 
+    statusdata = None
+    
+    try:
+        with open('/data/status.json', "r") as f:
+            statusdata = json.load(f)
+    except:
+        logging.error('Could not read status data.')
+        
+        
+    if not statusdata:
+        statusdata = {'monitor':{'lastrun':0},'analyzer':{'lastrun':0}}
+        
+    statusdata['monitor']['lastrun'] = time.time()
+        
+        
+    try:        
+        with open('/data/status.json', "w") as f:
+            json.dump(statusdata, f)
+    except:
+        logging.error('Could not update status data.')
 
 
 if __name__ == "__main__":
@@ -672,3 +694,4 @@ if __name__ == "__main__":
     logging.info("Starting monitor...")
     monitor(database)
     logging.info("Finished monitor.")
+    updateRunStatus()

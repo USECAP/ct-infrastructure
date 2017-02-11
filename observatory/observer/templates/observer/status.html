@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Status - CT observatory{% endblock %}
+
+{% block content %}
+<h1>Status</h1>
+<h4>monitor</h4>
+<dl>
+<dt>lastrun</dt>
+<dd>{{status.monitor.lastrun}}</dd>
+</dl>
+
+<h4>analyzer</h4>
+<dl>
+<dt>lastrun</dt>
+<dd>{{status.analyzer.lastrun}}</dd>
+</dl>
+
+{% if status.msg %}
+<p><i>{{status.msg}}</i></p>
+{% endif %}
+
+{% endblock %}
+
