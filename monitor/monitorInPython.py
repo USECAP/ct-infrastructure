@@ -506,7 +506,7 @@ class _Certificate:
             cryptokey = self.certificate.get_pubkey().to_cryptography_key()
             self.keyAlgorithm = self.getAlgorithmFromKey(cryptokey)
             self.keySize = cryptokey.key_size if hasattr(cryptokey, 'key_size') else None
-        except (OpenSSL.crypto.Error, UnsupportedAlgorithm):
+        except (OpenSSL.crypto.Error, UnsupportedAlgorithm, NotImplementedError):
             self.keyAlgorithm = '__UndefinedKeyAlgorithm__'
             self.keySize = None            
         try:
