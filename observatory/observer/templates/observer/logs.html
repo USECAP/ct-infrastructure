@@ -14,7 +14,7 @@
 		<p>Latest tree hash timestamp: {{log.latest_sth_timestamp}}</p>
 		<p>Last update: {{log.latest_update}}</p>
 		<p>Latest log size: {{log.latest_log_size}}</p>
-		<a href="{% url 'observer:certs_by_log' log.id %}" class="card-link">View all {{log.latest_entry_id}} certificates in this log</a>
+		<a href="{% url 'observer:certs_by_log' log.id %}" class="card-link">View all {{log.latest_entry_id|add:"-1"}} certificates in this log</a>
 	</div>
       {% endfor %}
       </ul>
