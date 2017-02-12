@@ -14,6 +14,7 @@ import json
 import time
 from dateutil import parser
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+from cryptography.exceptions import UnsupportedAlgorithm
 
 
 
@@ -505,7 +506,7 @@ class _Certificate:
             cryptokey = self.certificate.get_pubkey().to_cryptography_key()
             self.keyAlgorithm = self.getAlgorithmFromKey(cryptokey)
             self.keySize = cryptokey.key_size if hasattr(cryptokey, 'key_size') else None
-        except OpenSSL.crypto.Error:
+        except (OpenSSL.crypto.Error, UnsupportedAlgorithm):
             self.keyAlgorithm = '__UndefinedKeyAlgorithm__'
             self.keySize = None            
         try:
