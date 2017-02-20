@@ -42,6 +42,7 @@ class _LocalDatabase:
         self.host = host
         self.connectionToDataBase = self.establishConnectionToDatabase()
         self.cursor = self.connectionToDataBase.cursor()
+        self.cache = {}
 
 
 
@@ -253,43 +254,56 @@ class _LocalDatabase:
                     commonName = "(None)"
             public_key = certificate.certificate.get_pubkey().to_cryptography_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
             
-            logging.debug("inserting new CA '{}' into CA table".format(commonName))
-
-            sqlQuery = """INSERT INTO ca(COUNTRY_NAME, 
-                STATE_OR_PROVINCE_NAME, 
-                LOCALITY_NAME, 
-                ORGANIZATION_NAME, 
-                ORGANIZATIONAL_UNIT_NAME, 
-                COMMON_NAME, 
-                EMAIL_ADDRESS, 
-                PUBLIC_KEY) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) 
-            ON CONFLICT(COMMON_NAME,PUBLIC_KEY) DO UPDATE SET COMMON_NAME=ca.COMMON_NAME 
-            RETURNING ID"""
-            sqlData = (subject.countryName, subject.stateOrProvinceName, 
-                       subject.localityName, subject.organizationName, 
-                       subject.organizationalUnitName, commonName, 
-                       subject.emailAddress, psycopg2.Binary(public_key))
-            
-            self.cursor.execute(sqlQuery, sqlData)
-            new_ca_id = self.cursor.fetchone()[0]
-            
-            logging.debug("inserted new CA with ID={}".format(new_ca_id))
-        
-        
-            if(last_ca_id == None): # first list entry: be your own root
-                last_ca_id = new_ca_id
-            
-            cert_id = self.insertCertificate(certificate, last_ca_id)
-        
-            if(cert_id != None):
-                sqlQuery = "INSERT INTO ca_certificate (CERTIFICATE_ID, CA_ID) VALUES (%s, %s) ON CONFLICT(CERTIFICATE_ID, CA_ID) DO NOTHING"
-                sqlData = (cert_id, new_ca_id)
-                self.cursor.execute(sqlQuery, sqlData)
+            # check cache
+            if commonName in self.cache and public_key in self.cache[commonName]:
+                new_ca_id = self.cache[commonName][public_key]
+                logging.debug("getting CA '{}' from cache".format(commonName))
             else:
-                logging.error("Could not insert entry into ca_certificate without cert_id")
+                logging.debug("inserting new CA '{}' into CA table".format(commonName))
+    
+                sqlQuery = """INSERT INTO ca(COUNTRY_NAME, 
+                    STATE_OR_PROVINCE_NAME, 
+                    LOCALITY_NAME, 
+                    ORGANIZATION_NAME, 
+                    ORGANIZATIONAL_UNIT_NAME, 
+                    COMMON_NAME, 
+                    EMAIL_ADDRESS, 
+                    PUBLIC_KEY) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s) 
+                ON CONFLICT(COMMON_NAME,PUBLIC_KEY) DO UPDATE SET COMMON_NAME=ca.COMMON_NAME 
+                RETURNING ID"""
+                sqlData = (subject.countryName, subject.stateOrProvinceName, 
+                           subject.localityName, subject.organizationName, 
+                           subject.organizationalUnitName, commonName, 
+                           subject.emailAddress, psycopg2.Binary(public_key))
+                
+                self.cursor.execute(sqlQuery, sqlData)
+                new_ca_id = self.cursor.fetchone()[0]
+                
+                logging.debug("inserted new CA with ID={}".format(new_ca_id))
             
-            last_ca_id = new_ca_id
+            
+                if(last_ca_id == None): # first list entry: be your own root
+                    last_ca_id = new_ca_id
+                
+                cert_id = self.insertCertificate(certificate, last_ca_id)
+            
+                if(cert_id != None):
+                    sqlQuery = "INSERT INTO ca_certificate (CERTIFICATE_ID, CA_ID) VALUES (%s, %s) ON CONFLICT(CERTIFICATE_ID, CA_ID) DO NOTHING"
+                    sqlData = (cert_id, new_ca_id)
+                    self.cursor.execute(sqlQuery, sqlData)
+                else:
+                    logging.error("Could not insert entry into ca_certificate without cert_id")
+                
+                last_ca_id = new_ca_id
+                
+                # add ca to cache
+                
+                if not commonName in self.cache:
+                    self.cache[commonName] = {}
+                if not public_key in self.cache[commonName]:
+                    self.cache[commonName][public_key] = new_ca_id
+            
             
         return new_ca_id
         
