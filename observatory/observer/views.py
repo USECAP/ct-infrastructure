@@ -318,6 +318,13 @@ def certdetail(request,cert_id=None,cert_sha256=None):
     #return render(request, 'observer/certdetail.html', { 'certificate' : cert, 'ca_certificate' : cacert, 'keysize_distribution': round(keysize_distribution[0].percentage,2)})
     return render(request, 'observer/certdetail.html', { 'certificate' : cert, 'ca_certificate' : cacert, 'keysize_distribution': 'TODO', 'digest_sha256':digest_sha256})
 
+def certraw(request,cert_id):
+    cert = get_object_or_404(Certificate, pk=cert_id)
+    
+    response = HttpResponse(cert.certificate, content_type='application/octet-stream')
+    response['Content-Disposition'] = 'attachment; filename="certificate_{}.crt'.format(cert_id)
+    return response
+
 def logdetail(request,log_id):
     log = get_object_or_404(CtLog, pk=log_id)
     return render(request, 'observer/logdetail.html', { 'log' : log})

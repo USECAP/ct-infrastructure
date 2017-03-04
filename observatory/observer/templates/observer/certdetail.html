@@ -78,6 +78,7 @@ path.link {
         {% if ca_certificate != None %}
         <li class="list-group-item">This certificate is a <a href="{% url 'observer:cadetail' ca_id=ca_certificate.ca_id %}">CA certificate</a>.</li>
         {% endif %}
+        <li class="list-group-item"><a href="{% url 'observer:certraw' cert_id=certificate.id %}">Download the binary certificate</a>.</li>
     </ul>
   </div>
 
