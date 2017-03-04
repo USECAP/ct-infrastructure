@@ -7,7 +7,6 @@
 $(function(){
 	
 	//getloginfo
-	
 	try{
 	d3.json("/static/data/getloginfo", function(error, data){
 		d3.select('#certsinlogdistribution .spinner').remove();
@@ -45,7 +44,7 @@ $(function(){
 			
 			// create table underneath diagram
 			$.each(data.data, function(index, log){
-				$('#logentries').append("<tr><td style='background-color: "+log.color+"'></td><td> <a href='/log/"+log.id+"'>"+log.key+"</a></td><td>"+log.values[0].value+"</td></tr>");
+				$('#logentries').append("<tr><td style='background-color: "+log.color+"'></td><td> <a href='/log/"+log.id+"'>"+log.key+"</a></td><td>"+log.values[0].value+"</td><td>"+log.values[0].latest_entry_id+" <span class='tag tag-default'>"+log.values[0].fetched_percentage+"</span></td></tr>");
 			});
 		}
 	});

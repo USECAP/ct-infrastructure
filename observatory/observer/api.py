@@ -440,8 +440,13 @@ def get_log_information(request):
     colors = ['#1f77b4', '#aec7e8', '#ff7f0e', '#ffbb78', '#2ca02c', '#98df8a', '#d62728', '#ff9896', '#9467bd', '#c5b0d5', '#8c564b', '#c49c94', '#e377c2', '#f7b6d2', '#7f7f7f', '#c7c7c7', '#bcbd22', '#dbdb8d', '#17becf', '#9edae5', '#393b79', '#5254a3', '#6b6ecf', '#9c9ede', '#637939', '#8ca252', '#b5cf6b', '#cedb9c', '#8c6d31', '#bd9e39', '#e7ba52', '#e7cb94', '#843c39', '#ad494a', '#d6616b', '#e7969c', '#7b4173', '#a55194', '#ce6dbd', '#de9ed6'] # https://github.com/d3/d3-3.x-api-reference/blob/master/Ordinal-Scales.md
     i = 0
     result = []
-    for entry in CtLog.objects.annotate(entries=Count('ctlogentry')).order_by('-entries'):
-        result.append({"id": entry.id, "key": entry.name, "values": [{"label": "Certificates","value":entry.entries}], "color": colors[(i % len(colors))]})
+    for entry in CtLog.objects.exclude(latest_log_size__isnull=True).order_by('-latest_log_size'):
+        
+        fetched_percentage = "-"        
+        if(entry.latest_log_size != None and entry.latest_entry_id != None):
+            fetched_percentage = int((float(entry.latest_entry_id) / (entry.latest_log_size-1) * 100))
+        
+        result.append({"id": entry.id, "key": entry.name, "values": [{"label": "Certificates","value":entry.latest_log_size-1,"latest_entry_id":entry.latest_entry_id,"fetched_percentage":"{0} %".format(fetched_percentage)}], "color": colors[(i % len(colors))]})
         i += 1
     return HttpResponse(json.dumps({'max_id':-1, "unique_certificates": Certificate.objects.count(), "data": result, 'aggregated':True}))
 

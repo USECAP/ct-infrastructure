@@ -5,7 +5,7 @@
 
 {% block content %}
 
-    <div ng-controller="IndexController">
+    <div>
         <div class="row">
         {% for message in messages %}
             <div class="alert {{message.class}}" role="alert">
@@ -13,6 +13,8 @@
             </div>
         {% endfor %}
         </div>
+        
+        <!-- Top Stats -->
         <div class="row">
             <div class="col-xs-12 col-md-4">
                 <div class="card">
@@ -64,7 +66,9 @@
 
             </div>
         </div>
-
+	<!-- /Top Stats -->
+        
+        <!-- Search and Subscribe -->
         <div class="row" style="margin-bottom:20px;">
             <div style="position:absolute;height:259px;width:100%;left:0px;background: lightslategrey;"></div>
             <div class="col-xs-12 col-md-6" style="margin-top:15px;">
@@ -123,9 +127,11 @@
                     </div>
                 </div>
             </div>
-
         </div>
-        <div class="row" style="">
+        <!-- /Search and Subscribe -->
+        
+        <!-- Charts -->
+        <div class="row">
             <div class="col-md-4 col-xs-12">
                 <div class="card">
                     <div class="card-header text-md-center">
@@ -141,10 +147,11 @@
                     </div>
                 </div>
             </div>
+            
             <div class="col-md-8 col-xs-12">
                 <div class="card">
                     <div class="card-header">
-                        Logdistribution
+                        Log sizes
                     </div>
                     <div class="card-block" id="certsinlogdistribution">
                         <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
@@ -153,12 +160,14 @@
                             <tr>
                                 <td></td>
                                 <td><b>Log</b></td>
-                                <td><b>Entries</b></td>
+                                <td><b>Total Entries</b></td>
+                                <td><b>Imported</b></td>
                             </tr>
                         </table>
                     </div>
                 </div>
             </div>
+            
             <div class="col-xs-12">
                 <div class="card">
                     <div class="card-header">Most frequent key sizes
@@ -171,6 +180,7 @@
                     </div>
                 </div>
             </div>
+            
             <div class="col-xs-12">
                 <div class="card">
                     <div class="card-header">
@@ -184,6 +194,7 @@
                     </div>
                 </div>
             </div>
+            
             <div class="col-xs-12">
                 <div class="card">
                     <div class="card-header">
@@ -201,8 +212,8 @@
                     </div>
                 </div>
             </div>
-
         </div>
+        <!-- /Charts -->
     </div>
 
 {% endblock %}
