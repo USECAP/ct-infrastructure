@@ -26,12 +26,12 @@ def connectToDatabase(name="certwatch", user="postgres", host="localhost"):
 
 
 
-def monitor(database):
+def monitor(database, log_id=None):
     logging.debug("Retrieving new log entries")
-    newLogEntries = database.retrieveNewLogEntries()
+    newLogEntries = database.retrieveNewLogEntries(log_id=log_id)
     logging.debug("Populating new log entries")
     database.populateNewLogEntries(newLogEntries)
-    database.updateCtLogStats()
+    database.updateCtLogStats(log_id)
 
 
 
@@ -61,10 +61,10 @@ class _LocalDatabase:
 
 
 
-    def retrieveNewLogEntries(self):
+    def retrieveNewLogEntries(self, log_id=None):
         newLogEntriesQ = queue.Queue()
         threads = []
-        activeLogServers = self.getActiveLogServers()
+        activeLogServers = self.getActiveLogServers(log_id=log_id)
 
         for activeLogServer in activeLogServers:
             logging.debug("Querying {}...".format(activeLogServer.url))
@@ -87,12 +87,19 @@ class _LocalDatabase:
 
 
 
-    def getActiveLogServers(self):
+    def getActiveLogServers(self, log_id=None):
         try:
-            self.cursor.execute("""SELECT ID, URL, NAME, PUBLIC_KEY, LATEST_ENTRY_ID, 
-            LATEST_UPDATE, OPERATOR, IS_ACTIVE, LATEST_STH_TIMESTAMP, MMD_IN_SECONDS 
-            FROM ct_log as ctl 
-            WHERE ctl.IS_ACTIVE""")
+            if(log_id != None):
+                self.cursor.execute("""SELECT ID, URL, NAME, PUBLIC_KEY, LATEST_ENTRY_ID, 
+                LATEST_UPDATE, OPERATOR, IS_ACTIVE, LATEST_STH_TIMESTAMP, MMD_IN_SECONDS 
+                FROM ct_log as ctl 
+                WHERE ctl.id = %s""", [log_id])
+            else:
+                self.cursor.execute("""SELECT ID, URL, NAME, PUBLIC_KEY, LATEST_ENTRY_ID, 
+                LATEST_UPDATE, OPERATOR, IS_ACTIVE, LATEST_STH_TIMESTAMP, MMD_IN_SECONDS 
+                FROM ct_log as ctl 
+                WHERE ctl.IS_ACTIVE""")
+            
             activeLogServerEntries = self.cursor.fetchall()
 
         except:
@@ -197,8 +204,10 @@ class _LocalDatabase:
     def populateNewLogEntries(self, newLogEntries):
         for entry in newLogEntries:
                 self.populateEntry(entry)
-            
+        
+        logging.debug("Commiting...")
         self.connectionToDataBase.commit()
+        logging.debug("Commit finished.")
 
 
     def populateEntry(self, entry):
@@ -375,21 +384,21 @@ class _LocalDatabase:
         subject = certificate.certificate.get_subject()
 
         if(subject.countryName != None):
-            sqlData.append((cert_id, 'countryName', subject.countryName))
+            sqlData.append((cert_id, 'countryName', subject.countryName.replace('\x00', '')))
         if(subject.stateOrProvinceName != None):
-            sqlData.append((cert_id, 'stateOrProvinceName', subject.stateOrProvinceName))
+            sqlData.append((cert_id, 'stateOrProvinceName', subject.stateOrProvinceName.replace('\x00', '')))
         if(subject.localityName != None):
-            sqlData.append((cert_id, 'localityName', subject.localityName))
+            sqlData.append((cert_id, 'localityName', subject.localityName.replace('\x00', '')))
         if(subject.organizationName != None):
-            sqlData.append((cert_id, 'organizationName', subject.organizationName))
+            sqlData.append((cert_id, 'organizationName', subject.organizationName.replace('\x00', '')))
         if(subject.organizationalUnitName != None):
-            sqlData.append((cert_id, 'organizationalUnitName', subject.organizationalUnitName))
+            sqlData.append((cert_id, 'organizationalUnitName', subject.organizationalUnitName.replace('\x00', '')))
         if(subject.commonName != None):
-            sqlData.append((cert_id, 'commonName', subject.commonName))
+            sqlData.append((cert_id, 'commonName', subject.commonName.replace('\x00', '')))
         if(subject.emailAddress != None):
-            sqlData.append((cert_id, 'emailAddress', subject.emailAddress))
+            sqlData.append((cert_id, 'emailAddress', subject.emailAddress.replace('\x00', '')))
         for dnsname in certificate.dnsNames:
-            sqlData.append((cert_id, 'dNSName', dnsname))
+            sqlData.append((cert_id, 'dNSName', dnsname.replace('\x00', '')))
 
         self.cursor.executemany(sqlQuery, sqlData)
         
@@ -397,8 +406,8 @@ class _LocalDatabase:
         
         
         
-    def updateCtLogStats(self):
-        activeLogServers = self.getActiveLogServers()
+    def updateCtLogStats(self, log_id=None):
+        activeLogServers = self.getActiveLogServers(log_id)
         
         for logServer in activeLogServers:
             sqlQuery = "UPDATE ct_log SET LATEST_UPDATE=NOW(), LATEST_ENTRY_ID=(SELECT MAX(ENTRY_ID) FROM ct_log_entry WHERE CT_LOG_ID=%s) WHERE ID=%s RETURNING LATEST_ENTRY_ID"
@@ -406,7 +415,9 @@ class _LocalDatabase:
             self.cursor.execute(sqlQuery, sqlData)
             latest_entry_id = self.cursor.fetchone()[0]
             logging.info("LATEST_ENTRY_ID of log {} has been updated to {}".format(logServer.ct_log_id, latest_entry_id))
+        logging.debug("Commiting...")
         self.connectionToDataBase.commit()
+        logging.debug("Commit finished.")
 
 
 
@@ -696,17 +707,23 @@ if __name__ == "__main__":
     argparser.add_argument('--dbhost', help='postgres ip or hostname (default localhost)', default='localhost')
     argparser.add_argument('--dbuser', help='postgres user (default postgres)', default='postgres')
     argparser.add_argument('--dbname', help='postgres database name (default certwatch)', default='certwatch')
-    argparser.add_argument('--log', help='name of the file the log shall be written to')
+    argparser.add_argument('--logfile', help='name of the file the log shall be written to')
+    argparser.add_argument('--log', type=int, help='if set, database ID of the single log to be queried')
     args = argparser.parse_args()
     
-    logging_filename = args.log if args.log else None
+    logging_filename = args.logfile if args.logfile else None
     logging_level = logging.DEBUG if args.d else logging.INFO
     logging.basicConfig(level=logging_level, filename=logging_filename)
+    
+    if args.log:
+        logging.info("Querying log {}".format(args.log))
+    else:
+        logging.info("Querying all active logs")
     
     logging.info("Connecting to database (name={name}, user={user}, host={host})".format(name=args.dbname, user=args.dbuser, host=args.dbhost))
     database = connectToDatabase(name=args.dbname, user=args.dbuser, host=args.dbhost)
     
     logging.info("Starting monitor...")
-    monitor(database)
+    monitor(database, args.log)
     logging.info("Finished monitor.")
     updateRunStatus()
