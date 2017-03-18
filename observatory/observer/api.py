@@ -39,43 +39,57 @@ def get_ca_info(request,id):
 
 def get_certificate_chain(request, cert_id):
     cert_id = int(cert_id)
-    visited = []
+    visited = {}
     
     
-    children = {"id":cert_id, "name":"", "children":0}
+#    children = {"id":cert_id, "name":"", "children":0}
+#
+#    try:
+#        certificate = Certificate.objects.get(id=cert_id)
+#        ca_of_certificate = certificate.issuer_ca
+#    
+#        name = certificate.subject_common_name()
+#        if(name == None):
+#            name = "[CN_empty]"
+#        children['name'] = name
+#        if cert_id not in visited:
+#            visited[cert_id] = 0
+#        visited[cert_id] += 1
+#    
+#        #ca_certificate = CaCertificate.objects.get(ca=ca_of_certificate)
+#        ca_certificate = CaCertificate.objects.filter(ca=ca_of_certificate).first()
+#        
+#        certificate_of_ca = ca_certificate.certificate_id
+#    
+#        iteration = 0
+#        while (certificate_of_ca not in visited) and (iteration < 1000):
+#            iteration += 1
+#    
+#            certificate = Certificate.objects.get(id=certificate_of_ca)
+#            ca_of_certificate = certificate.issuer_ca
+#            
+#    
+#            name = certificate.subject_common_name()
+#            if(name == None):
+#                name = "[CN_empty]"
+#            children = {"id":certificate_of_ca, "name":name, "children":[children]}
+#            if cert_id not in visited:
+#                visited[cert_id] = 0
+#            visited[cert_id] += 1
+#    
+#            #ca_certificate = CaCertificate.objects.get(ca_id=ca_of_certificate)
+#            ca_certificate = CaCertificate.objects.filter(ca_id=ca_of_certificate).first()
+#            certificate_of_ca = ca_certificate.certificate_id
+#            
+#        children['status'] = "OK"
+#    except (CaCertificate.DoesNotExist, Certificate.DoesNotExist):
+#        children['status'] = "ERROR"
+        
+        
+    children = {}
 
     try:
-        certificate = Certificate.objects.get(id=cert_id)
-        ca_of_certificate = certificate.issuer_ca
-    
-        name = certificate.subject_common_name()
-        if(name == None):
-            name = "[CN_empty]"
-        children['name'] = name
-        visited.append(cert_id)
-    
-        #ca_certificate = CaCertificate.objects.get(ca=ca_of_certificate)
-        ca_certificate = CaCertificate.objects.filter(ca=ca_of_certificate).first()
-        
-        certificate_of_ca = ca_certificate.certificate_id
-    
-        iteration = 0
-        while (certificate_of_ca not in visited) and (iteration < 1000):
-            iteration += 1
-    
-            certificate = Certificate.objects.get(id=certificate_of_ca)
-            ca_of_certificate = certificate.issuer_ca
-            
-    
-            name = certificate.subject_common_name()
-            if(name == None):
-                name = "[CN_empty]"
-            children = {"id":certificate_of_ca, "name":name, "children":[children]}
-            visited.append(certificate_of_ca)
-    
-            #ca_certificate = CaCertificate.objects.get(ca_id=ca_of_certificate)
-            ca_certificate = CaCertificate.objects.filter(ca_id=ca_of_certificate).first()
-            certificate_of_ca = ca_certificate.certificate_id
+        children = get_parent_cas(cert_id, visited)
             
         children['status'] = "OK"
     except (CaCertificate.DoesNotExist, Certificate.DoesNotExist):
@@ -83,41 +97,104 @@ def get_certificate_chain(request, cert_id):
         
     return HttpResponse(json.dumps(children))
 
-def get_ca_chain(request, ca_id):
-    ca_id = int(ca_id)
-    childrencount = Certificate.objects.filter(issuer_ca=ca_id).count()
-    children = {"id":"number_of_children", "name":"{0} child certificates".format(childrencount), "children":0}
-    visited = []
+def get_parent_cas(cert_id, visited):
+    certificate = Certificate.objects.get(id=cert_id)
+    ca_of_certificate = certificate.issuer_ca
+        
+    name = certificate.subject_common_name()
+    if(name == None):
+        name = "[CN_empty]"
+    if cert_id not in visited:
+        visited[cert_id] = 0
+    visited[cert_id] += 1
+        
+    ca_certificates = CaCertificate.objects.filter(ca=ca_of_certificate)
+        
+    parents_list = []
+    for ca_cert in ca_certificates:
+        certificate_of_ca = ca_cert.certificate_id
+            
+        parents = None
+            
+        if(certificate_of_ca not in visited or visited[certificate_of_ca] < 2):
+            parents = get_parent_cas(certificate_of_ca, visited)
+                
+        if parents != None:
+            parents_list.append(parents)
+        
+    return {"id":cert_id, "name":name, "children":parents_list}
 
-    try:
-        #ca_certificate = CaCertificate.objects.get(ca_id=ca_id)
-        ca_certificate = CaCertificate.objects.filter(ca_id=ca_id).first()
-        certificate_of_ca = ca_certificate.certificate_id
+#def get_ca_chain(request, ca_id):
+    #ca_id = int(ca_id)
+    #childrencount = Certificate.objects.filter(issuer_ca=ca_id).count()
+    #children = {"id":"number_of_children", "name":"{0} child certificates".format(childrencount), "children":0}
+    #visited = []
+
+    #try:
+        ##ca_certificate = CaCertificate.objects.get(ca_id=ca_id)
+        #ca_certificate = CaCertificate.objects.filter(ca_id=ca_id).first()
+        #certificate_of_ca = ca_certificate.certificate_id
     
-        iteration = 0
-        while (certificate_of_ca not in visited) and (iteration < 1000):
-            iteration += 1
+        #iteration = 0
+        #while (certificate_of_ca not in visited) and (iteration < 1000):
+            #iteration += 1
     
-            #certificate = Certificate.objects.get(id=certificate_of_ca)
-            certificate = Certificate.objects.filter(id=certificate_of_ca).first()
-            ca_of_certificate = certificate.issuer_ca
+            ##certificate = Certificate.objects.get(id=certificate_of_ca)
+            #certificate = Certificate.objects.filter(id=certificate_of_ca).first()
+            #ca_of_certificate = certificate.issuer_ca
             
     
-            name = certificate.subject_common_name()
-            if(name == None):
-                name = "[CN_empty]"
-            children = {"id":certificate_of_ca, "name":name, "children":[children]}
-            visited.append(certificate_of_ca)
+            #name = certificate.subject_common_name()
+            #if(name == None):
+                #name = "[CN_empty]"
+            #children = {"id":certificate_of_ca, "name":name, "children":[children]}
+            #visited.append(certificate_of_ca)
     
-            #ca_certificate = CaCertificate.objects.get(ca_id=ca_of_certificate)
-            ca_certificate = CaCertificate.objects.filter(ca_id=ca_of_certificate).first()
-            certificate_of_ca = ca_certificate.certificate_id
+            ##ca_certificate = CaCertificate.objects.get(ca_id=ca_of_certificate)
+            #ca_certificate = CaCertificate.objects.filter(ca_id=ca_of_certificate).first()
+            #certificate_of_ca = ca_certificate.certificate_id
 
-        children['status'] = "OK"    
-    except (CaCertificate.DoesNotExist, Certificate.DoesNotExist):
-        children['status'] = "ERROR"
+        #children['status'] = "OK"    
+    #except (CaCertificate.DoesNotExist, Certificate.DoesNotExist):
+        #children['status'] = "ERROR"
 
-    return HttpResponse(json.dumps(children))
+    #return HttpResponse(json.dumps(children))
+
+def get_ca_chain(request, ca_id):
+    ca_id = int(ca_id)
+    
+    to_visit = [ca_id]
+    visited = set()
+    edges = set()
+    vertices = {ca_id:{'name':Ca.objects.get(pk=ca_id).common_name, 'current':True}}
+    data = {}    
+    
+    while len(to_visit) > 0:
+        next_ca_id = to_visit.pop()
+        visited.add(next_ca_id)
+        	
+        for row in CaCertificate.objects.filter(ca_id=next_ca_id):
+            cert_id = row.certificate.id
+            
+            ca_certificate = Certificate.objects.get(id=cert_id)
+
+            ca_id = ca_certificate.issuer_ca.id
+            ca_name = ca_certificate.issuer_ca.common_name
+            		
+            edges.add((ca_id, next_ca_id))
+            if(ca_id not in vertices):
+                vertices[ca_id] = {'name':ca_name, 'current':False}
+        		
+            if(ca_id not in visited):
+                to_visit.append(ca_id)
+    
+    data['names'] = vertices
+    data['edges'] = []
+    
+    for edge in edges:
+        data['edges'].append({"source":edge[0],"target":edge[1]})
+        
+    return HttpResponse(json.dumps(data))
 
 def getcaspage(request, page):
     ITEMS_PER_PAGE = 50

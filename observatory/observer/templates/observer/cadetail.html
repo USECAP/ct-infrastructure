@@ -2,13 +2,6 @@
 
 {% block title %}Details for certificate authority {{ca.name}}{% endblock %}
 {% block style %}
-.node circle {
-  cursor: pointer;
-  fill: #fff;
-  stroke: firebrick;
-  stroke-width: 1.5px;
-}
-
 
 .axis line {
   fill: none;
@@ -17,18 +10,30 @@
   vector-effect: non-scaling-stroke;
 }
 
-.node text {
-  font-size: 11px;
-  cursor: pointer;
+.diagram{height: 350px;}
+
+.link {
+  fill: none;
+  stroke: #666;
+  stroke-width: 3px;
 }
 
-path.link {
-  fill: none;
-  stroke: #ccc;
+circle {
+  fill: #ccc;
+  stroke: #333;
   stroke-width: 1.5px;
 }
 
-.diagram{height: 350px;}
+circle.current {
+  fill: #fcc;
+}
+
+text {
+  font: 10px sans-serif;
+  cursor:pointer;
+  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+}
+
 {% endblock %}
 
 {% block content %}
@@ -81,130 +86,100 @@ var panelwidth = $('#treeview').width(),
     i = 0,
     root;
 
-var tree = d3.layout.tree().size([h, w]);
-
-var diagonal = d3.svg.diagonal()
-    .projection(function(d) { return [d.y, d.x]; });
-
-var vis = d3.select("#treeview")
-    .append("svg:svg")
-    .attr("width", w + m[1] + m[3])
-    .attr("height", h + m[0] + m[2])
-    .append("svg:g")
-    .attr("transform", "translate(" + panelwidth/2 + "," + m[0] + ")");
-
-
-// Toggle children.
-function toggle(d) {
-  if (d.children) {
-    d._children = d.children;
-    d.children = null;
-  } else {
-    d.children = d._children;
-    d._children = null;
-  }
-}
-
-function update(source) {
- // Compute the new tree layout.
-  var nodes = tree.nodes(root).reverse();
-
-  // Normalize for fixed-depth.
-  nodes.forEach(function(d) { d.y = 0; });
-  nodes.forEach(function(d) { d.x = d.depth * 50; });
-
-  // Update the nodes…
-  var node = vis.selectAll("g.node")
-      .data(nodes, function(d) { return d.id || (d.id = ++i); });
-
-  // Enter any new nodes at the parent's previous position.
-  var nodeEnter = node.enter().append("svg:g")
-      .attr("class", "node")
-      .on("click", function(d) { toggle(d); update(d); });
-
-  nodeEnter.append("svg:circle")
-      .attr("r", 1e-6)
-      .style("fill", "lightsteelblue" );
-
-  nodeEnter.append("svg:text")
-      .attr("x", function(d) { return d.children || d._children ? -20 : 20; })
-      .attr("dy", ".35em")
-      .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
-      .text(function(d) { return d.name; })
-      .style("fill-opacity", 1e-6)
-      .on("click", function(d) { 
-            if(d.id != 'number_of_children'){
-                window.location.href = "../../cert/" + d.id; 
-            }
-       });
-
-  // Transition nodes to their new position.
-  var nodeUpdate = node.transition()
-      .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
-
-  nodeUpdate.select("circle")
-      .attr("r", 10)
-      .style("fill", "salmon");
-
-  nodeUpdate.select("text")
-      .style("fill-opacity", 1);
-
-  // Transition exiting nodes to the parent's new position.
-  var nodeExit = node.exit().transition()
-      .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
-      .remove();
-
-  nodeExit.select("circle")
-      .attr("r", 1e-6);
-
-  nodeExit.select("text")
-      .style("fill-opacity", 1e-6);
-
-  // Update the links…
-  var link = vis.selectAll("path.link")
-      .data(tree.links(nodes), function(d) { return d.target.id; });
-
-  // Enter any new links at the parent's previous position.
-  link.enter().insert("svg:path", "g")
-      .attr("class", "link")
-      .attr("d", function(d) {
-        var o = {x: source.x0, y: source.y0};
-        return diagonal({source: o, target: o});
-      })
-    .transition()
-      .attr("d", diagonal);
-
-  // Transition links to their new position.
-  link.transition()
-      .attr("d", diagonal);
-
-  // Transition exiting nodes to the parent's new position.
-  link.exit().transition()
-      .attr("d", function(d) {
-        var o = {x: source.x, y: source.y};
-        return diagonal({source: o, target: o});
-      })
-      .remove();
-
-  // Stash the old positions for transition.
-  nodes.forEach(function(d) {
-    d.x0 = d.x;
-    d.y0 = d.y;
-  });
-  
-  //re-compute height
-  d3.select("#treeview svg")
-    .attr("height", (nodes.length-1) * 50 + m[0] + m[2]);
-}
 
 
 $(function(){
-    d3.json("/api/ca/{{ca.id}}", function(json) {
-        root = json;
-        root.x0 = 300;
-        root.y0 = 0;
+    d3.json("/api/ca/{{ca.id}}", function(graphdata) {
+        var nodes = {};
 
-        update(root);
+        // Compute the distinct nodes from the links.
+        graphdata.edges.forEach(function(link) {
+        link.source = nodes[link.source] || (nodes[link.source] = {name: link.source});
+        link.target = nodes[link.target] || (nodes[link.target] = {name: link.target});
+        });
+
+        var width = 960,
+            height = 500;
+
+        var force = d3.layout.force()
+            .nodes(d3.values(nodes))
+            .links(graphdata["edges"])
+            .size([width, height])
+            .linkDistance(200)
+            .friction(0.3)
+            .charge(-300)
+            .on("tick", tick)
+            .start();
+            
+        var drag = force.drag()
+            .on("dragstart", dragstart);
+
+        var svg = d3.select("#treeview").append("svg")
+            .attr("width", panelwidth)
+            .attr("height", height);
+
+        svg.append("defs").append("marker")
+            .attr("id", "arrow")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 15)
+            .attr("refY", -1.5)
+            .attr("markerWidth", 8)
+            .attr("markerHeight", 8)
+            .attr("orient", "auto")
+        .append("path")
+            .attr("d", "M0,-5L10,0L0,5");
+
+        var path = svg.append("g").selectAll("path")
+            .data(force.links())
+        .enter().append("path")
+            .attr("class", function(d) { return "link"; })
+            .attr("marker-end", function(d) { return "url(#arrow)"; });
+
+        var circle = svg.append("g").selectAll("circle")
+            .data(force.nodes())
+        .enter().append("circle")
+            .attr("r", 15)
+            .attr("class", function(d){
+                console.log(d);
+                if(graphdata["names"][d.name]["current"]){
+                    return "current";
+                }else{
+                    return "";
+                }
+            })
+            .call(force.drag);
+
+        var text = svg.append("g").selectAll("text")
+            .data(force.nodes())
+        .enter().append("text")
+            .attr("x", 18)
+            .attr("y", ".31em")
+            .text(function(d) { return graphdata["names"][d.name]["name"]; })
+            .on("click", function(d){
+                window.location.href = "../"+d.name;
+            });
+
+        // Use elliptical arc path segments to doubly-encode directionality.
+        function tick() {
+            path.attr("d", linkArc);
+            circle.attr("transform", transform);
+            text.attr("transform", transform);
+        }
+
+        function linkArc(d) {
+        var dx = d.target.x - d.source.x,
+            dy = d.target.y - d.source.y,
+            dr = Math.sqrt(dx * dx + dy * dy);
+        return "M" + d.source.x + "," + d.source.y + "A" + dr + "," + dr + " 0 0,1 " + d.target.x + "," + d.target.y;
+        }
+
+        function transform(d) {
+            return "translate(" + d.x + "," + d.y + ")";
+        }
+        
+        function dragstart(d) {
+            d3.select(this).classed("fixed", d.fixed = true);
+        }
     });
     
     d3.json('/api/getsignaturealgorithmdistribution/{{ca.id}}', function(data) {
