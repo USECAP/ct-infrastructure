@@ -13,7 +13,7 @@ from ctobservatory.settings import BASE_DIR
 from .models import *
 from notification.forms import SubscribeUnsubscribeForm
 #from .issuefinder import *
-import issuefinder
+import observer.issuefinder as issuefinder
 from django.template.defaulttags import register
 
 ITEMS_PER_PAGE = 50
@@ -41,6 +41,9 @@ class FastCountQuerySet():
             return object.__getattr__(self, attr)
         except AttributeError:
             return getattr(self.queryset, attr)
+    
+    def __getitem__(self, item):
+         return self.queryset[item]
 
 class MetadataCountQuerySet():
     def __init__(self, queryset, propertyname):
@@ -310,7 +313,7 @@ def certdetail(request,cert_id=None,cert_sha256=None):
     if cert_id:
         cert = get_object_or_404(Certificate, pk=cert_id)
     cacert = CaCertificate.objects.filter(certificate_id=cert_id).first()
-    digest_sha256 = cert.get_digest_sha256().replace(':','').lower()
+    digest_sha256 = str(cert.get_digest_sha256()).replace(':','').lower()[2:-1]
 
     #TODO
     #Certificate.objects.raw("select (select count(*) from certificate WHERE x509_keySize(certificate) = %s)*100/cast(COUNT(*) as float) as percentage, 0 as id FROM certificate;", [cert.get_x509_data().get_pubkey().bits()])

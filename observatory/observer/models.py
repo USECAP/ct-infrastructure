@@ -10,6 +10,7 @@
 from __future__ import unicode_literals
 from OpenSSL import crypto
 from django.db import models
+import codecs
 import re
 
 
@@ -27,7 +28,9 @@ class Ca(models.Model):
         managed = False
         db_table = 'ca'
         unique_together = (('common_name', 'public_key'),)
-
+    
+    def public_key_hex(self):
+        return codecs.encode(self.public_key, 'hex')
 
 class CaCertificate(models.Model):
     certificate = models.ForeignKey('Certificate', models.DO_NOTHING, blank=True, null=True)
@@ -63,9 +66,9 @@ class Certificate(models.Model):
         data.append(('notBefore', self.notbefore(cert)))
         data.append(('notAfter', self.notafter(cert)))
         data.append(('has_expired', self.has_expired(cert)))
-        data.append(('digest_md5', cert.digest('md5'.encode('ascii','ignore'))))
-        data.append(('digest_sha1', cert.digest('sha1'.encode('ascii','ignore'))))
-        data.append(('digest_sha256', cert.digest('sha256'.encode('ascii','ignore'))))
+        data.append(('digest_md5', str(cert.digest('md5')).replace(':','').lower()[2:-1]))
+        data.append(('digest_sha1', str(cert.digest('sha1')).replace(':','').lower()[2:-1]))
+        data.append(('digest_sha256', str(cert.digest('sha256')).replace(':','').lower()[2:-1]))
         return data
 
     def has_expired(self, cert=None):
@@ -84,31 +87,31 @@ class Certificate(models.Model):
     def notbefore(self, cert=None):
         if(cert == None):
             cert = self.get_x509_data()
-        date = cert.get_notBefore()
-        datestring = "{year}-{month}-{day} {hour}:{minute}:{seconds}".format(year=date[:4], month=date[4:6], day=date[6:8], hour=date[8:10], minute=date[10:12], seconds=date[12:14])
+        date = str(cert.get_notBefore())
+        datestring = "{year}-{month}-{day} {hour}:{minute}:{seconds}".format(year=date[2:6], month=date[6:8], day=date[8:10], hour=date[10:12], minute=date[12:14], seconds=date[14:16])
         return datestring
     
     def notafter(self, cert=None):
         if(cert == None):
             cert = self.get_x509_data()
-        date = cert.get_notAfter()
-        datestring = "{year}-{month}-{day} {hour}:{minute}:{seconds}".format(year=date[:4], month=date[4:6], day=date[6:8], hour=date[8:10], minute=date[10:12], seconds=date[12:14])
+        date = str(cert.get_notAfter())
+        datestring = "{year}-{month}-{day} {hour}:{minute}:{seconds}".format(year=date[2:6], month=date[6:8], day=date[8:10], hour=date[10:12], minute=date[12:14], seconds=date[14:16])
         return datestring
     
     def startdate(self, cert=None):
         if(cert == None):
             cert = self.get_x509_data()
-        date = cert.get_notBefore()
+        date = str(cert.get_notBefore())
         # Beware, JavaScript wants month to be zero-based (i.e. 0=January etc.)
-        datestring = "{year}, {month}, {day}, {hour}, {minute}, {seconds}".format(year=int(date[:4]), month=(int(date[4:6])-1), day=int(date[6:8]), hour=int(date[8:10]), minute=int(date[10:12]), seconds=int(date[12:14]))
+        datestring = "{year}, {month}, {day}, {hour}, {minute}, {seconds}".format(year=int(date[2:6]), month=(int(date[6:8])-1), day=int(date[8:10]), hour=int(date[10:12]), minute=int(date[12:14]), seconds=int(date[14:16]))
         return datestring
     
     def enddate(self, cert=None):
         if(cert == None):
             cert = self.get_x509_data()
-        date = cert.get_notAfter()
+        date = str(cert.get_notAfter())
         # Beware, JavaScript wants month to be zero-based (i.e. 0=January etc.)
-        datestring = "{year}, {month}, {day}, {hour}, {minute}, {seconds}".format(year=int(date[:4]), month=(int(date[4:6])-1), day=int(date[6:8]), hour=int(date[8:10]), minute=int(date[10:12]), seconds=int(date[12:14]))
+        datestring = "{year}, {month}, {day}, {hour}, {minute}, {seconds}".format(year=int(date[2:6]), month=(int(date[6:8])-1), day=int(date[8:10]), hour=int(date[10:12]), minute=int(date[12:14]), seconds=int(date[14:16]))
         return datestring
     
     def pubkey_type(self, cert=None):
@@ -167,10 +170,10 @@ class Certificate(models.Model):
 
     def get_digest_sha256(self):
         cert = self.get_x509_data()
-        return cert.digest('sha256'.encode('ascii','ignore'))
+        return cert.digest('sha256')
 
     def get_x509_data(self):
-        return crypto.load_certificate(crypto.FILETYPE_ASN1, str(self.certificate))
+        return crypto.load_certificate(crypto.FILETYPE_ASN1, bytes(self.certificate))
 
 
 class CertificateIdentity(models.Model):

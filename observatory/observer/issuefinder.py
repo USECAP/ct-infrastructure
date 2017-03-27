@@ -22,15 +22,14 @@ def get_first_certificates(ordered_list_of_certificates, result={}):
 	if (len(ordered_list_of_certificates) < 1):
 		return result
 
-	first_timestamp_str = crypto.load_certificate(crypto.FILETYPE_ASN1, str(ordered_list_of_certificates[0].certificate)).get_notBefore()
+	first_timestamp_str = crypto.load_certificate(crypto.FILETYPE_ASN1, bytes(ordered_list_of_certificates[0].certificate)).get_notBefore()
 	first_timestamp = parser.parse(first_timestamp_str)
 
 	for certificate in ordered_list_of_certificates:
 		ID = certificate.id
 		certificate_bin = certificate.certificate
 		ca_id = certificate.issuer_ca.id
-		certificate = crypto.load_certificate(crypto.FILETYPE_ASN1,
-							str(certificate_bin))
+		certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, bytes(certificate_bin))
 		current_timestamp_str = certificate.get_notBefore()
 		current_timestamp = parser.parse(current_timestamp_str)
 
@@ -83,7 +82,7 @@ def get_weaker_crypto_algorithm(ordered_list_of_certificates, result={}):
 		ID = certificate.id
 		certificate_bin = certificate.certificate
 		ca_id = certificate.issuer_ca.id
-		certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(certificate_bin))
+		certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, bytes(certificate_bin))
 		current_algorithm = certificate.get_signature_algorithm()
 
 		current_order = 0
@@ -120,7 +119,7 @@ def get_weaker_crypto_keysize(ordered_list_of_certificates, result={}):
 		ID = certificate.id
 		certificate_bin = certificate.certificate
 		ca_id = certificate.issuer_ca.id
-		certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(certificate_bin))
+		certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, bytes(certificate_bin))
 		current_algorithm = certificate.get_signature_algorithm()
 		current_keysize = certificate.get_pubkey().bits()
 
@@ -150,7 +149,7 @@ def get_early_renewal(ordered_list_of_certificates, result={}):
 	if (len(ordered_list_of_certificates) < 1):
 		return result
 
-	first_certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(ordered_list_of_certificates[0].certificate))
+	first_certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, bytes(ordered_list_of_certificates[0].certificate))
 
 	last_start = parser.parse(first_certificate.get_notBefore())
 	last_end = parser.parse(first_certificate.get_notAfter())
@@ -164,7 +163,7 @@ def get_early_renewal(ordered_list_of_certificates, result={}):
 		ID = certificate.id
 		certificate_bin = certificate.certificate
 		ca_id = certificate.issuer_ca.id
-		certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(certificate_bin))
+		certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, bytes(certificate_bin))
 		notbefore = parser.parse(certificate.get_notBefore())
 		notafter = parser.parse(certificate.get_notAfter())
 		cn = certificate.get_subject().commonName
@@ -220,7 +219,7 @@ def get_short_validity(ordered_list_of_certificates, result={}):
 	if (len(ordered_list_of_certificates) < 1):
 		return result
 
-	first_certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(ordered_list_of_certificates[0].certificate))
+	first_certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, bytes(ordered_list_of_certificates[0].certificate))
 
 	first_start = parser.parse(first_certificate.get_notBefore())
 	first_end = parser.parse(first_certificate.get_notAfter())
@@ -232,7 +231,7 @@ def get_short_validity(ordered_list_of_certificates, result={}):
 		ID = certificate.id
 		certificate_bin = certificate.certificate
 		ca_id = certificate.issuer_ca.id
-		certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(certificate_bin))
+		certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, bytes(certificate_bin))
 		notbefore = parser.parse(certificate.get_notBefore())
 		notafter = parser.parse(certificate.get_notAfter())
 
@@ -286,7 +285,7 @@ def get_long_validity(ordered_list_of_certificates, result={}):
 	if (len(ordered_list_of_certificates) < 1):
 		return result
 
-	first_certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, str(ordered_list_of_certificates[0].certificate))
+	first_certificate = crypto.load_certificate(crypto.FILETYPE_ASN1, bytes(ordered_list_of_certificates[0].certificate))
 
 	first_start = parser.parse(first_certificate.get_notBefore())
 	first_end = parser.parse(first_certificate.get_notAfter())
@@ -297,7 +296,7 @@ def get_long_validity(ordered_list_of_certificates, result={}):
 		ID = certificate.id
 		certificate_bin = certificate.certificate
 		ca_id = certificate.issuer_ca.id
-		certificate = crypto.load_certificate(crypto.FILETYPE_ASN1,str(certificate_bin))
+		certificate = crypto.load_certificate(crypto.FILETYPE_ASN1,bytes(certificate_bin))
 		notbefore = parser.parse(certificate.get_notBefore())
 		notafter = parser.parse(certificate.get_notAfter())
 

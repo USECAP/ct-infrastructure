@@ -1,5 +1,7 @@
 django
 psycopg2
 pyopenssl
+pyparsing
+appdirs
 py-dateutil
 django-analytical
