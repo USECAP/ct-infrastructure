@@ -1,30 +1,31 @@
 {% extends "base.html" %}
 
 {% block style %}
-.node circle {
-  cursor: pointer;
-  fill: #fff;
-  stroke: steelblue;
+
+.diagram{height: 350px;}
+
+.link {
+  fill: none;
+  stroke: #666;
+  stroke-width: 3px;
+}
+
+circle {
+  fill: #ccc;
+  stroke: #333;
   stroke-width: 1.5px;
 }
 
-.axis line {
-  fill: none;
-  stroke: #ddd;
-  shape-rendering: crispEdges;
-  vector-effect: non-scaling-stroke;
+circle.current {
+  fill: #fcc;
 }
 
-.node text {
-  font-size: 11px;
-  cursor: pointer;
+text {
+  font: 10px sans-serif;
+  cursor:pointer;
+  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
 }
 
-path.link {
-  fill: none;
-  stroke: #ccc;
-  stroke-width: 1.5px;
-}
 {% endblock %}
 
 {% block title %}Details for certificate {{certificate.id}}{% endblock %}
@@ -113,12 +114,23 @@ path.link {
 
     <div class="col-sm-12">
         <div class="card">
-            <div class="card-header">Tree</div>
+            <div class="card-header">CA chain</div>
+            <p class="card-block">This diagram visualizes the trust relationships between the current certificate and the CAs to which a path exists.<br>
+            A link from A to B signifies one or more existing certificates, issued by A, signing the public key of B.</p>
+            
             <div id="treeview" class="card-block">
             </div>
+            
+            <p class="card-block">The current certificate is colored red.<br>
+            Drag a CA or certificate in order to fix its position. Click on the name of a CA to open the CA details page.</p>
         </div>
     </div>
 
+{% endblock %}
+
+{% block additionalscripts %}
+{% load staticfiles %}
+<script type="text/javascript" src="{% static 'js/ctobs-ca-chart.js' %}"></script>
 {% endblock %}
 
 {% block scripts %}
@@ -141,133 +153,14 @@ var panelwidth = $('#treeview').width(),
     i = 0,
     root;
 
-var tree = d3.layout.tree().size([h, w]);
-
-var diagonal = d3.svg.diagonal()
-    .projection(function(d) { return [d.y, d.x]; });
-
-var vis = d3.select("#treeview")
-    .append("svg:svg")
-    .attr("width", w + m[1] + m[3])
-    .attr("height", h + m[0] + m[2])
-    .append("svg:g")
-    .attr("transform", "translate(" + panelwidth/2 + "," + m[0] + ")");
-    
-
-// Toggle children.
-function toggle(d) {
-  if (d.children) {
-    d._children = d.children;
-    d.children = null;
-  } else {
-    d.children = d._children;
-    d._children = null;
-  }
-}
-
-function update(source) {
- // Compute the new tree layout.
-  var nodes = tree.nodes(root).reverse();
-
-  // Normalize for fixed-depth.
-  nodes.forEach(function(d) { d.y = 0; });
-  nodes.forEach(function(d) { d.x = d.depth * 50; });
-
-  // Update the nodes…
-  var node = vis.selectAll("g.node")
-      .data(nodes, function(d) { return d.id || (d.id = ++i); });
-
-  // Enter any new nodes at the parent's previous position.
-  var nodeEnter = node.enter().append("svg:g")
-      .attr("class", "node")
-      .on("click", function(d) { toggle(d); update(d); });
-
-  nodeEnter.append("svg:circle")
-      .attr("r", 1e-6)
-      .style("fill", "lightsteelblue" );
-
-  nodeEnter.append("svg:text")
-      .attr("x", function(d) { return d.children || d._children ? -20 : 20; })
-      .attr("dy", ".35em")
-      .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
-      .text(function(d) { return d.name; })
-      .style("fill-opacity", 1e-6)
-      .on("click", function(d) { window.location.href = "../" + d.id; });
-
-  // Transition nodes to their new position.
-  var nodeUpdate = node.transition()
-      .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
-
-  nodeUpdate.select("circle")
-      .attr("r", 10)
-      .style("fill", "lightsteelblue");
-
-  nodeUpdate.select("text")
-      .style("fill-opacity", 1);
-
-  // Transition exiting nodes to the parent's new position.
-  var nodeExit = node.exit().transition()
-      .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
-      .remove();
-
-  nodeExit.select("circle")
-      .attr("r", 1e-6);
-
-  nodeExit.select("text")
-      .style("fill-opacity", 1e-6);
-
-  // Update the links…
-  var link = vis.selectAll("path.link")
-      .data(tree.links(nodes), function(d) { return d.target.id; });
-
-  // Enter any new links at the parent's previous position.
-  link.enter().insert("svg:path", "g")
-      .attr("class", "link")
-      .attr("d", function(d) {
-        var o = {x: source.x0, y: source.y0};
-        return diagonal({source: o, target: o});
-      })
-    .transition()
-      .attr("d", diagonal);
-
-  // Transition links to their new position.
-  link.transition()
-      .attr("d", diagonal);
-
-  // Transition exiting nodes to the parent's new position.
-  link.exit().transition()
-      .attr("d", function(d) {
-        var o = {x: source.x, y: source.y};
-        return diagonal({source: o, target: o});
-      })
-      .remove();
-
-  // Stash the old positions for transition.
-  nodes.forEach(function(d) {
-    d.x0 = d.x;
-    d.y0 = d.y;
-  });
-  
-  //re-compute height
-  d3.select("#treeview svg")
-    .attr("height", (nodes.length-1) * 50 + m[0] + m[2]);
-}
-
 
 $(function(){
-    d3.json("/api/getcertchain/{{certificate.id}}", function(json) {
-        root = json;
-        root.x0 = 300;
-        root.y0 = 0;
-
-        update(root);
+    d3.json("/api/getcertchain/{{certificate.id}}", function(graphdata) {
+        draw_ca_graph(graphdata, panelwidth);
     });
 });
 
 
-function zoom() {
-    svgGroup.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
-}
 
 
 {% endblock %}

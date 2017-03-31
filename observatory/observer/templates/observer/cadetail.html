@@ -58,25 +58,42 @@ text {
             <dd class="wordwrap">{{ca.public_key_hex}}</dd>
         </dl>
     </div>
-    <ul class="list-group list-group-flush">
-        <li class="list-group-item">This CA has issued <a href="{% url 'observer:certs_by_ca' ca_id=ca.id %}">{{ca.certificate_set.count}} certificates</a> in TODO logs.</li>
-    </ul>
-    <div id="treeview" class="card-block">
-     <h4 class="card-title">Certificate chain</h4>
+    
+        <ul class="list-group list-group-flush">
+            <li class="list-group-item">This CA has issued <a href="{% url 'observer:certs_by_ca' ca_id=ca.id %}">{{ca.certificate_set.count}} certificates</a> in TODO logs.</li>
+        </ul>
+    
+    <div class="card-block">
+        <h4 class="card-title">Certificate chain</h4>
+        <p>This diagram visualizes the trust relationships between the current certificate and the CAs to which a path exists.<br>
+           A link from A to B signifies one or more existing certificates, issued by A, signing the public key of B.</p>
+            
+        <div id="treeview"></div>
+    
+        <p class="card-block">The current certificate is colored red.<br>
+           Drag a CA or certificate in order to fix its position. Click on the name of a CA to open the CA details page.</p>
     </div>
+    
     <div id="signaturealgorithmdiagram" class="card-block diagram">
      <h4 class="card-title">Most frequent signature algorithms</h4>
      <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
     <svg></svg>
     </div>
+    
     <div id="keysizediagram" class="card-block diagram">
      <h4 class="card-title">Most frequent key sizes</h4>
      <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
     <svg></svg>
     </div>
+    
   </div>
 
     
+{% endblock %}
+
+{% block additionalscripts %}
+{% load staticfiles %}
+<script type="text/javascript" src="{% static 'js/ctobs-ca-chart.js' %}"></script>
 {% endblock %}
 
 {% block scripts %}
@@ -92,96 +109,7 @@ var panelwidth = $('#treeview').width(),
 
 $(function(){
     d3.json("/api/ca/{{ca.id}}", function(graphdata) {
-        var nodes = {};
-
-        // Compute the distinct nodes from the links.
-        graphdata.edges.forEach(function(link) {
-        link.source = nodes[link.source] || (nodes[link.source] = {name: link.source});
-        link.target = nodes[link.target] || (nodes[link.target] = {name: link.target});
-        });
-
-        var width = 960,
-            height = 500;
-
-        var force = d3.layout.force()
-            .nodes(d3.values(nodes))
-            .links(graphdata["edges"])
-            .size([width, height])
-            .linkDistance(200)
-            .friction(0.9)
-            .charge(-300)
-            .on("tick", tick)
-            .start();
-            
-        var drag = force.drag()
-            .on("dragstart", dragstart);
-
-        var svg = d3.select("#treeview").append("svg")
-            .attr("width", panelwidth)
-            .attr("height", height);
-
-        svg.append("defs").append("marker")
-            .attr("id", "arrow")
-            .attr("viewBox", "0 -5 10 10")
-            .attr("refX", 15)
-            .attr("refY", -1.5)
-            .attr("markerWidth", 8)
-            .attr("markerHeight", 8)
-            .attr("orient", "auto")
-        .append("path")
-            .attr("d", "M0,-5L10,0L0,5");
-
-        var path = svg.append("g").selectAll("path")
-            .data(force.links())
-        .enter().append("path")
-            .attr("class", function(d) { return "link"; })
-            .attr("marker-end", function(d) { return "url(#arrow)"; });
-
-        var circle = svg.append("g").selectAll("circle")
-            .data(force.nodes())
-        .enter().append("circle")
-            .attr("r", 15)
-            .attr("class", function(d){
-                console.log(d);
-                if(graphdata["names"][d.name]["current"]){
-                    return "current";
-                }else{
-                    return "";
-                }
-            })
-            .call(force.drag);
-
-        var text = svg.append("g").selectAll("text")
-            .data(force.nodes())
-        .enter().append("text")
-            .attr("x", 18)
-            .attr("y", ".31em")
-            .text(function(d) { return graphdata["names"][d.name]["name"]; })
-            .on("click", function(d){
-                window.location.href = "../"+d.name;
-            });
-
-        // Use elliptical arc path segments to doubly-encode directionality.
-        function tick() {
-            path.attr("d", linkArc);
-            circle.attr("transform", transform);
-            text.attr("transform", transform);
-        }
-
-        function linkArc(d) {
-        var dx = d.target.x - d.source.x,
-            dy = d.target.y - d.source.y,
-            dr = Math.sqrt(dx * dx + dy * dy);
-        return "M" + d.source.x + "," + d.source.y + "A" + dr + "," + dr + " 0 0,1 " + d.target.x + "," + d.target.y;
-        }
-
-        function transform(d) {
-            return "translate(" + d.x + "," + d.y + ")";
-        }
-        
-        function dragstart(d) {
-            d3.select(this).classed("fixed", d.fixed = true);
-        }
+        draw_ca_graph(graphdata, panelwidth);
     });
     
     d3.json('/api/getsignaturealgorithmdistribution/{{ca.id}}', function(data) {

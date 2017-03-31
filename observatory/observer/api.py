@@ -38,8 +38,8 @@ def get_ca_info(request,id):
     return HttpResponse(json.dumps({"id":id, "name":Ca.objects.get(id=id).common_name, "children": list(children)}))
 
 def get_certificate_chain(request, cert_id):
-    cert_id = int(cert_id)
-    visited = {}
+    #cert_id = int(cert_id)
+    #visited = {}
     
     
 #    children = {"id":cert_id, "name":"", "children":0}
@@ -86,16 +86,58 @@ def get_certificate_chain(request, cert_id):
 #        children['status'] = "ERROR"
         
         
-    children = {}
+    #children = {}
 
-    try:
-        children = get_parent_cas(cert_id, visited)
+    #try:
+        #children = get_parent_cas(cert_id, visited)
             
-        children['status'] = "OK"
-    except (CaCertificate.DoesNotExist, Certificate.DoesNotExist):
-        children['status'] = "ERROR"
+        #children['status'] = "OK"
+    #except (CaCertificate.DoesNotExist, Certificate.DoesNotExist):
+        #children['status'] = "ERROR"
         
-    return HttpResponse(json.dumps(children))
+    #return HttpResponse(json.dumps(children))
+    
+    cert_id = int(cert_id)
+    
+    visited = set()
+    edges = set()
+    
+    certificate = Certificate.objects.get(id=cert_id)
+    ca_id = certificate.issuer_ca.id
+    
+    
+    to_visit = [ca_id]
+    vertices = {ca_id:{'name':Ca.objects.get(pk=ca_id).common_name, 'current':False},"cert_{}".format(cert_id):{'name':certificate.subject_common_name(), 'current':True}}
+    # add edge from ca to certificate
+    edges.add((ca_id, "cert_{}".format(cert_id)))
+    data = {}    
+    
+    while len(to_visit) > 0:
+        next_ca_id = to_visit.pop()
+        visited.add(next_ca_id)
+        	
+        for row in CaCertificate.objects.filter(ca_id=next_ca_id):
+            cert_id = row.certificate.id
+            
+            ca_certificate = Certificate.objects.get(id=cert_id)
+
+            ca_id = ca_certificate.issuer_ca.id
+            ca_name = ca_certificate.issuer_ca.common_name
+            		
+            edges.add((ca_id, next_ca_id))
+            if(ca_id not in vertices):
+                vertices[ca_id] = {'name':ca_name, 'current':False}
+        		
+            if(ca_id not in visited):
+                to_visit.append(ca_id)
+    
+    data['names'] = vertices
+    data['edges'] = []
+    
+    for edge in edges:
+        data['edges'].append({"source":edge[0],"target":edge[1]})
+        
+    return HttpResponse(json.dumps(data))
 
 def get_parent_cas(cert_id, visited):
     certificate = Certificate.objects.get(id=cert_id)
