@@ -45,6 +45,9 @@ function draw_ca_graph(graphdata, panelwidth){
 	.data(force.links())
 	.enter().append("path")
 	.attr("class", function(d) { return "link"; })
+	.attr("fill", "none")
+	.attr("stroke", "#666")
+	.attr("stroke-width", "3px")
 	.attr("marker-end", function(d) { return "url(#arrow)"; });
 
 	var circle = svg.append("g").selectAll("circle")
@@ -58,6 +61,15 @@ function draw_ca_graph(graphdata, panelwidth){
 			return "";
 		}
 	})
+	.attr("fill", function(d){
+		if(graphdata["names"][d.name]["current"]){
+			return "#f66";
+		}else{
+			return "#ccc";
+		}
+	})
+	.attr("stroke", "#333")
+	.attr("stroke-width", "1.5px")
 	.call(force.drag);
 
 	var text = svg.append("g").selectAll("text")
@@ -93,4 +105,11 @@ function draw_ca_graph(graphdata, panelwidth){
 	function dragstart(d) {
 		d3.select(this).classed("fixed", d.fixed = true);
 	}
+}
+
+function setdownload(id, text, name, type) {
+	var a = document.getElementById(id);
+	var file = new Blob([text], {type: type});
+	a.href = URL.createObjectURL(file);
+	a.download = name;
 }

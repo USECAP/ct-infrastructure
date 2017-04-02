@@ -201,6 +201,12 @@ class CtLog(models.Model):
     class Meta:
         managed = False
         db_table = 'ct_log'
+    
+    def public_key_hex(self):
+        if self.public_key != None:
+            return codecs.encode(self.public_key, 'hex')
+        else:
+            return 'None'
 
 
 class CtLogEntry(models.Model):

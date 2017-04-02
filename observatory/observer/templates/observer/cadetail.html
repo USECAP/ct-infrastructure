@@ -10,23 +10,7 @@
   vector-effect: non-scaling-stroke;
 }
 
-.diagram{height: 350px;}
-
-.link {
-  fill: none;
-  stroke: #666;
-  stroke-width: 3px;
-}
-
-circle {
-  fill: #ccc;
-  stroke: #333;
-  stroke-width: 1.5px;
-}
-
-circle.current {
-  fill: #fcc;
-}
+.diagram{height: 400px;}
 
 text {
   font: 10px sans-serif;
@@ -60,7 +44,7 @@ text {
     </div>
     
         <ul class="list-group list-group-flush">
-            <li class="list-group-item">This CA has issued <a href="{% url 'observer:certs_by_ca' ca_id=ca.id %}"><span id="child_certificate_count"><i><i class="fa fa-refresh fa-spin"></i> counting…</i></span> certificates</a> in TODO logs.</li>
+            <li class="list-group-item">This CA has issued <a href="{% url 'observer:certs_by_ca' ca_id=ca.id %}"><span id="child_certificate_count"><i><i class="fa fa-refresh fa-spin"></i> counting…</i></span> certificates</a>.</li>
         </ul>
     
     <div class="card-block">
@@ -69,21 +53,29 @@ text {
            A link from A to B signifies one or more existing certificates, issued by A, signing the public key of B.</p>
             
         <div id="treeview"></div>
+        
+        <p class="text-right"><button class="btn btn-link btn-sm" id="export_diagram">Export this diagram as svg</button></p>
     
-        <p class="card-block">The current certificate is colored red.<br>
+        <p class="card-block">The current CA is colored red.<br>
            Drag a CA or certificate in order to fix its position. Click on the name of a CA to open the CA details page.</p>
     </div>
     
-    <div id="signaturealgorithmdiagram" class="card-block diagram">
+    <div class="card-block">
      <h4 class="card-title">Most frequent signature algorithms</h4>
-     <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
-    <svg></svg>
+     <div id="signaturealgorithmdiagram" class="diagram">
+      <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+      <svg></svg>
+     </div>
+     <p class="text-right"><button class="btn btn-link btn-sm" id="export_diagram_signaturealgorithm">Export this diagram as svg</button></p>
     </div>
     
-    <div id="keysizediagram" class="card-block diagram">
+    <div class="card-block">
      <h4 class="card-title">Most frequent key sizes</h4>
-     <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
-    <svg></svg>
+     <div id="keysizediagram" class="diagram">
+      <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+      <svg></svg>
+     </div>
+     <p class="text-right"><button class="btn btn-link btn-sm" id="export_diagram_keysize">Export this diagram as svg</button></p>
     </div>
     
   </div>
@@ -114,6 +106,19 @@ $(function(){
     
     d3.json("/api/ca/{{ca.id}}", function(graphdata) {
         draw_ca_graph(graphdata, panelwidth);
+        
+        $("#export_diagram").click(function(){
+            var random_id = "tmp"+Math.random();
+            $("#export_diagram").after("<a href='#' id='"+random_id+"'>TMP_DOWNLOAD</a>");
+            
+            setdownload(random_id, $('#treeview').html(), "ca_chain_cert_{{ca.id}}.svg", "text/svg");
+            
+            document.getElementById(random_id).click();
+            
+            var element = document.getElementById(random_id);
+            element.outerHTML = "";
+            delete element;
+        });
     });
     
     d3.json('/api/getsignaturealgorithmdistribution/{{ca.id}}', function(data) {
@@ -146,6 +151,19 @@ $(function(){
             nv.utils.windowResize(chart.update);
             return chart;
         });
+        
+        $("#export_diagram_signaturealgorithm").click(function(){
+            var random_id = "tmp"+Math.random();
+            $("#export_diagram_signaturealgorithm").after("<a href='#' id='"+random_id+"'>TMP_DOWNLOAD</a>");
+            
+            setdownload(random_id, $('#signaturealgorithmdiagram').html(), "ca_signaturealgorithms_{{ca.id}}.svg", "text/svg");
+            
+            document.getElementById(random_id).click();
+            
+            var element = document.getElementById(random_id);
+            element.outerHTML = "";
+            delete element;
+        });
     });
     
     d3.json('/api/getactivekeysizedistribution/{{ca.id}}', function(data) {
@@ -172,6 +190,19 @@ $(function(){
             nv.utils.windowResize(chart.update);
 
             return chart;
+        });
+        
+        $("#export_diagram_keysize").click(function(){
+            var random_id = "tmp"+Math.random();
+            $("#export_diagram_keysize").after("<a href='#' id='"+random_id+"'>TMP_DOWNLOAD</a>");
+            
+            setdownload(random_id, $('#keysizediagram').html(), "ca_keysizes_{{ca.id}}.svg", "text/svg");
+            
+            document.getElementById(random_id).click();
+            
+            var element = document.getElementById(random_id);
+            element.outerHTML = "";
+            delete element;
         });
     });
     

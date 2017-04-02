@@ -29,3 +29,7 @@ html, body {
 .property, .wordwrap{
     word-wrap: break-word;
 }
+
+.card-text {
+	word-wrap: break-word;
+}

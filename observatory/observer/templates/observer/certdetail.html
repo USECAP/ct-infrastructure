@@ -4,21 +4,6 @@
 
 .diagram{height: 350px;}
 
-.link {
-  fill: none;
-  stroke: #666;
-  stroke-width: 3px;
-}
-
-circle {
-  fill: #ccc;
-  stroke: #333;
-  stroke-width: 1.5px;
-}
-
-circle.current {
-  fill: #fcc;
-}
 
 text {
   font: 10px sans-serif;
@@ -121,6 +106,8 @@ text {
             <div id="treeview" class="card-block">
             </div>
             
+            <p class="text-right"><button class="btn btn-link btn-sm" id="export_diagram">Export diagram as svg</button></p>
+            
             <p class="card-block">The current certificate is colored red.<br>
             Drag a CA or certificate in order to fix its position. Click on the name of a CA to open the CA details page.</p>
         </div>
@@ -157,7 +144,21 @@ var panelwidth = $('#treeview').width(),
 $(function(){
     d3.json("/api/getcertchain/{{certificate.id}}", function(graphdata) {
         draw_ca_graph(graphdata, panelwidth);
+        
+        $("#export_diagram").click(function(){
+            var random_id = "tmp"+Math.random();
+            $("#export_diagram").after("<a href='#' id='"+random_id+"'>TMP_DOWNLOAD</a>");
+            
+            setdownload(random_id, $('#treeview').html(), "ca_chain_cert_{{certificate.id}}.svg", "text/svg");
+            
+            document.getElementById(random_id).click();
+            
+            var element = document.getElementById(random_id);
+            element.outerHTML = "";
+            delete element;
+        });
     });
+    
 });
 
 

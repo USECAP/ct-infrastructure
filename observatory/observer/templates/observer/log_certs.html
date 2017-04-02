@@ -5,13 +5,32 @@
 {% block content %}
 
 <p>These are all certificates of the log at {{log.url}}</p>
-
+  
   {% if list_of_entries %}
-      <ul>
-      {% for cert in list_of_entries %}
-          <li><a href="{% url 'observer:certdetail' cert.certificate.id %}">{{ cert.certificate.subject_common_name }}</a> included on {{cert.entry_timestamp}}</li>
+      <table class="table table-striped table-sm">
+      <thead>
+      <tr>
+        <th>Common Name</th>
+        <th>notBefore</th>
+        <th>status</th>
+        <th>notAfter</th>
+        <th>Issuer CA</th>
+        <th>Added to log</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for ctlogentry in list_of_entries %}
+          <tr>
+            <td><a href="{% url 'observer:certdetail' cert_id=ctlogentry.certificate.id %}">{{ ctlogentry.certificate.subject_common_name }}</a></td>
+            <td>{{ ctlogentry.certificate.not_before }}</td>
+            <td>{% if ctlogentry.certificate.has_expired %} expired {% else %} <b>active</b> {% endif %}</td>
+            <td>{{ ctlogentry.certificate.not_after }}</td>
+            <td><a href="{% url 'observer:cadetail' ca_id=ctlogentry.certificate.issuer_ca.id %}">{{ ctlogentry.certificate.issuer_ca.common_name }}</a></td>
+            <td>{{ctlogentry.entry_timestamp}}</td>
+          </tr>
       {% endfor %}
-      </ul>
+      </tbody>
+      </table>
       
       <nav class="text-center" style="margin-bottom: 0.5em;">
             <div class="form-inline">
