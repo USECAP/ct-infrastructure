@@ -60,7 +60,7 @@ text {
     </div>
     
         <ul class="list-group list-group-flush">
-            <li class="list-group-item">This CA has issued <a href="{% url 'observer:certs_by_ca' ca_id=ca.id %}">{{ca.certificate_set.count}} certificates</a> in TODO logs.</li>
+            <li class="list-group-item">This CA has issued <a href="{% url 'observer:certs_by_ca' ca_id=ca.id %}"><span id="child_certificate_count"><i><i class="fa fa-refresh fa-spin"></i> counting…</i></span> certificates</a> in TODO logs.</li>
         </ul>
     
     <div class="card-block">
@@ -108,6 +108,10 @@ var panelwidth = $('#treeview').width(),
 
 
 $(function(){
+    d3.json("/api/ca/{{ca.id}}/count", function(data) {
+        $("#child_certificate_count").text(data['count']);
+    });
+    
     d3.json("/api/ca/{{ca.id}}", function(graphdata) {
         draw_ca_graph(graphdata, panelwidth);
     });

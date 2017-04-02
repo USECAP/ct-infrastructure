@@ -33,6 +33,7 @@ urlpatterns = [
     url(r'^api/getcas/(?P<page>[0-9]+)$', api.getcaspage, name='getcaspage'),
     url(r'^api/getcertchain/(?P<cert_id>[0-9]+)$', api.get_certificate_chain, name='get_certificate_chain'),
     url(r'^api/ca/(?P<ca_id>[0-9]+)$', api.get_ca_chain, name='get_ca_chain'),
+    url(r'^api/ca/(?P<ca_id>[0-9]+)/count$', api.get_ca_child_count, name='get_ca_child_count'),
     url(r'^api/getlogdist$', api.get_log_appearance_distribution, name='get_log_appearance_distribution'),
     url(r'^api/getloginfo$', api.get_log_information, name='get_log_information'),
     url(r'^api/getallcertinfo$', api.get_all_cert_information, name='get_all_cert_information'),

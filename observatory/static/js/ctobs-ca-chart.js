@@ -19,8 +19,7 @@ function draw_ca_graph(graphdata, panelwidth){
 	.links(graphdata["edges"])
 	.size([width, height])
 	.linkDistance(200)
-	.friction(0.9)
-	.charge(-300)
+	.charge(-2000)
 	.on("tick", tick)
 	.start();
 
@@ -68,7 +67,7 @@ function draw_ca_graph(graphdata, panelwidth){
 	.attr("y", ".31em")
 	.text(function(d) { return graphdata["names"][d.name]["name"]; })
 	.on("click", function(d){
-		window.location.href = "../"+d.name;
+		window.location.href = "../../"+graphdata["names"][d.name]['type']+"/"+d.name;
 	});
 
 
