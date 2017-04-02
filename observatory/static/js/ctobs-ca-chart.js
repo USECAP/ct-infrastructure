@@ -67,7 +67,7 @@ function draw_ca_graph(graphdata, panelwidth){
 	.attr("y", ".31em")
 	.text(function(d) { return graphdata["names"][d.name]["name"]; })
 	.on("click", function(d){
-		window.location.href = "../../"+graphdata["names"][d.name]['type']+"/"+d.name;
+		window.location.href = "../../"+graphdata["names"][d.name]['type']+"/"+graphdata["names"][d.name]['id'];
 	});
 
 

@@ -49,7 +49,7 @@ def get_certificate_chain(request, cert_id):
     
     
     to_visit = [ca_id]
-    vertices = {ca_id:{'name':Ca.objects.get(pk=ca_id).common_name, 'type':'ca', 'current':False},"cert_{}".format(cert_id):{'name':certificate.subject_common_name(), 'type':'cert', 'current':True}}
+    vertices = {ca_id:{'name':Ca.objects.get(pk=ca_id).common_name, 'type':'ca', 'id':ca_id, 'current':False},"cert_{}".format(cert_id):{'name':certificate.subject_common_name(), 'type':'cert', 'id':cert_id, 'current':True}}
     # add edge from ca to certificate
     edges.add((ca_id, "cert_{}".format(cert_id)))
     data = {}    
@@ -96,7 +96,7 @@ def get_ca_chain(request, ca_id):
     to_visit = [ca_id]
     visited = set()
     edges = set()
-    vertices = {ca_id:{'name':Ca.objects.get(pk=ca_id).common_name, 'type':'ca', 'current':True}}
+    vertices = {ca_id:{'name':Ca.objects.get(pk=ca_id).common_name, 'type':'ca', 'id':ca_id, 'current':True}}
     data = {}    
     
     while len(to_visit) > 0:
@@ -113,7 +113,7 @@ def get_ca_chain(request, ca_id):
             		
             edges.add((ca_id, next_ca_id))
             if(ca_id not in vertices):
-                vertices[ca_id] = {'name':ca_name, 'type':'ca', 'current':False}
+                vertices[ca_id] = {'name':ca_name, 'type':'ca', 'id':ca_id, 'current':False}
         		
             if(ca_id not in visited):
                 to_visit.append(ca_id)
