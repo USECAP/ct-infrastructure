@@ -53,6 +53,9 @@ CREATE INDEX c_notafter
 CREATE UNIQUE INDEX c_sha256
 	ON certificate (SHA256);
 
+CREATE INDEX c_serial
+	ON certificate(SERIAL);
+	
 
 CREATE TYPE name_type AS ENUM (
 'countryName', 'stateOrProvinceName', 'localityName', 'commonName', 'organizationName', 'emailAddress',
