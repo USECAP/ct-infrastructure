@@ -1,3 +1,5 @@
+#! /usr/bin/env python3
+
 import psycopg2
 import requests
 import base64
@@ -27,12 +29,20 @@ def connectToDatabase(name="certwatch", user="postgres", host="localhost"):
 
 
 def monitor(database, log_id=None):
-    logging.debug("Retrieving new log entries")
+    logger.debug("Retrieving new log entries")
     newLogEntries = database.retrieveNewLogEntries(log_id=log_id)
-    logging.debug("Populating new log entries")
-    database.populateNewLogEntries(newLogEntries)
-    database.updateCtLogStats(log_id)
-
+    logger.debug("Populating new log entries")
+    entries_inserted = False
+    while not entries_inserted:
+        try:
+            database.populateNewLogEntries(newLogEntries)
+        except psycopg2.extensions.TransactionRollbackError as e:
+            logger.warning("Could not populate new log entries for log {}: {}".format(log_id, e))
+            database.connectionToDataBase.rollback() #rollback and try again
+            database.cache = {} # prune cache :(
+        else:
+            database.updateCtLogStats(log_id)
+            entries_inserted = True
 
 
 class _LocalDatabase:
@@ -55,7 +65,7 @@ class _LocalDatabase:
             return dataBase
 
         except:
-            logging.error("Error connecting to local database")
+            logger.error("Error connecting to local database")
             exit()
 
 
@@ -67,7 +77,7 @@ class _LocalDatabase:
         activeLogServers = self.getActiveLogServers(log_id=log_id)
 
         for activeLogServer in activeLogServers:
-            logging.debug("Querying {}...".format(activeLogServer.url))
+            logger.debug("Querying {}...".format(activeLogServer.url))
 
             t = EntryFromLogserverRetrievalThread(self, activeLogServer, newLogEntriesQ)
             t.start()
@@ -103,7 +113,7 @@ class _LocalDatabase:
             activeLogServerEntries = self.cursor.fetchall()
 
         except:
-            logging.error("Could not execute Active Log Server Entries Query. {}".format(sys.exc_info()[0]))
+            logger.error("Could not execute Active Log Server Entries Query. {}".format(sys.exc_info()[0]))
             exit()
 
         else:
@@ -121,7 +131,7 @@ class _LocalDatabase:
         requestedEntries = []
         
         sthOfLogServer = self.requestSTHOfLogServer(logServerEntry)
-        logging.debug("Log tree size of log {}: {}".format(logServerEntry.ct_log_id, sthOfLogServer.treeSize if sthOfLogServer is not None else "None"))
+        logger.debug("Log tree size of log {}: {}".format(logServerEntry.ct_log_id, sthOfLogServer.treeSize if sthOfLogServer is not None else "None"))
         self.writeLogStatsToDatabase(sthOfLogServer, logServerEntry)
 
         if self.certsAreMissing(logServerEntry, sthOfLogServer): #returns false if sthOfLogServer is None
@@ -141,8 +151,8 @@ class _LocalDatabase:
         timestamp = datetime.datetime.fromtimestamp(sthOfLogServer.timestamp/1000.0)
         sqlData = (sthOfLogServer.treeSize, timestamp, logServerEntry.ct_log_id)
         self.cursor.execute(sqlQuery, sqlData)
-        logging.info("LATEST_LOG_SIZE of log {} has been updated to {}".format(logServerEntry.ct_log_id, sthOfLogServer.treeSize))
-        logging.info("LATEST_STH_TIMESTAMP of log {} has been updated to {}".format(logServerEntry.ct_log_id, timestamp))
+        logger.info("LATEST_LOG_SIZE of log {} has been updated to {}".format(logServerEntry.ct_log_id, sthOfLogServer.treeSize))
+        logger.info("LATEST_STH_TIMESTAMP of log {} has been updated to {}".format(logServerEntry.ct_log_id, timestamp))
             
 
 
@@ -164,7 +174,7 @@ class _LocalDatabase:
             sthRequest = requests.get(logServer.url + "/ct/v1/get-sth", timeout=(10,60))
 
         except:
-            logging.error("Error requesting STH from log server: {}".format(sys.exc_info()[0]))
+            logger.error("Error requesting STH from log server: {}".format(sys.exc_info()[0]))
 
         else:
             return _SignedTreeHead(sthRequest.json())
@@ -177,7 +187,7 @@ class _LocalDatabase:
             requestedEntries = requests.get(requestURL, timeout=(10,120))
 
         except:
-            logging.error("Error getting Entries")
+            logger.error("Error getting Entries")
             exit()
 
         else:
@@ -187,7 +197,7 @@ class _LocalDatabase:
             
             i = 0
             if not 'entries' in requestedEntries:
-                logging.error("'entries' is not a key in requestedEntries")
+                logger.error("'entries' is not a key in requestedEntries")
                 print(requestedEntries)
             else:
                 for entry in requestedEntries['entries']:
@@ -205,9 +215,9 @@ class _LocalDatabase:
         for entry in newLogEntries:
                 self.populateEntry(entry)
         
-        logging.debug("Commiting...")
+        logger.debug("Commiting...")
         self.connectionToDataBase.commit()
-        logging.debug("Commit finished.")
+        logger.debug("Commit finished.")
 
 
     def populateEntry(self, entry):
@@ -245,7 +255,7 @@ class _LocalDatabase:
         if(ca_certificates == None or len(ca_certificates) < 1):
             return None
         
-        logging.debug("populating {} CA certificates".format(len(ca_certificates)))
+        logger.debug("populating {} CA certificates".format(len(ca_certificates)))
         
         # iterate over ca chain from top to bottom
         last_ca_id = None
@@ -266,32 +276,45 @@ class _LocalDatabase:
             # check cache
             if commonName in self.cache and public_key in self.cache[commonName]:
                 new_ca_id = self.cache[commonName][public_key]
-                logging.debug("getting CA '{}' from cache".format(commonName))
+                logger.debug("getting CA '{}' from cache".format(commonName))
             else:
-                logging.debug("inserting new CA '{}' into CA table".format(commonName))
-    
-                sqlQuery = """INSERT INTO ca(COUNTRY_NAME, 
-                    STATE_OR_PROVINCE_NAME, 
-                    LOCALITY_NAME, 
-                    ORGANIZATION_NAME, 
-                    ORGANIZATIONAL_UNIT_NAME, 
-                    COMMON_NAME, 
-                    EMAIL_ADDRESS, 
-                    PUBLIC_KEY) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s) 
-                ON CONFLICT(COMMON_NAME,PUBLIC_KEY) DO UPDATE SET COMMON_NAME=ca.COMMON_NAME 
-                RETURNING ID"""
-                sqlData = (subject.countryName, subject.stateOrProvinceName, 
-                           subject.localityName, subject.organizationName, 
-                           subject.organizationalUnitName, commonName, 
-                           subject.emailAddress, psycopg2.Binary(public_key))
+                logger.debug("inserting new CA '{}' into CA table".format(commonName))
                 
+                sqlQuery = """SELECT id
+                FROM ca
+                WHERE COMMON_NAME=%s AND PUBLIC_KEY=%s"""
+                
+                sqlData = (commonName, psycopg2.Binary(public_key))
+
                 self.cursor.execute(sqlQuery, sqlData)
-                new_ca_id = self.cursor.fetchone()[0]
+                result = self.cursor.fetchone()
                 
-                logging.debug("inserted new CA with ID={}".format(new_ca_id))
-            
-            
+                if result != None:
+                    new_ca_id = result[0]
+                    logger.debug("fetched CA with ID={} from database".format(new_ca_id))
+                else:
+                    sqlQuery = """INSERT INTO ca(COUNTRY_NAME, 
+                        STATE_OR_PROVINCE_NAME, 
+                        LOCALITY_NAME, 
+                        ORGANIZATION_NAME, 
+                        ORGANIZATIONAL_UNIT_NAME, 
+                        COMMON_NAME, 
+                        EMAIL_ADDRESS, 
+                        PUBLIC_KEY) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s) 
+                    ON CONFLICT(COMMON_NAME,PUBLIC_KEY) DO UPDATE SET COMMON_NAME=ca.COMMON_NAME 
+                    RETURNING ID"""
+                    sqlData = (subject.countryName, subject.stateOrProvinceName, 
+                                   subject.localityName, subject.organizationName, 
+                                   subject.organizationalUnitName, commonName, 
+                                   subject.emailAddress, psycopg2.Binary(public_key))
+                        
+                    self.cursor.execute(sqlQuery, sqlData)
+                    new_ca_id = self.cursor.fetchone()[0]
+                        
+                    logger.debug("inserted new CA with ID={}".format(new_ca_id))
+                # 'till here
+                    
                 if(last_ca_id == None): # first list entry: be your own root
                     last_ca_id = new_ca_id
                 
@@ -302,7 +325,7 @@ class _LocalDatabase:
                     sqlData = (cert_id, new_ca_id)
                     self.cursor.execute(sqlQuery, sqlData)
                 else:
-                    logging.error("Could not insert entry into ca_certificate without cert_id")
+                    logger.error("Could not insert entry into ca_certificate without cert_id")
                 
                 last_ca_id = new_ca_id
                 
@@ -352,9 +375,9 @@ class _LocalDatabase:
 
     def insertCertificate(self, certificate, ca_id):
         if(ca_id == None):
-            logging.error("Can't insert certificate: No CA given.")
+            logger.error("Can't insert certificate: No CA given.")
             return None
-        logging.debug("Inserting certificate ({})".format(certificate.sha256))
+        logger.debug("Inserting certificate ({})".format(certificate.sha256))
         #try:
         serial = certificate.serial.to_bytes((certificate.serial.bit_length() + 15) // 8, 'big', signed=True) or b'\0'
         sqlQuery = "INSERT INTO certificate (CERTIFICATE, ISSUER_CA_ID, SERIAL, SHA256, NOT_BEFORE, NOT_AFTER, KEY_ALGORITHM, KEY_SIZE, SIGNATURE_ALGORITHM) \
@@ -367,7 +390,7 @@ class _LocalDatabase:
         
         self.insertCertificateIdentity(certificate, cert_id)
 
-        logging.debug("Inserted certificate with ID={}".format(cert_id))
+        logger.debug("Inserted certificate with ID={}".format(cert_id))
        # except:
         #print("Could not Insert into DB: ", sys.exc_info()[0])
 
@@ -414,10 +437,10 @@ class _LocalDatabase:
             sqlData = (logServer.ct_log_id, logServer.ct_log_id)
             self.cursor.execute(sqlQuery, sqlData)
             latest_entry_id = self.cursor.fetchone()[0]
-            logging.info("LATEST_ENTRY_ID of log {} has been updated to {}".format(logServer.ct_log_id, latest_entry_id))
-        logging.debug("Commiting...")
+            logger.info("LATEST_ENTRY_ID of log {} has been updated to {}".format(logServer.ct_log_id, latest_entry_id))
+        logger.debug("Commiting...")
         self.connectionToDataBase.commit()
-        logging.debug("Commit finished.")
+        logger.debug("Commit finished.")
 
 
 
@@ -464,7 +487,7 @@ class _Entry:
             return self.extraData.certificateChain[0]
 
         else:
-            logging.error("Error retrieving certificate from log entry")
+            logger.error("Error retrieving certificate from log entry")
     
     def retrieveCaCertificates(self):
         if self.leafInput.timestampedEntry.entryType == 0:
@@ -474,10 +497,10 @@ class _Entry:
             if len(self.extraData.certificateChain) > 1:
                 return self.extraData.certificateChain[1:]
             else:
-                logging.warning("Certificate chain is empty")
+                logger.warning("Certificate chain is empty")
                 return []
 
-        logging.error("Error retrieving CA certificates from log entry")
+        logger.error("Error retrieving CA certificates from log entry")
         return []
 
 
@@ -684,7 +707,7 @@ def updateRunStatus():
         with open('/data/status.json', "r") as f:
             statusdata = json.load(f)
     except:
-        logging.error('Could not read status data.')
+        logger.error('Could not read status data.')
         
         
     if not statusdata:
@@ -697,33 +720,46 @@ def updateRunStatus():
         with open('/data/status.json', "w") as f:
             json.dump(statusdata, f)
     except:
-        logging.error('Could not update status data.')
+        logger.error('Could not update status data.')
 
-
+logger = None
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(prog='ct-monitor in python')
 
     argparser.add_argument('-d', help='debug output', action='store_true')
+    argparser.add_argument('-w', help='log only warnings and above', action='store_true')
     argparser.add_argument('--dbhost', help='postgres ip or hostname (default localhost)', default='localhost')
     argparser.add_argument('--dbuser', help='postgres user (default postgres)', default='postgres')
     argparser.add_argument('--dbname', help='postgres database name (default certwatch)', default='certwatch')
     argparser.add_argument('--logfile', help='name of the file the log shall be written to')
     argparser.add_argument('--log', type=int, help='if set, database ID of the single log to be queried')
+    argparser.add_argument('--listlogs', help='List the available logs and their respective IDs', action='store_true')
     args = argparser.parse_args()
     
     logging_filename = args.logfile if args.logfile else None
     logging_level = logging.DEBUG if args.d else logging.INFO
+    logging_level = logging.WARNING if args.w else logging_level
     logging.basicConfig(level=logging_level, filename=logging_filename)
+    logging_name = "log_{}".format(args.log) if args.log else 'root'
+    logger = logging.getLogger(logging_name)
     
-    if args.log:
-        logging.info("Querying log {}".format(args.log))
+    if args.listlogs:
+        logger.info("Listing available logs")
+    elif args.log:
+        logger.info("Querying log {}".format(args.log))
     else:
-        logging.info("Querying all active logs")
+        logger.info("Querying all active logs")
     
-    logging.info("Connecting to database (name={name}, user={user}, host={host})".format(name=args.dbname, user=args.dbuser, host=args.dbhost))
+    logger.info("Connecting to database (name={name}, user={user}, host={host})".format(name=args.dbname, user=args.dbuser, host=args.dbhost))
     database = connectToDatabase(name=args.dbname, user=args.dbuser, host=args.dbhost)
     
-    logging.info("Starting monitor...")
-    monitor(database, args.log)
-    logging.info("Finished monitor.")
-    updateRunStatus()
+    if args.listlogs:
+        database.cursor.execute("SELECT ID, NAME, URL, OPERATOR, IS_ACTIVE FROM ct_log ORDER BY ID ASC")
+        print("ID\tNAME\tURL\tOPERATOR\tIS_ACTIVE")
+        for row in database.cursor:
+            print("{0[0]}\t{0[1]}\t{0[2]}\t{0[3]}\t{0[4]}".format(row))
+    else:
+        logger.info("Starting monitor...")
+        monitor(database, args.log)
+        logger.info("Finished monitor.")
+        updateRunStatus()
