@@ -64,6 +64,10 @@ class MetadataCountQuerySet():
             return object.__getattr__(self, attr)
         except AttributeError:
             return getattr(self.queryset, attr)
+            
+    def __getitem__(self, key):
+        return self.queryset[key]
+        
 
 
 def index(request):
@@ -186,8 +190,8 @@ def certexpired(request, page=None, order=None):
 
     list_of_certs = []
 
-#    paginator = Paginator(MetadataCountQuerySet(Certificate.objects.filter(not_after__lt=timezone.now()), 'number_of_expired_certs'), ITEMS_PER_PAGE)
-    paginator = Paginator(Certificate.objects.filter(not_after__lt=timezone.now()), ITEMS_PER_PAGE)
+    paginator = Paginator(MetadataCountQuerySet(Certificate.objects.filter(not_after__lt=timezone.now()), 'number_of_expired_certs'), ITEMS_PER_PAGE)
+#    paginator = Paginator(Certificate.objects.filter(not_after__lt=timezone.now()), ITEMS_PER_PAGE)
     if(page in paginator.page_range):
         list_of_certs = paginator.page(page)
 

@@ -17,7 +17,17 @@
         <nav class="navbar navbar-dark bg-inverse navbar-fixed-top">
             <a class="navbar-brand" href="{% url 'observer:index' %}">CT-Observatory</a>
             <div class="nav navbar-nav">
-                  <a class="nav-link nav-item {% if '/cert' in request.path %} active {% endif %}" href="/cert/all">Certificates</a>
+                  <div class="nav-item dropdown">
+                      <a class="nav-link dropdown-toggle {% if '/cert' in request.path %} active{% endif %}" href="{% url 'observer:certall' %}" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                          Certificates
+                      </a>
+                      <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                          <a class="dropdown-item" href="{% url 'observer:certall' %}">All</a>
+                          <a class="dropdown-item" href="{% url 'observer:certactive' %}">Active</a>
+                          <a class="dropdown-item" href="{% url 'observer:certexpired' %}">Expired</a>
+                          <a class="dropdown-item" href="{% url 'observer:certrevoked' %}">Revoked</a>
+                      </div>
+                  </div>
                   <a class="nav-link nav-item {% if '/ca/' in request.path %} active {% endif %}" href="/ca/all">CAs</a>
                   <a class="nav-link nav-item {% if 'log' in request.path %} active {% endif %}" href="/log">Logs</a>
                   <a class="nav-link nav-item {% if 'notification' in request.path %} active {% endif %}" href="/notification/change">Subscribe</a>
