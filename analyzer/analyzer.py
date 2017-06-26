@@ -19,8 +19,8 @@ from notifier import Notifier
 
 parser = argparse.ArgumentParser(prog='ct-analyzer')
 
-parser.add_argument('-e', help='enable elasticsearch import', action='store_true')
-parser.add_argument('-x', help='update expired certs (DUMMY)', action='store_true')
+#parser.add_argument('-e', help='enable elasticsearch import', action='store_true')
+#parser.add_argument('-x', help='update expired certs (DUMMY)', action='store_true')
 parser.add_argument('-r', help='update revoked certs', action='store_true')
 parser.add_argument('-m', help='update metadata certs', action='store_true')
 parser.add_argument('-n', help='notify people that registered for updates', action='store_true')
@@ -28,15 +28,15 @@ parser.add_argument('-d', help='activate debug log output', action='store_true')
 parser.add_argument('-g', help='update diagram data', action='store_true')
 parser.add_argument('--force-replace', help='fetch the diagram data completely from the database instead of updating the existing values', action='store_true')
 parser.add_argument('--t', help='time interval between refresh in minutes')
-parser.add_argument('--pg', help='postgres database ip (default localhost)')
-parser.add_argument('--es', help='elasticsearch database ip (default localhost)')
+parser.add_argument('--db', '--pg', help='postgres database ip (default localhost)')
+#parser.add_argument('--es', help='elasticsearch database ip (default localhost)')
 parser.add_argument('--web', help='web server ip (default localhost)')
 parser.add_argument('--log', help='name of the file the log shall be written to')
 parser.add_argument('--disable-tls-security', help='trust any TLS certificate (use only for testing purposes on localhost with self-signed certificate!)', action='store_true')
 args = parser.parse_args()
 
-host_db = args.pg if args.pg else "localhost"
-host_es = args.es if args.es else "localhost"
+host_db = args.db if args.db else "localhost"
+#host_es = args.es if args.es else "localhost"
 host_web = args.web if args.web else "localhost"
 interval = int(args.t)*60 if args.t else 180*60
 logger = logging.getLogger(__name__)
@@ -107,9 +107,9 @@ while True:
         RXMthread = RXMwrapper('certwatch', 'postgres', host_db, args.r, False, args.m) #expiration detection has been disabled
         RXMthread.start() # if none of r, x and m are true, nothing happens.
         
-        if args.e:
-            ESIthread = ESInserter('certwatch', 'postgres', host_db, host_es)
-            ESIthread.start()
+        #if args.e:
+        #    ESIthread = ESInserter('certwatch', 'postgres', host_db, host_es)
+        #    ESIthread.start()
             
         if args.g:
             DDthread = Diagramdata('https://'+host_web, '/data', 'certwatch', 'postgres', host_db, disable_tls_security=args.disable_tls_security, force_replace=args.force_replace)
@@ -125,10 +125,10 @@ while True:
         logging.debug("JOINING RXMthread")
         RXMthread.join()
         
-        if args.e:
-            logging.debug("joining ESIthread")
-            ESIthread.join()
-            logging.debug("joined ESIthread")
+        #if args.e:
+        #    logging.debug("joining ESIthread")
+        #    ESIthread.join()
+        #    logging.debug("joined ESIthread")
             
         if args.g:
             logging.debug("joining DDthread")
