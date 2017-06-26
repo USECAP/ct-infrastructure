@@ -30,27 +30,35 @@ class RevocationDetector(threading.Thread):
         running_download_threads = 1
         output_queue = Queue.Queue()
         log_queue = Queue.Queue()
-        semaphore = threading.Semaphore(20) # number of concurrent download threads
+        semaphore = threading.Semaphore(30) # number of concurrent download threads
         for crl_url in self.get_crl_urls_out_of_certificate_extensions():
             self.logger.debug("waiting for relase on semaphore")
             semaphore.acquire(blocking=True)
             self.logger.debug("retrieving and parsing {0}".format(crl_url))
             t = CrlDownloadThread(crl_url, output_queue, semaphore, log_queue, self.logger)
             t.start()
+            
+            
         while(running_download_threads > 0 or not output_queue.empty()):
-            self.logger.debug("fetching crl from queue, {0} active threads".format(threading.active_count()))
+            self.logger.debug("fetching crl from queue, {0} active threads, {1} elements in queue".format(threading.active_count(), output_queue.qsize()))
                 
             try:
                 crl, crlraw = output_queue.get(block=True, timeout=10)
-                self.logger.debug("parsing crl")
+                self.logger.debug("parsing crl {0}".format(crl))
                 self.parse_crl(crlraw)
+                self.logger.debug("------")
+                for thread in threading.enumerate():
+                    if isinstance(thread, CrlDownloadThread): 
+                        running_download_threads += 1
+                        self.logger.debug("Thread working on {0}".format(thread.getCrl()))
+                self.logger.debug("------")
             except Queue.Empty:
-                self.logger.debug("Queue was empty, {0} active threads".format(threading.active_count()))
+                self.logger.debug("Output queue was empty, {0} active threads".format(threading.active_count()))
                 running_download_threads = 0
                 for thread in threading.enumerate():
                     if isinstance(thread, CrlDownloadThread): 
                         running_download_threads += 1
-                        self.logger.debug("Running thread working on {0}".format(thread.getCrl()))
+                        self.logger.debug("Thread still working on {0}".format(thread.getCrl()))
                 self.logger.debug("------")
             except Exception as e:
                 self.logger.exception("Exception: {0}".format(str(e)))
@@ -105,15 +113,19 @@ class RevocationDetector(threading.Thread):
         return set(crl_urls)
 
     def parse_crl(self, crlraw):
+        self.logger.debug("crypto.load_crl().get_revoked()")
         revoked_certs = crypto.load_crl(crypto.FILETYPE_ASN1, crlraw).get_revoked()
         if revoked_certs != None:
             self.analyze_revoked_certificates(revoked_certs)
+        else:
+            self.logger.debug("No revoked certs!")
         return
 
     def analyze_revoked_certificates(self, certificates):
         cursor = self.db.cursor()
         for certificate in certificates:
             self.revoke_counter += 1
+            self.logger.debug("searching for serial {0}".format(certificate.get_serial()))
             cursor.execute(
                 "SELECT c.id, (rc is null) as isNotLogged  from certificate c LEFT OUTER JOIN revoked_certificate rc on rc.certificate_id = c.id WHERE c.SERIAL = %s",
                 ("\\x" + certificate.get_serial(),))
@@ -121,11 +133,14 @@ class RevocationDetector(threading.Thread):
                 self.found_in_database_counter += 1
                 certificate_with_identic_serial = cursor.fetchone()
                 if certificate_with_identic_serial[1]:
+                    self.logger.debug("Found one! Adding entry to revoked_certificate table.")
                     self.updated_counter += 1
                     cursor.execute("INSERT INTO revoked_certificate (certificate_id, date, reason) VALUES (%s,%s,%s)", (
                     certificate_with_identic_serial[0], str(certificate.get_rev_date())[:8],
                     str(certificate.get_reason())))
+        self.logger.debug("Committing...")
         self.db.commit()
+        self.logger.debug("Commit Successful.")
 
     def print_log(self):
         return "{{'type':'revokedcerts','data':{{'found':{},'knew':{},'updated':{} }} }},".format(self.revoke_counter,self.found_in_database_counter,self.updated_counter)
