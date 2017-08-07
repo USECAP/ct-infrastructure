@@ -2,7 +2,7 @@ FROM httpd:2.4
 MAINTAINER ct
 
 RUN apt-get update && \
-    apt-get install -y apache2-dev libpq-dev libffi-dev gcc postgresql-client libpq-dev python3 python3-dev python3-pip wget --no-install-recommends
+    apt-get -t jessie-backports install -y apache2-dev libssl-dev libffi-dev gcc postgresql-client libpq-dev python3 python3-dev python3-pip wget --no-install-recommends
 
 #RUN wget https://github.com/GrahamDumpleton/mod_wsgi/archive/4.5.0.tar.gz && tar xvfz 4.5.0.tar.gz && \
 #    cd mod_wsgi-4.5.0 && ./configure --with-apxs=/usr/local/apache2/bin/apxs && make && make install
