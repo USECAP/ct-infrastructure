@@ -13,6 +13,11 @@ Getting started
 This is easy:
 ```
 git clone https://github.com/USECAP/ct-infrastructure.git
+
+cd observatory/certs/
+./create_self_signed_cert.sh
+cd ../..
+
 docker-compose build
 docker-compose up -d
 ```
