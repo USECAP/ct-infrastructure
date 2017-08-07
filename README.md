@@ -13,10 +13,12 @@ Getting started
 This is easy:
 ```
 git clone https://github.com/USECAP/ct-infrastructure.git
+cd ct-infrastructure
 
-cd ct-infrastructure/observatory/certs/
-./create_self_signed_cert.sh
-cd ../..
+observatory/certs/create_self_signed_cert.sh
+
+cp observatory/ctobservatory/config.py.template.py observatory/ctobservatory/config.py
+sed -i s/secret_key_here/$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)/g observatory/ctobservatory/config.py
 
 docker-compose build
 docker-compose up -d
