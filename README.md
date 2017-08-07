@@ -14,7 +14,7 @@ This is easy:
 ```
 git clone https://github.com/USECAP/ct-infrastructure.git
 
-cd observatory/certs/
+cd ct-infrastructure/observatory/certs/
 ./create_self_signed_cert.sh
 cd ../..
 
