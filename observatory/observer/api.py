@@ -560,3 +560,6 @@ def get_last_certificates_for_dnsname(request, term, limit=5):
             }
         )
     return HttpResponse(json.dumps(result))
+
+def certcheck(request):
+    return HttpResponse(result)
