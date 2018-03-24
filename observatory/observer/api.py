@@ -69,7 +69,7 @@ def get_certificate_chain(request, cert_id):
             edges.add((ca_id, next_ca_id))
             if(ca_id not in vertices):
                 vertices[ca_id] = {'name':ca_name, 'type':'ca','current':False}
-        		
+        
             if(ca_id not in visited):
                 to_visit.append(ca_id)
     
@@ -114,7 +114,7 @@ def get_ca_chain(request, ca_id):
             edges.add((ca_id, next_ca_id))
             if(ca_id not in vertices):
                 vertices[ca_id] = {'name':ca_name, 'type':'ca', 'id':ca_id, 'current':False}
-        		
+        
             if(ca_id not in visited):
                 to_visit.append(ca_id)
     
@@ -561,5 +561,20 @@ def get_last_certificates_for_dnsname(request, term, limit=5):
         )
     return HttpResponse(json.dumps(result))
 
-def certcheck(request):
+
+def certcheck(request, data=None):
+
+    sqlQuery = """SELECT id FROM certificate WHERE serial=%s"""
+    sqlQuery_commonName = """SELECT * FROM ca WHERE """
+    
+    current_time = str(datetime.datetime.now())
+        
+    serial_int = int(data, 16)
+    serial = serial_int.to_bytes((serial_int.bit_length() + 15) // 8, 'big', signed=True) or b'\0'
+    
+    with connection.cursor() as c:
+        sqlData = (psycopg2.Binary(serial),)
+        c.execute(sqlQuery, sqlData)
+        result = c.fetchone()
+    
     return HttpResponse(result)
