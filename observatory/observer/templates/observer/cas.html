@@ -7,19 +7,70 @@
     max-width: 100px;
 }
 {% endblock %}
+{% load widget_tweaks %}
 
 {% block content %}
   {% if list_of_ca %}
+  
+  
+  
+  
+  <br><br><br>
+<form method="get" action="">
+    <div class="well">
+      <h4 style="margin-top: 80">Filter</h4>
+      
+      <div class="row">
+        <div class="form-group col-sm-4 col-md-3">
+          Country name:
+          {% render_field filter.form.country class="form-control" %}
+        </div>
+        <div class="form-group col-sm-4 col-md-3">
+          Common name includes:
+          {% render_field filter.form.common_name class="form-control" %}
+        </div>
+        <div class="form-group col-sm-4 col-md-3">
+          Locality name includes:
+          {% render_field filter.form.locality_name class="form-control" %}
+        </div>
+        
+      </div>
+      <div class="row">
+        <div class="form-group col-sm-4 col-md-3">
+          Organization name includes:
+          {% render_field filter.form.org_name class="form-control" %}
+        </div>
+        <div class="form-group col-sm-4 col-md-3">
+          Organization unit name includes:
+          {% render_field filter.form.org_unit_name class="form-control" %}
+        </div>
+        
+        <div class="form-group col-sm-4 col-md-3">
+          State or province name includes:
+          {% render_field filter.form.state_province class="form-control" %}
+        </div>
+       </div>
+      <div class="row"> 
+       &nbsp;&nbsp;&nbsp;&nbsp; <input type="submit" class="btn btn-primary" value="Filter">
+      </div>
+    </div>
+  </form>
+  <br />
+  
+  
+  
+  
+  
       <table class="table">
         <thead>
             <tr>
                 <!--<th>Root CA?</th>-->
-                <th>C</th>
-                <th>CN</th>
-                <th>L</th>
-                <th>O</th>
-                <th>OU</th>
-                <th>ST</th>
+                <th>Country</th>
+                <th>Com name</th>
+                <th>Loc name</th>
+                <th>Org name</th>
+                <th>Org unit name</th>
+                <th>State name</th>
                 <!--<th># Certs</th>-->
             </tr>
         </thead>

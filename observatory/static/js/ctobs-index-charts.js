@@ -138,7 +138,35 @@ $(function(){
 				});
 				nv.utils.windowResize(chart.update);
 				return chart;
-			});
+			}, function(){
+                    d3.selectAll("#cadiagram").on('click', function(d){
+                    
+                        var text = d3.event.path[9].childNodes[4].innerHTML,
+                        match_date = text.match(/<strong class="x-value">([^<]*)<\/strong>/),
+                        youGotThis = match_date[1];
+                        
+                        var rgb = d3.event.path["0"].style.fill.match(/rgb\(([^<]*)\)/);
+                        
+                        var re = '<td class="key" style="border-bottom-color:.*?(?=\>|$).([^<]*)<\\/td>|rgb\\(' + rgb[1] + '\\);"><\\/div><\\/td><td.*?(?=\>|$).([^<]*)<\\/td>';
+                        var rgxp = new RegExp(re);
+                        
+                        
+                        var match_key = text.match(rgxp);
+                        
+                     
+                        var partsArray = youGotThis.split('-');
+                       
+                        if(typeof match_key[1] == 'undefined')
+                            link = "https://localhost/cert/all/1?issuer_ca=&date_notbefore=" + partsArray[1] + "%2F01%2F" + partsArray[0] + "&date_notafter=&is_active=&issuer_ca=" + match_key[2];
+                        else
+                            link = "https://localhost/cert/all/1?issuer_ca=&date_notbefore=" + partsArray[1] + "%2F01%2F" + partsArray[0] + "&date_notafter=&is_active=&issuer_ca=" + match_key[1];
+                        window.open( link, "_blank" );
+                        
+                        console.log(d3.event.path["0"].style.fill, match_key[1]);
+                        
+                        //.context.style.fill
+                    });
+       });
 		}
 	});
 	} catch(err){
@@ -163,7 +191,7 @@ $(function(){
 				.showLegend(true)
 				.showXAxis(false)
 				.stacked(true)
-				
+
 				chart.yAxis
 				.tickFormat(d3.format('d'));
 				
@@ -231,8 +259,39 @@ $(function(){
 					}, 0)
 				});
 				nv.utils.windowResize(chart.update);
+                
 				return chart;
-			});
+			}, function(){
+                    d3.selectAll("#signaturealgorithmdiagram").on('click', function(d){
+                    
+                        var text = d3.event.path[9].childNodes[4].innerHTML,
+                        match_date = text.match(/<strong class="x-value">([^<]*)<\/strong>/),
+                        youGotThis = match_date[1];
+                        
+                        
+                        
+                        var rgb = d3.event.path["0"].style.fill.match(/rgb\(([^<]*)\)/);
+                        
+                        var re = '<td class="key" style="border-bottom-color:.*?(?=\>|$).([^<]*)<\\/td>|rgb\\(' + rgb[1] + '\\);"><\\/div><\\/td><td.*?(?=\>|$).([^<]*)<\\/td>';
+                        var rgxp = new RegExp(re);
+                        
+                        //https://localhost/cert/all/1?issuer_ca=&date_notbefore=01%2F31%2F2013&date_notbefore_gte=01%2F01%2F2013&is_active=&date_notafter=&date_notafter_lte=
+                        var match_key = text.match(rgxp);
+                        
+                        var partsArray = youGotThis.split('-');
+                        
+                        
+                        if(typeof match_key[1] == 'undefined')
+                            link = "https://localhost/cert/all/1?issuer_ca=&date_notbefore=" + partsArray[1] + "%2F31%2F" + partsArray[0] + "&date_notafter=&is_active=&algorithm=" + match_key[2] + "&date_notbefore_gte=" + partsArray[1] + "%2F01%2F" + partsArray[0];
+                        else
+                            link = "https://localhost/cert/all/1?issuer_ca=&date_notbefore=" + partsArray[1] + "%2F31%2F" + partsArray[0] + "&date_notafter=&is_active=&algorithm=" + match_key[1] + "&date_notbefore_gte=" + partsArray[1] + "%2F01%2F" + partsArray[0];
+                        window.open( link, "_blank" );
+                        
+                        console.log(d3.event.path["0"].style.fill, match_key[1]);
+                        
+                        //.context.style.fill
+                    });
+       });
 		}
 	});
 	} catch(err){
@@ -241,3 +300,4 @@ $(function(){
 	}
 	
 });
+

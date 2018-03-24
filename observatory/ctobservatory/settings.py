@@ -23,8 +23,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+CSRF_TRUSTED_ORIGINS = ['ct-observatory.org']
 
 ALLOWED_HOSTS = ['ct-observatory.org','www.ct-observatory.org','localhost', '127.0.0.1','ctobservatory']
 
@@ -42,9 +44,11 @@ INSTALLED_APPS = (
     'django.contrib.humanize',
     'analytical',
     'observer',
-    'notification'
+    'notification',
+    'django_filters',
+    'widget_tweaks'
 )
-
+#https://stackoverflow.com/questions/38841109/csrf-validation-does-not-work-on-django-using-https
 SITE_ID = 1
 
 MIDDLEWARE_CLASSES = (
@@ -55,7 +59,7 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
+    'django.middleware.security.SecurityMiddleware'
 )
 
 ROOT_URLCONF = 'ctobservatory.urls'
@@ -122,4 +126,5 @@ STATIC_ROOT= '/static/'
 STATICFILES_DIRS = (
     os.path.join(BASE_DIR, "static"),
 )
+
 

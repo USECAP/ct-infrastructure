@@ -8,9 +8,64 @@
 }
 {% endblock %}
 
+
+{% load widget_tweaks %}
+
 {% block content %}
   {% if list_of_certs %}
-      <table class="table table-striped table-sm">
+<br><br><br>
+<form method="get" action="">
+    <div class="well">
+      <h4 style="margin-top: 80">Filter</h4>
+      
+      <div class="row">
+        <div class="form-group col-sm-4 col-md-3">
+          Certificate issuer name includes
+          {% render_field filter.form.issuer_ca class="form-control" %}
+        </div>
+        
+        <div class="form-group col-sm-4 col-md-3">
+          Certificates less than (notBefore)
+          {% render_field filter.form.date_notbefore class="form-control" %}
+        </div>
+        
+        <div class="form-group col-sm-4 col-md-3">
+          Certificates greater than (notBefore)
+          {% render_field filter.form.date_notbefore_gte class="form-control" %}
+        </div>
+    </div>
+    
+    <div class="row"> 
+        <div class="form-group col-sm-4 col-md-3">
+          Status
+          {% render_field filter.form.is_active class="form-control" %}
+        </div>
+            
+        <div class="form-group col-sm-4 col-md-3">
+          Certificates less than (notAfter)
+          {% render_field filter.form.date_notafter class="form-control" %}
+        </div>
+        
+        <div class="form-group col-sm-4 col-md-3">
+          Certificates greater than (notAfter)
+          {% render_field filter.form.date_notafter_lte class="form-control" %}
+        </div>
+    </div>
+    
+    <div class="row"> 
+    
+        
+        <br />
+       &nbsp;&nbsp;&nbsp;&nbsp; <input type="submit" class="btn btn-primary" value="Filter">
+        
+  </div>
+  
+      
+    </div>
+  </form>
+  <br />
+
+  <table class="table table-striped table-sm">
       <thead>
       <tr>
         <th>Common Name</th>
@@ -36,7 +91,9 @@
       <nav class="text-center" style="margin-bottom: 0.5em;">
             <div class="form-inline">
             {% if list_of_certs.has_previous %}
-            <a href="{% url 'observer:certall' page=list_of_certs.previous_page_number %}" aria-label="Previous" class="btn btn-secondary">
+            <a href="{% url 'observer:certall' page=list_of_certs.previous_page_number %}
+            ?{% for key,value in request.GET.items %}{% ifnotequal key 'page' %}&{{ key }}={{ value }}{% endifnotequal %}{% endfor %}"
+               aria-label="Previous" class="btn btn-secondary">
                 <span aria-hidden="true">&laquo;</span>
             </a>
             {% else %}
@@ -52,7 +109,8 @@
             </div>
             
             {% if list_of_certs.has_next %}
-            <a href="{% url 'observer:certall' page=list_of_certs.next_page_number %}" aria-label="Next" class="btn btn-secondary">
+            <a href="{% url 'observer:certall' page=list_of_certs.next_page_number %}?
+            {% for key,value in request.GET.items %}{% ifnotequal key 'page' %}&{{ key }}={{ value }}{% endifnotequal %}{% endfor %}" aria-label="Next" class="btn btn-secondary">
                 <span aria-hidden="true">&raquo;</span>
             </a>
             {% else %}
@@ -69,6 +127,22 @@
 
 {% block scripts %}
 
+$(document).ready(function() {
+    $('#id_date_notbefore').datepicker();
+});
+
+$(document).ready(function() {
+    $('#id_date_notbefore_gte').datepicker();
+});
+
+$(document).ready(function() {
+    $('#id_date_notafter').datepicker();
+});
+
+$(document).ready(function() {
+    $('#id_date_notafter_lte').datepicker();
+});
+
 $(function(){
     $('#callpage').click(function(){
         var pagenumber = $('#pagenumber').val();
@@ -82,5 +156,9 @@ $(function(){
         }
     });
 });
+
+$(document).ready( function () {
+    $('#mainContent').DataTable();
+} );
 
 {% endblock %}

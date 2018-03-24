@@ -176,7 +176,7 @@ def get_cert_distribution_per_year(request):
 
 
 @cache_page(60*50)
-def get_active_keysize_distribution(request, ca_id=None, id_from=None):
+def get_active_keysize_distribution(request, ca_id=None, id_from=None, log_id=None):
     max_id = None
     
     with connection.cursor() as c:
@@ -197,6 +197,11 @@ def get_active_keysize_distribution(request, ca_id=None, id_from=None):
                 ca_id = int(ca_id)
                 command = "SELECT KEY_ALGORITHM, KEY_SIZE, count(*) AS count FROM certificate WHERE id <= %s AND issuer_ca_id=%s AND NOT_BEFORE <  NOW() and NOT_AFTER > NOW() GROUP BY KEY_SIZE, KEY_ALGORITHM ORDER BY count DESC;"
                 c.execute(command, [max_id, ca_id])
+                
+            if(log_id != None):
+                log_id = int(log_id)
+                command = "SELECT KEY_ALGORITHM, KEY_SIZE, count(*) AS count FROM certificate WHERE id IN (SELECT certificate_id FROM ct_log_entry WHERE ct_log_id IN (SELECT id FROM ct_log WHERE id=%s)) AND NOT_BEFORE <  NOW() and NOT_AFTER > NOW() GROUP BY KEY_SIZE, KEY_ALGORITHM ORDER BY count DESC;"
+                c.execute(command, [log_id])
             
             result = []
             other = 0
@@ -233,7 +238,7 @@ def get_active_keysize_distribution(request, ca_id=None, id_from=None):
         return HttpResponse(json.dumps({'max_id':max_id, 'data':result, 'aggregated':aggregate}))
 
 @cache_page(60*50)
-def get_signature_algorithm_distribution(request, ca_id=None, id_from=None):
+def get_signature_algorithm_distribution(request, ca_id=None, id_from=None, log_id=None):
     max_id = None
     
     algorithms = ["sha1WithRSAEncryption", "sha256WithRSAEncryption", "ecdsa-with-SHA256"]
@@ -257,6 +262,11 @@ def get_signature_algorithm_distribution(request, ca_id=None, id_from=None):
                 command = "SELECT date_trunc('month', NOT_BEFORE) AS month, SIGNATURE_ALGORITHM, count(*) AS count FROM certificate WHERE id <= %s AND issuer_ca_id = %s GROUP BY month, SIGNATURE_ALGORITHM ORDER BY month ASC;"
                 c.execute(command, [max_id, ca_id])
             
+            if(log_id != None):
+                log_id = int(log_id)
+                command = "SELECT date_trunc('month', NOT_BEFORE) AS month, SIGNATURE_ALGORITHM, count(*) AS count FROM certificate WHERE id IN (SELECT certificate_id FROM ct_log_entry WHERE ct_log_id IN (SELECT id FROM ct_log WHERE id=%s)) GROUP BY month, SIGNATURE_ALGORITHM ORDER BY month ASC;"
+                c.execute(command, [log_id])
+                
             table = {}
             for row in c.fetchall():
                 month = row[0].strftime("%Y-%m")

@@ -3,13 +3,151 @@
 {% block title %}Details for log {{log.url}}{% endblock %}
 
 {% block content %}
-  <p>This log is named {{log.name}} and located at {{log.url}}.
-  It has {{log.latest_entry_id}} entries. The log is operated by
-  {{log.operator}} and was last updated on {{log.latest_update}}.
-  New log entries will be incorporated with a maximum delay of
-  {{log.mmd_in_seconds}} second{{log.mmd_in_seconds|pluralize}}.
-  The latest tree hash has been produced at {{log.latest_sth_timestamp}}.</p>
+<br><br><br>
+
+
+   
   
-  <p>You can view all certificates incorporated in the log <a href="{% url 'observer:certs_by_log' log.id %}">here</a>.</p>
+  
+<p><a href="{% url 'observer:log' %}">« back to Certificate Log list</a></p>
+
+  <div class="card">
+    <div class="card-header">
+        <h4>{{log.name}}</h4>
+    </div>
+    <div class="card-block">
+        <dl>
+            <dt>url</dt>
+            <dd>{{log.url}}</dd>
+            <dt>Number of entries</dt>
+            <dd>{{log.latest_entry_id}}</dd>
+            <dt>Operated by</dt>
+            <dd>{{log.operator}}</dd>
+            <dt>Last update</dt>
+            <dd>{{log.latest_update}}</dd>
+            <dt>Maximum delay</dt>
+            <dd>{{log.mmd_in_seconds}} second{{log.mmd_in_seconds|pluralize}}</dd>
+            <dt>Latest tree hash</dt>
+            <dd>{{log.latest_sth_timestamp}}</dd>
+        </dl>
+    </div>
+    
+        <ul class="list-group list-group-flush">
+            <li class="list-group-item">This Certificate log has provided <a href="{% url 'observer:certs_by_log' log.id %}">{{number_of_issued_ca}} certificates</a>.</li>
+        </ul>
+  </div>
+  
+  
+  
+  <div class="card-block">
+     <h4 class="card-title">Most frequent signature algorithms</h4>
+     <div id="signaturealgorithmdiagram" class="diagram" style="height: 400px;">
+      <span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+      <svg></svg>
+     </div>
+  </div>
+	
+	
+	<div class="card-block">
+	 <h4 class="card-title">Most frequent key sizes</h4>
+	 <div id="keysizediagram" class="diagram">
+		<span class="spinner"><i class="fa fa-refresh fa-spin"></i> loading diagram data from server...</span>
+		<svg></svg>
+	 </div>
+	</div>
+  
 {% endblock %}
 
+{% block additionalscripts %}
+{% load staticfiles %}
+<script type="text/javascript" src="{% static 'js/ctobs-ca-chart.js' %}"></script>
+{% endblock %}
+
+{% block scripts %}
+
+$(function(){
+    
+    d3.json('/api/getsignaturealgorithmdistribution/log/{{log.id}}', function(error, data) {
+		d3.select('#signaturealgorithmdiagram .spinner').remove();
+		if(error){
+			d3.select('#signaturealgorithmdiagram').text("No data available.");
+		} else {
+			max_value = 0
+			data.data.forEach(function(entry){
+				last_element = entry.values[entry.values.length-1];
+				last_element_date = new Date(last_element[0].substr(0,4),
+							last_element[0].substr(5,2)).getTime();
+							if (last_element_date > max_value)
+								max_value = last_element_date;
+			});
+			
+			
+			var format = d3.time.format('%Y-%m');
+			nv.addGraph(function() {
+				chart = nv.models.stackedAreaWithFocusChart()
+				.options({
+					brushExtent: [ 1293836400000, max_value]
+				})
+				.useInteractiveGuideline(true)
+				.x(function(d) { return format.parse(d[0]); })
+				.y(function(d) { return d[1] })
+				//.controlLabels({stacked: "Stacked"})
+				.duration(300)
+				.margin({"left":60});
+				
+				chart.xAxis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
+				chart.x2Axis.tickFormat(function(d) { return d3.time.format('%Y-%m')(new Date(d)) });
+				chart.yAxis.tickFormat(d3.format('0,'));
+				d3.select('#signaturealgorithmdiagram svg')
+				.datum(data.data)
+				.transition().duration(1000)
+				.call(chart)
+				.each('start', function() {
+					setTimeout(function() {
+						d3.selectAll('#signaturealgorithmdiagram svg *').each(function() {
+							if(this.__transition__)
+								this.__transition__.duration = 1;
+						})
+					}, 0)
+				});
+				nv.utils.windowResize(chart.update);
+                
+				return chart;
+        });
+
+    };
+    
+    }),
+		
+		d3.json('/api/getactivekeysizedistribution/log/{{log.id}}', function(data) {
+		d3.select('#keysizediagram .spinner').remove();
+		nv.addGraph(function() {
+				var chart = nv.models.multiBarHorizontalChart()
+						.x(function(d) { return d.label })
+						.y(function(d) { return d.value })
+						.margin({top: 20, right: 40, bottom: 20, left: 20})
+						.showValues(true)
+						.showLegend(true)
+						.showXAxis(false)
+						.stacked(true)
+
+				chart.yAxis
+						.tickFormat(d3.format('d'));
+
+				chart.valueFormat(d3.format('d'));
+
+				d3.select('#keysizediagram svg')
+						.datum(data.data)
+						.call(chart);
+
+				nv.utils.windowResize(chart.update);
+
+				return chart;
+			});
+		})
+		
+		;});
+    
+       
+
+{% endblock %}

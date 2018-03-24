@@ -6,20 +6,40 @@
   {% if list_of_logs %}
       <ul>
       {% for log in list_of_logs %}
-          <div class="card card-block">
-		<h4 class="card-title">{{ log.name }} <small>{% if log.is_active %}<span style="color: green;"><i class="fa fa-check-circle" aria-hidden="true"></i> active</span>{% else %}<span style="color: #d40000;"><i class="fa fa-pause-circle" aria-hidden="true"></i> disabled</span>{% endif %}</small></h4>
-		<p class="card-text">{{log.operator}} – {{ log.url }}</p>
-		<p class="card-text">Maximum merge delay: {{log.mmd_in_seconds}} second{{log.mmd_in_seconds|pluralize}}</p>
-		<p class="card-text">Public Key: {{log.public_key_hex}}</p>
-		<p>Latest tree hash timestamp: {{log.latest_sth_timestamp}}</p>
-		<p>Last update: {{log.latest_update}}</p>
-		<p>Latest log size: {{log.latest_log_size}} ({{log.latest_log_size|add:"-1"}} certificates in the log)</p>
-		<a href="{% url 'observer:certs_by_log' log.id %}" class="card-link">View all {{log.latest_entry_id}} certificates in this log that we have fetched</a>
-	</div>
+    <div class="card card-block">
+		<div class="row">
+            <div class="col-sm-8">
+                <h4 class="card-title"><a href="{% url 'observer:logdetail' log.id %}">{{ log.name }}</a> <small>{% if log.is_active %}<span style="color: green;"><i class="fa fa-check-circle" aria-hidden="true"></i> active</span>{% else %}<span style="color: #d40000;"><i class="fa fa-pause-circle" aria-hidden="true"></i> disabled</span>{% endif %}</small></h4>
+                <p class="card-text">{{log.operator}} – {{ log.url }}</p>
+                <button id="pubkeyshowbutton{{ log.id }}"><p class="card-text">Public Key</p></button>
+				
+				<p class="card-text" id="pubkeyshowtext{{ log.id }}">{{log.public_key_hex}}</p><br>
+				
+                <a href="{% url 'observer:certs_by_log' log.id %}" class="card-link">View all {{log.latest_entry_id}} certificates in this log that we have fetched</a>
+            </div>
+        </div>
+    </div>
       {% endfor %}
       </ul>
   {% else %}
       <p>No log information available.</p>
   {% endif %}
+{% endblock %}
+
+{% block scripts %}
+
+{% for log in list_of_logs %}
+
+$(document).ready(function(){
+    $("#pubkeyshowtext{{ log.id }}").hide();
+});
+
+$(document).ready(function(){
+    $("#pubkeyshowbutton{{ log.id }}").click(function(){
+        $("#pubkeyshowtext{{ log.id }}").toggle();
+    });
+});
+{% endfor %}
+
 {% endblock %}
 

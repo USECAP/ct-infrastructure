@@ -2,9 +2,15 @@
 
 {% block title %}List of all certificates in {{log.url}}{% endblock %}
 
-{% block content %}
+{% load widget_tweaks %}
 
+{% block content %}
+<br><br>
 <p>These are all certificates of the log at {{log.url}}</p>
+  
+ 
+ 
+  
   
   {% if list_of_entries %}
       <table class="table table-striped table-sm">

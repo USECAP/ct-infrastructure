@@ -9,7 +9,11 @@
     <link rel="stylesheet" type="text/css" href="{% static "css/bootstrap.min.css" %}"/>
     <link rel="stylesheet" type="text/css" href="{% static "css/nv.d3.css" %}"/>
     <link rel="stylesheet" type="text/css" href="{% static "css/ng-table.min.css" %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static "css/jquery-ui.min.css" %}"/>
     <link rel="stylesheet" type="text/css" href="{% static "css/font-awesome.min.css" %}"/>
+    <link rel="stylesheet" type="text/css" href="//cdn.datatables.net/1.10.16/css/jquery.dataTables.css">
+    
+    
     <style type="text/css">{% block style %}{% endblock %}</style>
 </head>
 <body>
@@ -37,7 +41,7 @@
               <button class="btn btn-success-outline hidden-xs-down" type="submit">Search</button>
             </form>
             <div class="nav navbar-nav pull-right hidden-md-down" style="margin-right: 1em;">
-                <span class="nav-item nav-link hidden-md-down">Search in commonName/dnsName (wildcard: %) or CA names</span>
+                <span class="nav-item nav-link hidden-md-down">Search in commonName/dnsName (wildccsxcard: %) or CA names</span>
             </div>
         </nav>
 
@@ -48,6 +52,7 @@
         <footer id="footer"><div class="container">CT observatory | <a href="/imprint">Imprint</a></div></footer>
     </div>
     <script type="text/javascript" src="{% static "js/jquery.min.js" %}"></script>
+    <script type="text/javascript" src="{% static "js/jquery-ui.min.js" %}"></script>
     <script type="text/javascript" src="{% static "js/bootstrap.min.js" %}"></script>
     <script type="text/javascript" src="{% static "js/d3.js" %}"></script>
     <script type="text/javascript" src="{% static "js/nv.d3.js" %}"></script>
@@ -56,6 +61,11 @@
     <script type="text/javascript" src="{% static "js/ng-table.min.js" %}"></script>
     <script type="text/javascript" src="{% static "js/ng-observatory.js" %}"></script>
     <script type="text/javascript" src="{% static "js/gantt-chart-d3v2.js" %}"></script>
+    <script type="text/javascript" src="{% static "js/moment.js" %}"></script>
+    <script type="text/javascript" src="{% static "js/bootstrap-datetimepicker.min.js" %}"></script>
+    <script type="text/javascript" src="{% static "js/jquery.dataTables.js" %}"></script>
+    
+    
     {% block additionalscripts %}{% endblock %}
     <script type="text/javascript">
     {% block scripts %}{% endblock %}

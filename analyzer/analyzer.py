@@ -140,9 +140,9 @@ while True:
             Nthread.join()
             logging.debug("joined Nthread")
 
-    except Exception, e:
+    except Exception:
         logging.debug("EXCEPTION PANIC")
-        logging.exception(e)
+        
     
     statusdata = None
     

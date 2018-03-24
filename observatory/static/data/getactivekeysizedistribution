@@ -1,0 +1,12 @@
+{"aggregated": true, 
+"max_id": 596486519, 
+"data": [
+		{"values": [{"value": 26301071}], 
+		"key": "RSA-2048"}, 
+		{"values": [{"value": 4657121}], "key": "EC-256"},
+		{"values": [{"value": 1595662}], "key": "RSA-4096"}, 
+		{"values": [{"value": 18918}], "key": "RSA-3072"}, 
+		{"values": [{"value": 6877}], "key": "EC-384"}, 
+		{"values": [{"value": 5981}], "key": "other"}
+	]
+}

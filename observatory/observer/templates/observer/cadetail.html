@@ -44,7 +44,7 @@ text {
     </div>
     
         <ul class="list-group list-group-flush">
-            <li class="list-group-item">This CA has issued <a href="{% url 'observer:certs_by_ca' ca_id=ca.id %}"><span id="child_certificate_count"><i><i class="fa fa-refresh fa-spin"></i> counting…</i></span> certificates</a>.</li>
+            <li class="list-group-item">This CA has issued <a href="{% url 'observer:certs_by_ca' ca_id=ca.id %}">{{number_of_issued_ca}} certificates</a>.</li>
         </ul>
     
     <div class="card-block">

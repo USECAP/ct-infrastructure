@@ -12,7 +12,10 @@ from OpenSSL import crypto
 from django.db import models
 import codecs
 import re
-
+import django_filters
+from django import forms
+import datetime
+from django.db.models import Q
 
 class Ca(models.Model):
     country_name = models.TextField(blank=True, null=True)
@@ -41,14 +44,23 @@ class CaCertificate(models.Model):
         db_table = 'ca_certificate'
 
 
+class GetNameCert(models.Manager):
+        def subject_common_name(self):
+            cert = Certificate.get_x509_data()
+            return cert.get_subject().commonName
+            
+            
+
 class Certificate(models.Model):
+    
     certificate = models.BinaryField()
     issuer_ca = models.ForeignKey(Ca, models.DO_NOTHING)
     serial = models.BinaryField()
     sha256 = models.TextField(unique=True)
     not_before = models.DateTimeField(blank=True, null=True)
     not_after = models.DateTimeField(blank=True, null=True)
-
+    signature_algorithm = models.TextField(blank=True, null=True)
+    
     class Meta:
         managed = False
         db_table = 'certificate'
@@ -235,6 +247,100 @@ class Metadata(models.Model):
     name_type = models.TextField(unique=True, blank=True, null=True)
     name_value = models.IntegerField(blank=True, null=True)
 
-    class Meta:
+    class Meta: 
         managed = False
         db_table = 'metadata'
+        
+
+
+#Filters for all certificates page
+class CertFilter(django_filters.FilterSet):
+    
+    STATUS_CHOICES = (
+        (0,  'Expired'), 
+        (1,  'Active')
+    )
+    
+    issuer_ca = django_filters.CharFilter(name='issuer_ca__common_name',  lookup_expr='icontains')
+    
+    date_notbefore =     django_filters.DateTimeFilter(name='not_before', lookup_expr='date__lte',  widget=forms.DateInput(attrs={'class': 'datepicker'}))
+    date_notbefore_gte = django_filters.DateTimeFilter(name='not_before', lookup_expr='date__gte',  widget=forms.DateInput(attrs={'class': 'datepicker'}))
+    
+    date_notafter = django_filters.DateTimeFilter(name='not_after',  lookup_expr='date__gte',   widget=forms.DateInput(attrs={'class': 'datepicker'}))
+    date_notafter_lte = django_filters.DateTimeFilter(name='not_after',  lookup_expr='date__lte',   widget=forms.DateInput(attrs={'class': 'datepicker'}))
+    
+    is_active = django_filters.ChoiceFilter(method='filter_is_active',  choices=STATUS_CHOICES)
+    signature_algorithm = django_filters.CharFilter(name='signature_algorithm',  lookup_expr='icontains')
+
+  
+    class Meta:
+        model = Certificate
+        fields = {}
+    
+        
+    def filter_is_active(self,  queryset,  name,  value):
+        
+        if(value == "0"):
+            return queryset.filter(Q(not_after__lte=datetime.date.today()))
+        
+        if(value == "1"):    
+            return queryset.filter(Q(not_before__lte=datetime.date.today()) & Q(not_after__gte=datetime.date.today()))
+            
+            
+class CaFilter(django_filters.FilterSet):
+    
+    country = django_filters.CharFilter(method='ISO_to_normal')
+    common_name = django_filters.CharFilter(name='common_name',  lookup_expr='icontains')
+    locality_name = django_filters.CharFilter(name='locality_name',  lookup_expr='icontains')
+    org_name = django_filters.CharFilter(name='organization_name',  lookup_expr='icontains')
+    org_unit_name = django_filters.CharFilter(name='organizational_unit_name',  lookup_expr='icontains')
+    state_province = django_filters.CharFilter(name='state_or_province_name',  lookup_expr='icontains')
+
+    
+    class Meta:
+        model = Ca
+        fields = {}
+    
+    def ISO_to_normal(self,  queryset,  name,  value):
+        
+        dict = {
+        'China': 'CN'
+        }
+        
+        if value in dict: 
+            return queryset.filter(
+            Q(country_name__icontains=dict[value])
+            )
+        else:
+            return queryset.filter()
+        
+
+#               
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            

@@ -1,3 +1,4 @@
+cffi
 django
 psycopg2
 pyopenssl
@@ -5,3 +6,6 @@ pyparsing
 appdirs
 py-dateutil
 django-analytical
+django-filter
+django-widget-tweaks
+
