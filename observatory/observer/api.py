@@ -1,4 +1,4 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404
 from django.db.models import Count
 from django.db import connection
@@ -7,6 +7,7 @@ from django.core.paginator import Paginator
 import json
 import datetime
 import logging
+import psycopg2
 
 from .models import Ca, Certificate, CaCertificate, CtLog
 
@@ -562,10 +563,13 @@ def get_last_certificates_for_dnsname(request, term, limit=5):
     return HttpResponse(json.dumps(result))
 
 
-def certcheck(request, data=None):
+def certcheck(request):
+    
+    data = '2582852852FF'
 
     sqlQuery = """SELECT id FROM certificate WHERE serial=%s"""
     sqlQuery_commonName = """SELECT * FROM ca WHERE """
+    
     
     current_time = str(datetime.datetime.now())
         
@@ -576,5 +580,7 @@ def certcheck(request, data=None):
         sqlData = (psycopg2.Binary(serial),)
         c.execute(sqlQuery, sqlData)
         result = c.fetchone()
+        
+        result = request.body
     
     return HttpResponse(result)
