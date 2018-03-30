@@ -282,9 +282,9 @@ $(function(){
                         
                         
                         if(typeof match_key[1] == 'undefined')
-                            link = "https://localhost/cert/all/1?issuer_ca=&date_notbefore=" + partsArray[1] + "%2F31%2F" + partsArray[0] + "&date_notafter=&is_active=&algorithm=" + match_key[2] + "&date_notbefore_gte=" + partsArray[1] + "%2F01%2F" + partsArray[0];
+                            link = "https://www.ct-observatory.org/cert/all/1?issuer_ca=&date_notbefore=" + partsArray[1] + "%2F31%2F" + partsArray[0] + "&date_notafter=&is_active=&algorithm=" + match_key[2] + "&date_notbefore_gte=" + partsArray[1] + "%2F01%2F" + partsArray[0];
                         else
-                            link = "https://localhost/cert/all/1?issuer_ca=&date_notbefore=" + partsArray[1] + "%2F31%2F" + partsArray[0] + "&date_notafter=&is_active=&algorithm=" + match_key[1] + "&date_notbefore_gte=" + partsArray[1] + "%2F01%2F" + partsArray[0];
+                            link = "https://www.ct-observatory.org/cert/all/1?issuer_ca=&date_notbefore=" + partsArray[1] + "%2F31%2F" + partsArray[0] + "&date_notafter=&is_active=&algorithm=" + match_key[1] + "&date_notbefore_gte=" + partsArray[1] + "%2F01%2F" + partsArray[0];
                         window.open( link, "_blank" );
                         
                         console.log(d3.event.path["0"].style.fill, match_key[1]);
