@@ -36,8 +36,8 @@ class Ca(models.Model):
         return codecs.encode(self.public_key, 'hex')
 
 class CaCertificate(models.Model):
-    certificate = models.ForeignKey('Certificate', models.DO_NOTHING, blank=True, null=True)
-    ca = models.ForeignKey(Ca, models.DO_NOTHING, blank=True, null=True)
+    certificate = models.ForeignKey('Certificate', blank=True, null=True)
+    ca = models.ForeignKey(Ca, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -54,7 +54,7 @@ class GetNameCert(models.Manager):
 class Certificate(models.Model):
     
     certificate = models.BinaryField()
-    issuer_ca = models.ForeignKey(Ca, models.DO_NOTHING)
+    issuer_ca = models.ForeignKey(Ca)
     serial = models.BinaryField()
     sha256 = models.TextField(unique=True)
     not_before = models.DateTimeField(blank=True, null=True)
@@ -189,7 +189,7 @@ class Certificate(models.Model):
 
 
 class CertificateIdentity(models.Model):
-    certificate = models.ForeignKey(Certificate, models.DO_NOTHING)
+    certificate = models.ForeignKey(Certificate)
     name_type = models.TextField()  # This field type is a guess.
     name_value = models.TextField()
     
@@ -222,8 +222,8 @@ class CtLog(models.Model):
 
 
 class CtLogEntry(models.Model):
-    certificate = models.ForeignKey('Certificate', models.DO_NOTHING, blank=True, null=True)
-    ct_log = models.ForeignKey('CtLog', models.DO_NOTHING, blank=True, null=True)
+    certificate = models.ForeignKey('Certificate', blank=True, null=True)
+    ct_log = models.ForeignKey('CtLog', blank=True, null=True)
     entry_id = models.IntegerField(blank=True, null=True)
     entry_timestamp = models.DateTimeField(blank=True, null=True)
 
@@ -234,7 +234,7 @@ class CtLogEntry(models.Model):
 
 
 class RevokedCertificate(models.Model):
-    certificate = models.ForeignKey('Certificate', models.DO_NOTHING, blank=True, null=True)
+    certificate = models.ForeignKey('Certificate', blank=True, null=True)
     date = models.DateTimeField(blank=True, null=True)
     reason = models.TextField(blank=True, null=True)
 
