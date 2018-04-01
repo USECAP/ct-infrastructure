@@ -1,5 +1,5 @@
 cffi
-django==1.8.5
+django==1.9
 psycopg2
 pyopenssl
 pyparsing
