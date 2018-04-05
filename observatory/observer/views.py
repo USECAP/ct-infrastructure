@@ -170,10 +170,9 @@ def certall(request, page=None, ae=None): #VIEW FOR Certificates->ALL
 
     filtered_qs = CertFilter(
                       request.GET, 
-                      queryset=Certificate.objects.all()
+                      queryset=FastCountQuerySet(Certificate.objects.all(), 'certificate')
                   )
        
- 
 
     paginator = Paginator(filtered_qs.qs, ITEMS_PER_PAGE)
     page = request.GET.get('page')
