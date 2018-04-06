@@ -583,4 +583,4 @@ def certcheck(request):
         
         result = request.body
     
-    return HttpResponse(result)
+    return HttpResponse("result")
