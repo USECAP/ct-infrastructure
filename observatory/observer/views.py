@@ -170,7 +170,7 @@ def certall(request, page=None, ae=None): #VIEW FOR Certificates->ALL
 
     filtered_qs = CertFilter(
                       request.GET, 
-                      queryset=FastCountQuerySet(Certificate.objects.all().order_by('-id')[:80000], 'certificate')
+                      queryset=FastCountQuerySet(Certificate.objects.all().order_by('-id'), 'certificate')
                   )
        
 
