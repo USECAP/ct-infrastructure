@@ -427,6 +427,7 @@ def status(request):
         
     return render(request, 'observer/status.html', {'status':status})
 
+@csrf_exempt
 def certcheck(request):
     
     if request.method == 'POST':
