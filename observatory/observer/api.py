@@ -545,7 +545,7 @@ def search_certificate_by_fingerprint(request, fingerprint):
 def get_last_certificates_for_dnsname(request, term, limit=5):
     if limit > 20:
         limit = 20
-    found_cn_dnsname = Certificate.objects.raw("SELECT DISTINCT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID, c.NOT_BEFORE FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE (NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) OR (NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) ORDER BY NOT_BEFORE DESC LIMIT %s", [term, term, limit])
+    found_cn_dnsname = Certificate.objects.raw("SELECT DISTINCT c.ID, c.CERTIFICATE, c.ISSUER_CA_ID, c.NOT_BEFORE FROM certificate_identity AS ci JOIN certificate AS c ON ci.CERTIFICATE_ID=c.ID WHERE (NAME_TYPE='dNSName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) OR (NAME_TYPE='commonName' AND reverse(lower(NAME_VALUE)) LIKE reverse(lower(%s))) ORDER BY NOT_BEFORE DESC LIMIT %s",[term, term, limit])
     print(term, limit, found_cn_dnsname)
     result = []
     for cert in found_cn_dnsname:
@@ -575,12 +575,12 @@ def certcheck(request):
         
     serial_int = int(data, 16)
     serial = serial_int.to_bytes((serial_int.bit_length() + 15) // 8, 'big', signed=True) or b'\0'
+    sqlData = (psycopg2.Binary(serial),)
     
-    with connection.cursor() as c:
-        sqlData = (psycopg2.Binary(serial),)
-        c.execute(sqlQuery, sqlData)
-        result = c.fetchone()
-        
-        result = request.body
+    found_serial = Certificate.objects.raw(sqlQuery, sqlData)
     
-    return HttpResponse("result")
+    if(found_serial):
+        return HttpResponse(found_serial)
+    
+    
+    return HttpResponse("NOT FOUND (!!!)")

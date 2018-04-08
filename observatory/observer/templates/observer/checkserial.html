@@ -1,0 +1,5 @@
+<form id="certcheck_form" method="post" action="/">
+    {% csrf_token %}
+    <input type="hidden" name="serial" value="" />
+    <a href="#" onclick="document.forms[0].submit();return false;">Let's go!</a>
+</form>
