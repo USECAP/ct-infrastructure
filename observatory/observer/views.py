@@ -156,13 +156,18 @@ def caall(request, page=None): #VIEW FOR CAs
         }
     )
 
-def certall(request, page=None, ae=None): #VIEW FOR Certificates->ALL
+def certall(request, page=None, ae=None, issuer_ca=None): #VIEW FOR Certificates->ALL
 
     if(page==None):
         return HttpResponsePermanentRedirect("all/1")
 
-    ae = request.GET.get("algorithm")
-    
+    ae =                 request.GET.get("algorithm")
+    issuer_ca =          request.GET.get("issuer_ca")
+    date_notbefore =     request.GET.get("date_notbefore")
+    date_notbefore_gte = request.GET.get("date_notbefore_gte")
+    is_active =          request.GET.get("is_active")
+    date_notafter =      request.GET.get("date_notafter")
+    date_notafter_lte =  request.GET.get("date_notafter_lte")
         
     page = int(page)
 
@@ -170,12 +175,28 @@ def certall(request, page=None, ae=None): #VIEW FOR Certificates->ALL
 
     filtered_qs = CertFilter(
                       request.GET, 
-                      queryset=FastCountQuerySet(Certificate.objects.all().order_by('-id'), 'certificate')
+                      queryset=MetadataCountQuerySet(Certificate.objects.all().order_by('-id'), 'certificate')
                   )
-       
+     
 
     paginator = Paginator(filtered_qs.qs, ITEMS_PER_PAGE)
     page = request.GET.get('page')
+
+
+    
+    #Alternative filter solution for better performance
+    #https://localhost/cert/all/1?issuer_ca=merge&date_notbefore=&date_notbefore_gte=&is_active=&date_notafter=&date_notafter_lte=
+    if(issuer_ca != None):
+        query = Certificate.objects.filter(issuer_ca__common_name__contains = issuer_ca)
+        paginator = Paginator(query, ITEMS_PER_PAGE)
+    
+    if(issuer_ca == ""):
+        query = FastCountQuerySet(Certificate.objects.all(), 'certificate')
+        paginator = Paginator(query, ITEMS_PER_PAGE)
+        
+        
+    ####################################################
+      
 
     try:
         list_of_certs = paginator.page(page)
