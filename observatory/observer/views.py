@@ -192,13 +192,41 @@ def certall(request, page=None, ae=None, issuer_ca=None): #VIEW FOR Certificates
     query = FastCountQuerySet(Certificate.objects.all().order_by('-id'), 'certificate')
     paginator = Paginator(query, ITEMS_PER_PAGE)
     
-    if(issuer_ca != None):
-        query = FastCountQuerySet(Certificate.objects.filter(issuer_ca__common_name__contains = issuer_ca), 'certificate')
-        paginator = Paginator(query, ITEMS_PER_PAGE)
+    if(is_active == "1" or is_active == "" or is_active == None):
+        if(issuer_ca != None and (is_active == None or is_active == "")):
+            query = FastCountQuerySet(Certificate.objects.filter(issuer_ca__common_name__contains = issuer_ca), 'certificate')
+            paginator = Paginator(query, ITEMS_PER_PAGE)
+        
+        if(is_active != None and (issuer_ca == None or issuer_ca == "")):
+            query = FastCountQuerySet(Certificate.objects.filter(not_before__lte=timezone.now(), not_after__gte=timezone.now()), 'certificate')
+        
+        if(issuer_ca == "" and is_active == ""):
+            query = FastCountQuerySet(Certificate.objects.all(), 'certificate')
+            paginator = Paginator(query, ITEMS_PER_PAGE)
+        
+        if(is_active != None and issuer_ca != None ):    
+            query = FastCountQuerySet(Certificate.objects.filter(
+                issuer_ca__common_name__contains = issuer_ca,
+                not_before__lte=timezone.now(), not_after__gte=timezone.now(), ), 'certificate')
+            paginator = Paginator(query, ITEMS_PER_PAGE)
     
-    if(issuer_ca == ""):
-        query = FastCountQuerySet(Certificate.objects.all(), 'certificate')
-        paginator = Paginator(query, ITEMS_PER_PAGE)
+    if(is_active == "0" or is_active == "" or is_active == None):
+        if(issuer_ca != None and (is_active == None or is_active == "")):
+            query = FastCountQuerySet(Certificate.objects.filter(issuer_ca__common_name__contains = issuer_ca), 'certificate')
+            paginator = Paginator(query, ITEMS_PER_PAGE)
+        
+        if(is_active != None and (issuer_ca == None or issuer_ca == "")):
+            query = FastCountQuerySet(Certificate.objects.filter(not_after__lte=datetime.date.today()), 'certificate')
+        
+        if(issuer_ca == "" and is_active == ""):
+            query = FastCountQuerySet(Certificate.objects.all(), 'certificate')
+            paginator = Paginator(query, ITEMS_PER_PAGE)
+        
+        if(is_active != None and issuer_ca != None ):    
+            query = FastCountQuerySet(Certificate.objects.filter(
+                issuer_ca__common_name__contains = issuer_ca,
+                not_after__lte=datetime.date.today() ), 'certificate')
+            paginator = Paginator(query, ITEMS_PER_PAGE)
         
         
     ####################################################
