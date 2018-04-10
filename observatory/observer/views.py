@@ -193,7 +193,7 @@ def certall(request, page=None, ae=None, issuer_ca=None): #VIEW FOR Certificates
     paginator = Paginator(query, ITEMS_PER_PAGE)
     
     if(issuer_ca != None):
-        query = Certificate.objects.filter(issuer_ca__common_name__contains = issuer_ca)
+        query = FastCountQuerySet(Certificate.objects.filter(issuer_ca__common_name__contains = issuer_ca), 'certificate')
         paginator = Paginator(query, ITEMS_PER_PAGE)
     
     if(issuer_ca == ""):
