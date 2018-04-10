@@ -189,7 +189,7 @@ def certall(request, page=None, ae=None, issuer_ca=None): #VIEW FOR Certificates
     #Alternative filter solution for better performance
     #https://localhost/cert/all/1?issuer_ca=merge&date_notbefore=&date_notbefore_gte=&is_active=&date_notafter=&date_notafter_lte=
     
-    query = Certificate.objects.all().order_by('-id')
+    query = FastCountQuerySet(Certificate.objects.all().order_by('-id'), 'certificate')
     paginator = Paginator(query, ITEMS_PER_PAGE)
     
     if(issuer_ca != None):
