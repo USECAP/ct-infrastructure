@@ -26,7 +26,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEBUG = True
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-CSRF_TRUSTED_ORIGINS = ['ct-observatory.org']
+CSRF_TRUSTED_ORIGINS = ['www.ct-observatory.org']
 
 ALLOWED_HOSTS = ['ct-observatory.org','www.ct-observatory.org','localhost', '127.0.0.1','ctobservatory']
 

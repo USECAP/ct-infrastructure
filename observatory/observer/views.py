@@ -411,8 +411,8 @@ def list_dnsname_certs(request, dnsname):
 def log(request): #LOG VIEW
     return render(request, 'observer/logs.html',
         {
-            'list_of_logs': CtLog.objects.all().annotate(entries=Count('ctlogentry')).order_by('latest_entry_id')
-            #'list_of_logs': CtLog.objects.all().order_by('-is_active','-latest_entry_id','name')
+            #'list_of_logs': CtLog.objects.all().annotate(entries=Count('ctlogentry')).order_by('latest_entry_id')
+            'list_of_logs': CtLog.objects.all().order_by('-is_active','-latest_entry_id','name')
         }
     )
 
@@ -505,6 +505,8 @@ def certcheck(request):
         
         if(found_serial):
             return HttpResponse(flag)
+        else:
+            return HttpResponse("none")
         
 
     return render(request, 'observer/checkserial.html', {})
