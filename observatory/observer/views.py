@@ -16,6 +16,7 @@ from notification.forms import SubscribeUnsubscribeForm
 import observer.issuefinder as issuefinder
 from django.template.defaulttags import register
 import hashlib
+import psycopg2
 ITEMS_PER_PAGE = 50
 
 @register.filter
