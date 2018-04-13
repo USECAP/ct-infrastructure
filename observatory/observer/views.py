@@ -488,9 +488,7 @@ def certcheck(request):
     
     if request.method == 'POST':
         
-        flag = request.POST['serial']
-    
-        data = '2582852852FF'
+        serial_post = request.POST['serial']
     
         sqlQuery = """SELECT id FROM certificate WHERE serial=%s"""
         sqlQuery_commonName = """SELECT * FROM ca WHERE """
@@ -498,14 +496,14 @@ def certcheck(request):
         
         current_time = str(datetime.datetime.now())
             
-        serial_int = int(data, 16)
+        serial_int = int(serial_post, 16)
         serial = serial_int.to_bytes((serial_int.bit_length() + 15) // 8, 'big', signed=True) or b'\0'
         sqlData = (psycopg2.Binary(serial),)
         
         found_serial = Certificate.objects.raw(sqlQuery, sqlData)
         
         if(found_serial):
-            return HttpResponse(flag)
+            return HttpResponse(found_serial)
         else:
             return HttpResponse("none")
         
