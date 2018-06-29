@@ -28,7 +28,7 @@ def connectToDatabase(name="certwatch", user="postgres", host="localhost"):
 
 
 
-def monitor(database, log_id=None):
+def monitor(database, log_id=None): ##Start point
     logger.debug("Retrieving new log entries")
     newLogEntries = database.retrieveNewLogEntries(log_id=log_id)
     logger.debug("Populating new log entries")
@@ -103,12 +103,12 @@ class _LocalDatabase:
                 self.cursor.execute("""SELECT ID, URL, NAME, PUBLIC_KEY, LATEST_ENTRY_ID, 
                 LATEST_UPDATE, OPERATOR, IS_ACTIVE, LATEST_STH_TIMESTAMP, MMD_IN_SECONDS 
                 FROM ct_log as ctl 
-                WHERE ctl.id = %s""", [log_id])
+                WHERE ctl.id = %s FOR UPDATE""", [log_id])
             else:
                 self.cursor.execute("""SELECT ID, URL, NAME, PUBLIC_KEY, LATEST_ENTRY_ID, 
                 LATEST_UPDATE, OPERATOR, IS_ACTIVE, LATEST_STH_TIMESTAMP, MMD_IN_SECONDS 
                 FROM ct_log as ctl 
-                WHERE ctl.IS_ACTIVE""")
+                WHERE ctl.IS_ACTIVE FOR UPDATE""")
             
             activeLogServerEntries = self.cursor.fetchall()
 
@@ -124,9 +124,6 @@ class _LocalDatabase:
             return activeLogServers
 
 
-
-
-
     def requestNewEntriesFromServer(self, logServerEntry):
         requestedEntries = []
         
@@ -138,6 +135,7 @@ class _LocalDatabase:
             requestURL = (logServerEntry.url + "/ct/v1/get-entries?start=" +
                             str(logServerEntry.latest_entry_id + 1) + "&end=" +
                             str(min(logServerEntry.latest_entry_id + 1000, sthOfLogServer.treeSize-1)))
+            logger.debug("/***********************/ REQUEST is {}".format(requestURL))
             metadata = {'ct_log_id':logServerEntry.ct_log_id, 'first_entry_id':logServerEntry.latest_entry_id + 1}
             requestedEntries = self.requestEntries(requestURL, metadata)
 
@@ -433,7 +431,10 @@ class _LocalDatabase:
         activeLogServers = self.getActiveLogServers(log_id)
         
         for logServer in activeLogServers:
+            
             sqlQuery = "UPDATE ct_log SET LATEST_UPDATE=NOW(), LATEST_ENTRY_ID=(SELECT MAX(ENTRY_ID) FROM ct_log_entry WHERE CT_LOG_ID=%s) WHERE ID=%s RETURNING LATEST_ENTRY_ID"
+            
+            
             sqlData = (logServer.ct_log_id, logServer.ct_log_id)
             self.cursor.execute(sqlQuery, sqlData)
             latest_entry_id = self.cursor.fetchone()[0]
